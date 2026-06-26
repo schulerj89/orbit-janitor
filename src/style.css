@@ -1,0 +1,159 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: #02040a;
+  color: #f8fbff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #02040a;
+}
+
+#game-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+#game-canvas:focus {
+  outline: none;
+}
+
+#hud-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  color: #edf7ff;
+}
+
+.hud-panel {
+  position: absolute;
+  left: clamp(12px, 3vw, 28px);
+  padding: 0;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 80%);
+}
+
+.hud-main {
+  top: clamp(12px, 3vw, 26px);
+}
+
+.hud-controls {
+  bottom: clamp(12px, 3vw, 26px);
+  max-width: min(520px, calc(100vw - 24px));
+  color: #a9bed0;
+  font-size: clamp(0.76rem, 1.8vw, 0.92rem);
+  line-height: 1.55;
+}
+
+.hud-title {
+  margin: 0 0 8px;
+  font-size: clamp(1.1rem, 3.2vw, 1.8rem);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.hud-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-height: 24px;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: clamp(0.82rem, 2vw, 1rem);
+}
+
+.hud-label {
+  color: #8ba7bd;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75em;
+}
+
+.hud-value {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.hud-row.is-hot .hud-value {
+  color: #ffc857;
+}
+
+.hud-status {
+  margin-top: 6px;
+}
+
+.hud-meter {
+  width: min(210px, calc(100vw - 56px));
+  height: 6px;
+  margin: 2px 0 8px;
+  overflow: hidden;
+  border: 1px solid rgb(143 232 255 / 20%);
+  border-radius: 999px;
+  background: rgb(8 21 32 / 72%);
+}
+
+.hud-meter span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 110ms linear;
+}
+
+.hud-meter-combo span {
+  background: linear-gradient(90deg, #ff9d35, #ffe06b);
+}
+
+.hud-meter-boost span {
+  background: linear-gradient(90deg, #2ce7ff, #9fffee);
+}
+
+.hud-value.is-empty {
+  color: #ff8e78;
+}
+
+.game-over {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(420px, calc(100vw - 32px));
+  min-height: 180px;
+  place-items: center;
+  padding: 28px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgb(116 221 255 / 30%);
+  border-radius: 8px;
+  background: rgb(4 10 18 / 82%);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+  text-align: center;
+}
+
+.game-over[hidden] {
+  display: none;
+}
+
+.game-over-title {
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 3.6rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.game-over-score,
+.game-over-restart {
+  margin: 0;
+  color: #d2e8f4;
+  font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+}
