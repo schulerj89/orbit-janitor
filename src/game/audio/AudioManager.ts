@@ -16,6 +16,9 @@ interface ToneOptions {
 
 const MUSIC_ENABLED_STORAGE_KEY = 'orbit-janitor.musicEnabled';
 const SFX_ENABLED_STORAGE_KEY = 'orbit-janitor.sfxEnabled';
+const MUSIC_VOLUME_STORAGE_KEY = 'orbit-janitor.musicVolume';
+const DEFAULT_MUSIC_VOLUME = 1;
+const MUSIC_VOLUME_MAX = 1.25;
 
 export class AudioManager {
   private context: AudioContext | null = null;
@@ -34,6 +37,12 @@ export class AudioManager {
   private started = false;
   private musicEnabled = readStoredBoolean(MUSIC_ENABLED_STORAGE_KEY, true);
   private sfxEnabled = readStoredBoolean(SFX_ENABLED_STORAGE_KEY, true);
+  private musicVolume = readStoredNumber(
+    MUSIC_VOLUME_STORAGE_KEY,
+    DEFAULT_MUSIC_VOLUME,
+    0,
+    MUSIC_VOLUME_MAX
+  );
 
   start(): void {
     this.unlock();
@@ -63,9 +72,9 @@ export class AudioManager {
     this.sfxGain = this.context.createGain();
     this.musicGain = this.context.createGain();
 
-    this.masterGain.gain.value = 0.18;
+    this.masterGain.gain.value = 0.2;
     this.sfxGain.gain.value = 1;
-    this.musicGain.gain.value = 0.42;
+    this.musicGain.gain.value = this.musicVolume;
     this.sfxGain.connect(this.masterGain);
     this.musicGain.connect(this.masterGain);
     this.masterGain.connect(this.context.destination);
@@ -81,6 +90,10 @@ export class AudioManager {
 
   isSfxEnabled(): boolean {
     return this.sfxEnabled;
+  }
+
+  getMusicVolume(): number {
+    return this.musicVolume;
   }
 
   isUnlocked(): boolean {
@@ -101,6 +114,10 @@ export class AudioManager {
 
   getAudioBuffer(id: AudioAssetId): AudioBuffer | null {
     return this.buffers.get(id) ?? null;
+  }
+
+  getLoadedAssetIds(): AudioAssetId[] {
+    return [...this.buffers.keys()];
   }
 
   whenAssetsLoaded(): Promise<void> {
@@ -132,6 +149,17 @@ export class AudioManager {
     if (!enabled) {
       this.playBoostLoopStop();
     }
+  }
+
+  setMusicVolume(volume: number): void {
+    this.musicVolume = Math.max(0, Math.min(MUSIC_VOLUME_MAX, volume));
+    writeStoredNumber(MUSIC_VOLUME_STORAGE_KEY, this.musicVolume);
+    this.applyMusicVolume();
+  }
+
+  adjustMusicVolume(delta: number): number {
+    this.setMusicVolume(this.musicVolume + delta);
+    return this.musicVolume;
   }
 
   toggleMusic(): boolean {
@@ -577,6 +605,20 @@ export class AudioManager {
     this.musicFallbackGain = gain;
   }
 
+  private applyMusicVolume(): void {
+    const context = this.getContext();
+
+    if (!context || !this.musicGain) {
+      return;
+    }
+
+    const now = context.currentTime;
+
+    this.musicGain.gain.cancelScheduledValues(now);
+    this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
+    this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, now + 0.05);
+  }
+
   private playTone(options: ToneOptions): void {
     const context = this.getContext();
     const sfxGain = this.sfxGain;
@@ -671,9 +713,39 @@ function readStoredBoolean(key: string, fallback: boolean): boolean {
   }
 }
 
+function readStoredNumber(
+  key: string,
+  fallback: number,
+  min: number,
+  max: number
+): number {
+  try {
+    const storedValue = window.localStorage.getItem(key);
+
+    if (storedValue === null) {
+      return fallback;
+    }
+
+    const parsedValue = Number(storedValue);
+    return Number.isFinite(parsedValue)
+      ? Math.max(min, Math.min(max, parsedValue))
+      : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function writeStoredBoolean(key: string, value: boolean): void {
   try {
     window.localStorage.setItem(key, String(value));
+  } catch {
+    // Preferences should not affect playability if storage is unavailable.
+  }
+}
+
+function writeStoredNumber(key: string, value: number): void {
+  try {
+    window.localStorage.setItem(key, value.toFixed(2));
   } catch {
     // Preferences should not affect playability if storage is unavailable.
   }

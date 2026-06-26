@@ -56,6 +56,7 @@ npm run preview
 - U: open upgrades from the title screen or game over
 - 1-6: buy upgrades while the upgrade panel is open
 - M: toggle music
+- - / =: lower or raise music volume
 - N: toggle SFX
 
 ## Current Features
@@ -81,6 +82,7 @@ npm run preview
 - Lightweight procedural audio with Web Audio after first input
 - Optional static SFX and layered music files under `public/audio`
 - MusicDirector support for title ambience, sector drive loops, danger layering, and mission/game-over stingers
+- Persistent music volume controls for making static music prominent over SFX
 - Dynamic obstacle pacing as score increases
 - Timed hazard telegraphs that warn before becoming dangerous
 - Hazard patterns include lane arcs, double lane arcs, sweepers, gate gaps, pulse mines, and debris showers

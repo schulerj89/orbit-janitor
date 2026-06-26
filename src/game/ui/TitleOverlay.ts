@@ -7,6 +7,7 @@ export interface TitleOverlaySnapshot {
   dailySeed: string;
   dailyBestScore: number;
   musicEnabled: boolean;
+  musicVolume: number;
   sfxEnabled: boolean;
 }
 
@@ -16,6 +17,7 @@ export class TitleOverlay {
   private readonly dailySeedValue: HTMLElement;
   private readonly dailyBestValue: HTMLElement;
   private readonly musicValue: HTMLElement;
+  private readonly musicVolumeValue: HTMLElement;
   private readonly sfxValue: HTMLElement;
 
   constructor(root: HTMLElement) {
@@ -56,7 +58,7 @@ export class TitleOverlay {
           </div>
           <p class="title-overlay-start">Enter sector | T training | C sector select | D daily</p>
           <p class="title-overlay-footer">
-            Audio starts after first input | M toggles music (<span data-title-music>On</span>) | N toggles SFX (<span data-title-sfx>On</span>)
+            Audio starts after first input | M music (<span data-title-music>On</span> <span data-title-music-volume>100%</span>) | - = volume | N SFX (<span data-title-sfx>On</span>)
           </p>
         </section>
       `
@@ -67,6 +69,7 @@ export class TitleOverlay {
     this.dailySeedValue = getElement(root, '[data-title-daily-seed]');
     this.dailyBestValue = getElement(root, '[data-title-daily-best]');
     this.musicValue = getElement(root, '[data-title-music]');
+    this.musicVolumeValue = getElement(root, '[data-title-music-volume]');
     this.sfxValue = getElement(root, '[data-title-sfx]');
   }
 
@@ -75,6 +78,7 @@ export class TitleOverlay {
     this.dailySeedValue.textContent = snapshot.dailySeed;
     this.dailyBestValue.textContent = String(snapshot.dailyBestScore);
     this.musicValue.textContent = snapshot.musicEnabled ? 'On' : 'Off';
+    this.musicVolumeValue.textContent = `${Math.round(snapshot.musicVolume * 100)}%`;
     this.sfxValue.textContent = snapshot.sfxEnabled ? 'On' : 'Off';
     this.setVisible(snapshot.state === 'title' && !snapshot.upgradePanelOpen);
   }

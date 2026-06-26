@@ -102,6 +102,7 @@ interface OrbitJanitorDebugState {
   scrap: number;
   shieldCharges: number;
   musicEnabled: boolean;
+  musicVolume: number;
   musicDangerIntensity: number;
   sfxEnabled: boolean;
   playerAngle: number;
@@ -291,6 +292,16 @@ export class Game {
     if (input.musicTogglePressed) {
       const musicEnabled = !this.music.isMusicEnabled();
       this.music.setMusicEnabled(musicEnabled);
+      this.audio.playUiSelect();
+    }
+
+    if (input.musicVolumeDownPressed) {
+      this.music.adjustMusicVolume(-0.1);
+      this.audio.playUiSelect();
+    }
+
+    if (input.musicVolumeUpPressed) {
+      this.music.adjustMusicVolume(0.1);
       this.audio.playUiSelect();
     }
 
@@ -1376,6 +1387,8 @@ export class Game {
       input.helpTogglePressed ||
       input.tutorialSkipPressed ||
       input.musicTogglePressed ||
+      input.musicVolumeDownPressed ||
+      input.musicVolumeUpPressed ||
       input.sfxTogglePressed ||
       input.upgradeTogglePressed ||
       input.upgradeBuyPressed !== null
@@ -1459,6 +1472,7 @@ export class Game {
       shieldBroken: this.shieldBrokenTimer > 0,
       gameOverReason: this.gameOverReason,
       musicEnabled: this.audio.isMusicEnabled(),
+      musicVolume: this.music.getMusicVolume(),
       sfxEnabled: this.audio.isSfxEnabled()
     });
     this.sectorSelectOverlay.update({
@@ -1483,6 +1497,7 @@ export class Game {
       dailySeed: challenge.dailySeed,
       dailyBestScore: challenge.dailyBestScore,
       musicEnabled: this.audio.isMusicEnabled(),
+      musicVolume: this.music.getMusicVolume(),
       sfxEnabled: this.audio.isSfxEnabled()
     });
     this.runSummary.update({
@@ -1602,6 +1617,7 @@ export class Game {
       scrap: this.upgrades.getSnapshot().totalScrap,
       shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
+      musicVolume: this.music.getMusicVolume(),
       musicDangerIntensity: this.musicDangerIntensity,
       sfxEnabled: this.audio.isSfxEnabled(),
       playerAngle: this.player.angle,
@@ -1616,7 +1632,7 @@ export class Game {
       upgrades: this.upgrades.getSnapshot(),
       playerPosition: this.player.getPosition(this.playerPosition).toArray(),
       cameraPosition: this.camera.position.toArray(),
-      loadedAssetIds: [],
+      loadedAssetIds: this.audio.getLoadedAssetIds(),
       renderInfo: {
         calls: this.renderer.info.render.calls,
         triangles: this.renderer.info.render.triangles,
@@ -1664,8 +1680,10 @@ export class Game {
     this.canvas.dataset.shieldCharges = String(this.shieldCharges);
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);
     this.canvas.dataset.musicEnabled = String(this.audio.isMusicEnabled());
+    this.canvas.dataset.musicVolume = this.music.getMusicVolume().toFixed(2);
     this.canvas.dataset.musicDangerIntensity = this.musicDangerIntensity.toFixed(3);
     this.canvas.dataset.sfxEnabled = String(this.audio.isSfxEnabled());
+    this.canvas.dataset.loadedAudioAssets = this.audio.getLoadedAssetIds().join(',');
     this.canvas.dataset.objectiveComplete = String(
       objective.isComplete && !objective.isEndless
     );
@@ -1734,6 +1752,8 @@ function createNeutralInputState(): InputState {
     helpTogglePressed: false,
     tutorialSkipPressed: false,
     musicTogglePressed: false,
+    musicVolumeDownPressed: false,
+    musicVolumeUpPressed: false,
     sfxTogglePressed: false,
     upgradeTogglePressed: false,
     upgradeBuyPressed: null

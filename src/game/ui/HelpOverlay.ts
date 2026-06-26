@@ -42,6 +42,8 @@ export class HelpOverlay {
             <strong>Earn scrap after runs. Open upgrades with U on title or summary screens.</strong>
             <span>Challenges</span>
             <strong>Daily and seeded runs use fixed spawn sequences for repeatable routes.</strong>
+            <span>Audio</span>
+            <strong>M toggles music, - and = adjust music volume, N toggles SFX.</strong>
           </div>
           <p class="help-overlay-footer">H close | Escape close</p>
         </section>

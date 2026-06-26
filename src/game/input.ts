@@ -17,6 +17,8 @@ export interface InputState {
   helpTogglePressed: boolean;
   tutorialSkipPressed: boolean;
   musicTogglePressed: boolean;
+  musicVolumeDownPressed: boolean;
+  musicVolumeUpPressed: boolean;
   sfxTogglePressed: boolean;
   upgradeTogglePressed: boolean;
   upgradeBuyPressed: number | null;
@@ -42,6 +44,8 @@ export class InputController {
     helpTogglePressed: false,
     tutorialSkipPressed: false,
     musicTogglePressed: false,
+    musicVolumeDownPressed: false,
+    musicVolumeUpPressed: false,
     sfxTogglePressed: false,
     upgradeTogglePressed: false,
     upgradeBuyPressed: null
@@ -67,6 +71,8 @@ export class InputController {
     this.state.helpTogglePressed = false;
     this.state.tutorialSkipPressed = false;
     this.state.musicTogglePressed = false;
+    this.state.musicVolumeDownPressed = false;
+    this.state.musicVolumeUpPressed = false;
     this.state.sfxTogglePressed = false;
     this.state.upgradeTogglePressed = false;
     this.state.upgradeBuyPressed = null;
@@ -155,6 +161,16 @@ export class InputController {
 
     if (event.code === 'KeyM' && !event.repeat) {
       this.state.musicTogglePressed = true;
+      event.preventDefault();
+    }
+
+    if (event.code === 'Minus' && !event.repeat) {
+      this.state.musicVolumeDownPressed = true;
+      event.preventDefault();
+    }
+
+    if (event.code === 'Equal' && !event.repeat) {
+      this.state.musicVolumeUpPressed = true;
       event.preventDefault();
     }
 

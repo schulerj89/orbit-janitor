@@ -26,10 +26,10 @@ interface LoopHandle {
 
 const BASE_FADE_SECONDS = 0.9;
 const DANGER_FADE_SECONDS = 0.28;
-const TITLE_VOLUME = 0.18;
-const SECTOR_VOLUME = 0.24;
-const DANGER_VOLUME = 0.26;
-const STINGER_VOLUME = 0.34;
+const TITLE_VOLUME = 0.55;
+const SECTOR_VOLUME = 0.72;
+const DANGER_VOLUME = 0.56;
+const STINGER_VOLUME = 0.78;
 
 export class MusicDirector {
   private baseRequest: BaseMusicRequest | null = null;
@@ -110,6 +110,14 @@ export class MusicDirector {
 
   isMusicEnabled(): boolean {
     return this.audio.isMusicEnabled();
+  }
+
+  getMusicVolume(): number {
+    return this.audio.getMusicVolume();
+  }
+
+  adjustMusicVolume(delta: number): number {
+    return this.audio.adjustMusicVolume(delta);
   }
 
   getDangerIntensity(): number {
