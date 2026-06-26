@@ -18,6 +18,7 @@ import {
 import { InputController, type InputState } from './input';
 import { isAngleSafe, laneName, randomAngleAvoiding } from './math';
 import { createRenderer } from './renderer';
+import { AudioManager } from './audio/AudioManager';
 import { ParticleBurst } from './effects/ParticleBurst';
 import { ScreenShake } from './effects/ScreenShake';
 import { Junk, type LaneAngle } from './entities/Junk';
@@ -81,6 +82,7 @@ export class Game {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly clock = new THREE.Clock();
   private readonly input = new InputController();
+  private readonly audio = new AudioManager();
   private readonly obstacles: ObstacleSatellite[] = [];
   private readonly particles = new ParticleBurst();
   private readonly screenShake = new ScreenShake();
@@ -98,7 +100,7 @@ export class Game {
   private starfield!: Starfield;
   private player!: PlayerShip;
   private junk!: Junk;
-  private state: GameState = 'playing';
+  private state: GameState = 'ready';
   private score = 0;
   private comboCount = 0;
   private comboMultiplier = 1;
@@ -128,7 +130,7 @@ export class Game {
 
     this.scene.background = new THREE.Color(0x02050f);
     this.buildScene();
-    this.restart();
+    this.prepareFirstRun();
 
     window.addEventListener('resize', this.handleResize);
     window.orbitJanitorDebug = {
@@ -170,20 +172,46 @@ export class Game {
     const delta = Math.min(this.clock.getDelta(), 0.05);
     const input = this.input.consumeFrame();
 
+    if (this.hasPlayerInput(input)) {
+      this.audio.start();
+    }
+
+    const consumedStartInput =
+      this.state === 'ready' && (input.startPressed || input.boost);
+    if (consumedStartInput) {
+      this.startRun();
+    }
+
     if (input.restartPressed && this.state === 'gameover') {
       this.restart();
     }
 
+    const isGameplayActive = this.state === 'playing';
     const isGameOver = this.state === 'gameover';
-    const isBoosting = this.updateBoost(delta, input, isGameOver);
+    const controlsLocked = !isGameplayActive || consumedStartInput;
+    const wasBoosting = this.isBoosting;
+    const isBoosting = this.updateBoost(delta, input, controlsLocked);
+    const previousTargetLane = this.player.targetLaneIndex;
 
-    this.player.update(delta, input, isGameOver, isBoosting);
+    if (isBoosting && !wasBoosting) {
+      this.audio.playBoostStart();
+      this.audio.playBoostLoopStart();
+    } else if (!isBoosting && wasBoosting) {
+      this.audio.playBoostLoopStop();
+    }
+
+    this.player.update(delta, input, controlsLocked, isBoosting);
+
+    if (this.player.targetLaneIndex !== previousTargetLane) {
+      this.audio.playLaneSwitch();
+    }
+
     this.orbitLanes.setActiveLane(this.player.targetLaneIndex);
     this.junk.update(delta);
     this.particles.update(delta);
     this.screenShake.update(delta);
 
-    if (!isGameOver) {
+    if (isGameplayActive) {
       this.runTime += delta;
       this.updateCombo(delta);
       this.updateObstacles(delta);
@@ -202,7 +230,7 @@ export class Game {
       } else {
         this.checkCollisions();
       }
-    } else {
+    } else if (isGameOver) {
       this.hazardDirector.update(delta, {
         score: this.score,
         playerAngle: this.player.angle,
@@ -211,6 +239,8 @@ export class Game {
         junkLaneIndex: this.junk.laneIndex,
         isGameOver
       });
+    } else {
+      this.hazardWarning = false;
     }
 
     this.applyCameraShake();
@@ -219,10 +249,10 @@ export class Game {
     this.syncDebugAttributes();
   };
 
-  private updateBoost(delta: number, input: InputState, isGameOver: boolean): boolean {
+  private updateBoost(delta: number, input: InputState, controlsLocked: boolean): boolean {
     this.boostEmptyFlashTimer = Math.max(0, this.boostEmptyFlashTimer - delta);
 
-    if (isGameOver) {
+    if (controlsLocked) {
       this.isBoosting = false;
       return false;
     }
@@ -320,6 +350,8 @@ export class Game {
   }
 
   private collectJunk(): void {
+    const previousMultiplier = this.comboMultiplier;
+
     if (this.comboTimer > 0) {
       this.comboCount += 1;
     } else {
@@ -332,6 +364,11 @@ export class Game {
     );
     this.score += this.comboMultiplier;
     this.comboTimer = COMBO_WINDOW;
+
+    this.audio.playCollect();
+    if (this.comboMultiplier > previousMultiplier) {
+      this.audio.playCombo(this.comboMultiplier);
+    }
 
     this.particles.emit(this.junk.getPosition(this.junkPosition), 0xffb43a, 12);
     this.screenShake.add(0.035);
@@ -346,12 +383,37 @@ export class Game {
 
     this.state = 'gameover';
     this.gameOverReason = reason;
+    this.audio.playHit();
+    this.audio.playBoostLoopStop();
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xcfefff, 28, true);
     this.screenShake.add(0.22);
   }
 
-  private restart(): void {
+  private prepareFirstRun(): void {
+    this.resetRunState();
+    this.state = 'ready';
+    this.updateHud(false);
+    this.syncDebugAttributes();
+  }
+
+  private startRun(): void {
+    if (this.state !== 'ready') {
+      return;
+    }
+
     this.state = 'playing';
+    this.updateHud(false);
+    this.syncDebugAttributes();
+  }
+
+  private restart(): void {
+    this.resetRunState();
+    this.state = 'playing';
+    this.updateHud(false);
+    this.syncDebugAttributes();
+  }
+
+  private resetRunState(): void {
     this.score = 0;
     this.comboCount = 0;
     this.comboMultiplier = 1;
@@ -363,6 +425,7 @@ export class Game {
     this.runTime = 0;
     this.hazardWarning = false;
     this.gameOverReason = 'Impact detected';
+    this.audio.stopAll();
     this.screenShake.clear();
     this.particles.clear();
     this.hazardDirector.reset();
@@ -371,8 +434,6 @@ export class Game {
     this.respawnJunk();
     this.orbitLanes.setActiveLane(this.player.targetLaneIndex);
     this.applyCameraShake();
-    this.updateHud(false);
-    this.syncDebugAttributes();
   }
 
   private resetObstacles(): void {
@@ -479,6 +540,20 @@ export class Game {
       angle: obstacle.angle,
       laneIndex: obstacle.laneIndex
     }));
+  }
+
+  private hasPlayerInput(input: InputState): boolean {
+    return (
+      input.left ||
+      input.right ||
+      input.up ||
+      input.down ||
+      input.boost ||
+      input.laneUpPressed ||
+      input.laneDownPressed ||
+      input.startPressed ||
+      input.restartPressed
+    );
   }
 
   private updateHud(boostEmpty: boolean): void {

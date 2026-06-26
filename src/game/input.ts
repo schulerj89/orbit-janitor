@@ -6,6 +6,7 @@ export interface InputState {
   boost: boolean;
   laneUpPressed: boolean;
   laneDownPressed: boolean;
+  startPressed: boolean;
   restartPressed: boolean;
 }
 
@@ -18,6 +19,7 @@ export class InputController {
     boost: false,
     laneUpPressed: false,
     laneDownPressed: false,
+    startPressed: false,
     restartPressed: false
   };
 
@@ -30,6 +32,7 @@ export class InputController {
     const frameState = { ...this.state };
     this.state.laneUpPressed = false;
     this.state.laneDownPressed = false;
+    this.state.startPressed = false;
     this.state.restartPressed = false;
     return frameState;
   }
@@ -63,6 +66,14 @@ export class InputController {
 
     if (event.code === 'Space') {
       this.state.boost = true;
+      if (!event.repeat) {
+        this.state.startPressed = true;
+      }
+      event.preventDefault();
+    }
+
+    if (event.code === 'Enter' && !event.repeat) {
+      this.state.startPressed = true;
       event.preventDefault();
     }
 
