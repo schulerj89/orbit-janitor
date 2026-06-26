@@ -266,6 +266,7 @@ export class Game {
     }
 
     this.orbitLanes.setActiveLane(this.player.targetLaneIndex);
+    this.orbitLanes.update(delta);
     this.junk.update(delta);
     this.particles.update(delta);
     this.screenShake.update(delta);
