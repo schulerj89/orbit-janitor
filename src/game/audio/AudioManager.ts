@@ -17,8 +17,11 @@ interface ToneOptions {
 const MUSIC_ENABLED_STORAGE_KEY = 'orbit-janitor.musicEnabled';
 const SFX_ENABLED_STORAGE_KEY = 'orbit-janitor.sfxEnabled';
 const MUSIC_VOLUME_STORAGE_KEY = 'orbit-janitor.musicVolume';
+const SFX_VOLUME_STORAGE_KEY = 'orbit-janitor.sfxVolume';
 const DEFAULT_MUSIC_VOLUME = 1;
+const DEFAULT_SFX_VOLUME = 1;
 const MUSIC_VOLUME_MAX = 1.25;
+const SFX_VOLUME_MAX = 1.25;
 
 export class AudioManager {
   private context: AudioContext | null = null;
@@ -42,6 +45,12 @@ export class AudioManager {
     DEFAULT_MUSIC_VOLUME,
     0,
     MUSIC_VOLUME_MAX
+  );
+  private sfxVolume = readStoredNumber(
+    SFX_VOLUME_STORAGE_KEY,
+    DEFAULT_SFX_VOLUME,
+    0,
+    SFX_VOLUME_MAX
   );
 
   start(): void {
@@ -73,7 +82,7 @@ export class AudioManager {
     this.musicGain = this.context.createGain();
 
     this.masterGain.gain.value = 0.2;
-    this.sfxGain.gain.value = 1;
+    this.sfxGain.gain.value = this.sfxVolume;
     this.musicGain.gain.value = this.musicVolume;
     this.sfxGain.connect(this.masterGain);
     this.musicGain.connect(this.masterGain);
@@ -94,6 +103,10 @@ export class AudioManager {
 
   getMusicVolume(): number {
     return this.musicVolume;
+  }
+
+  getSfxVolume(): number {
+    return this.sfxVolume;
   }
 
   isUnlocked(): boolean {
@@ -157,9 +170,20 @@ export class AudioManager {
     this.applyMusicVolume();
   }
 
+  setSfxVolume(volume: number): void {
+    this.sfxVolume = Math.max(0, Math.min(SFX_VOLUME_MAX, volume));
+    writeStoredNumber(SFX_VOLUME_STORAGE_KEY, this.sfxVolume);
+    this.applySfxVolume();
+  }
+
   adjustMusicVolume(delta: number): number {
     this.setMusicVolume(this.musicVolume + delta);
     return this.musicVolume;
+  }
+
+  adjustSfxVolume(delta: number): number {
+    this.setSfxVolume(this.sfxVolume + delta);
+    return this.sfxVolume;
   }
 
   toggleMusic(): boolean {
@@ -617,6 +641,20 @@ export class AudioManager {
     this.musicGain.gain.cancelScheduledValues(now);
     this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
     this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, now + 0.05);
+  }
+
+  private applySfxVolume(): void {
+    const context = this.getContext();
+
+    if (!context || !this.sfxGain) {
+      return;
+    }
+
+    const now = context.currentTime;
+
+    this.sfxGain.gain.cancelScheduledValues(now);
+    this.sfxGain.gain.setValueAtTime(this.sfxGain.gain.value, now);
+    this.sfxGain.gain.linearRampToValueAtTime(this.sfxVolume, now + 0.05);
   }
 
   private playTone(options: ToneOptions): void {

@@ -29,6 +29,7 @@ export interface HudSnapshot {
   runTime: number;
   objectiveComplete: boolean;
   hazardWarning: boolean;
+  hazardActive: boolean;
   eventName: string;
   eventCallout: string;
   eventCountdown: number;
@@ -43,7 +44,10 @@ export interface HudSnapshot {
   gameOverReason: string;
   musicEnabled: boolean;
   musicVolume: number;
+  sfxVolume: number;
   sfxEnabled: boolean;
+  settingsOpen: boolean;
+  highContrastHazards: boolean;
 }
 
 export class Hud {
@@ -132,13 +136,13 @@ export class Hud {
           <span>Boost</span>
           <strong>Space</strong>
           <span>Help</span>
-          <strong>H Help | P Pause</strong>
+          <strong>H Help | P Pause | O Settings</strong>
           <span>Training</span>
           <strong>K skip tutorial</strong>
           <span>Restart</span>
           <strong>R</strong>
           <span>Audio</span>
-          <strong>M music / - = volume / N SFX</strong>
+          <strong>M music / - = music / [ ] SFX / N mute</strong>
           <span>Upgrades</span>
           <strong>U on title / game over</strong>
         </div>
@@ -202,7 +206,7 @@ export class Hud {
     this.boostValue.textContent = `${Math.round(boostPercent * 100)}%`;
     this.boostValue.classList.toggle('is-empty', snapshot.boostEmpty);
     this.updatePowerups(snapshot.activePowerups);
-    this.audioStateValue.textContent = `Music ${snapshot.musicEnabled ? `${Math.round(snapshot.musicVolume * 100)}%` : 'Off'} | SFX ${snapshot.sfxEnabled ? 'On' : 'Off'}`;
+    this.audioStateValue.textContent = `Music ${snapshot.musicEnabled ? `${Math.round(snapshot.musicVolume * 100)}%` : 'Off'} | SFX ${snapshot.sfxEnabled ? `${Math.round(snapshot.sfxVolume * 100)}%` : 'Off'}${snapshot.highContrastHazards ? ' | HC Hazards' : ''}`;
     this.audioStateValue.classList.toggle(
       'is-muted',
       !snapshot.musicEnabled || !snapshot.sfxEnabled
@@ -212,6 +216,8 @@ export class Hud {
       this.statusValue.textContent = 'Awaiting launch';
     } else if (snapshot.state === 'sectorSelect') {
       this.statusValue.textContent = 'Choose sector';
+    } else if (snapshot.settingsOpen) {
+      this.statusValue.textContent = 'Settings open';
     } else if (snapshot.isPaused) {
       this.statusValue.textContent = 'Paused';
     } else if (snapshot.state === 'missionComplete') {
@@ -220,6 +226,8 @@ export class Hud {
       this.statusValue.textContent = snapshot.gameOverReason;
     } else if (snapshot.shieldBroken) {
       this.statusValue.textContent = 'SHIELD BROKEN';
+    } else if (snapshot.hazardActive) {
+      this.statusValue.textContent = 'DANGER: Lane hazard active';
     } else if (snapshot.hazardWarning) {
       this.statusValue.textContent = 'WARNING: Lane hazard incoming';
     } else if (snapshot.eventCallout) {

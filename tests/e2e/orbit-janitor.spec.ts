@@ -10,11 +10,16 @@ type DebugState = {
   runTime: number;
   isPaused: boolean;
   helpOpen: boolean;
+  settingsOpen: boolean;
   missionIntroActive: boolean;
   sectorId: string;
   tutorialActive: boolean;
   musicEnabled: boolean;
   sfxEnabled: boolean;
+  settings: {
+    screenShakeIntensity: string;
+    touchControlsMode: string;
+  };
 };
 
 type DebugApi = {
@@ -88,6 +93,37 @@ test('toggles music and sfx preferences from keyboard input', async ({ page }) =
   await expect
     .poll(() => getDebugState(page).then((state) => state.sfxEnabled))
     .toBe(!initial.sfxEnabled);
+});
+
+test('opens settings and exposes persisted accessibility controls', async ({ page }) => {
+  await page.goto('/');
+  await waitForGameReady(page);
+
+  await page.keyboard.press('O');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.settingsOpen))
+    .toBe(true);
+
+  const initialShake = (await getDebugState(page)).settings.screenShakeIntensity;
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.settings.screenShakeIntensity))
+    .not.toBe(initialShake);
+
+  await page.keyboard.press('Escape');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.settingsOpen))
+    .toBe(false);
+});
+
+test('shows touch controls on narrow screens', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.goto('/');
+  await waitForGameReady(page);
+
+  await expect(page.locator('.touch-controls')).toBeVisible();
+  await expect(page.locator('.touch-control-start')).toBeVisible();
 });
 
 test('starts gameplay and responds to core controls', async ({ page }) => {

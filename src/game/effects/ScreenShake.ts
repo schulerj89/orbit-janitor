@@ -5,13 +5,14 @@ export class ScreenShake {
   private trauma = 0;
   private time = 0;
   private reducedMotion = false;
+  private intensity = 1;
 
   add(amount: number): void {
-    if (this.reducedMotion) {
+    if (this.reducedMotion || this.intensity <= 0) {
       return;
     }
 
-    this.trauma = Math.min(1, this.trauma + amount);
+    this.trauma = Math.min(1, this.trauma + amount * this.intensity);
   }
 
   update(delta: number): void {
@@ -39,6 +40,14 @@ export class ScreenShake {
     this.reducedMotion = reducedMotion;
 
     if (reducedMotion) {
+      this.clear();
+    }
+  }
+
+  setIntensity(intensity: number): void {
+    this.intensity = Math.max(0, Math.min(1, intensity));
+
+    if (this.intensity <= 0) {
       this.clear();
     }
   }

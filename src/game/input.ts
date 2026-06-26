@@ -4,6 +4,8 @@ export interface InputState {
   up: boolean;
   down: boolean;
   boost: boolean;
+  leftPressed: boolean;
+  rightPressed: boolean;
   laneUpPressed: boolean;
   laneDownPressed: boolean;
   startPressed: boolean;
@@ -19,37 +21,16 @@ export interface InputState {
   musicTogglePressed: boolean;
   musicVolumeDownPressed: boolean;
   musicVolumeUpPressed: boolean;
+  sfxVolumeDownPressed: boolean;
+  sfxVolumeUpPressed: boolean;
   sfxTogglePressed: boolean;
   upgradeTogglePressed: boolean;
+  settingsTogglePressed: boolean;
   upgradeBuyPressed: number | null;
 }
 
 export class InputController {
-  private readonly state: InputState = {
-    left: false,
-    right: false,
-    up: false,
-    down: false,
-    boost: false,
-    laneUpPressed: false,
-    laneDownPressed: false,
-    startPressed: false,
-    tutorialStartPressed: false,
-    sectorSelectPressed: false,
-    dailyStartPressed: false,
-    seededStartPressed: false,
-    restartPressed: false,
-    escapePressed: false,
-    pausePressed: false,
-    helpTogglePressed: false,
-    tutorialSkipPressed: false,
-    musicTogglePressed: false,
-    musicVolumeDownPressed: false,
-    musicVolumeUpPressed: false,
-    sfxTogglePressed: false,
-    upgradeTogglePressed: false,
-    upgradeBuyPressed: null
-  };
+  private readonly state: InputState = createNeutralInputState();
 
   constructor(target: Window = window) {
     target.addEventListener('keydown', this.handleKeyDown);
@@ -58,6 +39,8 @@ export class InputController {
 
   consumeFrame(): InputState {
     const frameState = { ...this.state };
+    this.state.leftPressed = false;
+    this.state.rightPressed = false;
     this.state.laneUpPressed = false;
     this.state.laneDownPressed = false;
     this.state.startPressed = false;
@@ -73,8 +56,11 @@ export class InputController {
     this.state.musicTogglePressed = false;
     this.state.musicVolumeDownPressed = false;
     this.state.musicVolumeUpPressed = false;
+    this.state.sfxVolumeDownPressed = false;
+    this.state.sfxVolumeUpPressed = false;
     this.state.sfxTogglePressed = false;
     this.state.upgradeTogglePressed = false;
+    this.state.settingsTogglePressed = false;
     this.state.upgradeBuyPressed = null;
     return frameState;
   }
@@ -82,6 +68,9 @@ export class InputController {
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
     if (event.code === 'ArrowLeft' || event.code === 'KeyA') {
       this.state.left = true;
+      if (!event.repeat) {
+        this.state.leftPressed = true;
+      }
       event.preventDefault();
     }
 
@@ -89,6 +78,9 @@ export class InputController {
       this.state.right = true;
       if (event.code === 'KeyD' && !event.repeat) {
         this.state.dailyStartPressed = true;
+      }
+      if (!event.repeat) {
+        this.state.rightPressed = true;
       }
       event.preventDefault();
     }
@@ -179,8 +171,23 @@ export class InputController {
       event.preventDefault();
     }
 
+    if (event.code === 'BracketLeft' && !event.repeat) {
+      this.state.sfxVolumeDownPressed = true;
+      event.preventDefault();
+    }
+
+    if (event.code === 'BracketRight' && !event.repeat) {
+      this.state.sfxVolumeUpPressed = true;
+      event.preventDefault();
+    }
+
     if (event.code === 'KeyU' && !event.repeat) {
       this.state.upgradeTogglePressed = true;
+      event.preventDefault();
+    }
+
+    if (event.code === 'KeyO' && !event.repeat) {
+      this.state.settingsTogglePressed = true;
       event.preventDefault();
     }
 
@@ -217,6 +224,76 @@ export class InputController {
       event.preventDefault();
     }
   };
+}
+
+export function createNeutralInputState(): InputState {
+  return {
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    boost: false,
+    leftPressed: false,
+    rightPressed: false,
+    laneUpPressed: false,
+    laneDownPressed: false,
+    startPressed: false,
+    tutorialStartPressed: false,
+    sectorSelectPressed: false,
+    dailyStartPressed: false,
+    seededStartPressed: false,
+    restartPressed: false,
+    escapePressed: false,
+    pausePressed: false,
+    helpTogglePressed: false,
+    tutorialSkipPressed: false,
+    musicTogglePressed: false,
+    musicVolumeDownPressed: false,
+    musicVolumeUpPressed: false,
+    sfxVolumeDownPressed: false,
+    sfxVolumeUpPressed: false,
+    sfxTogglePressed: false,
+    upgradeTogglePressed: false,
+    settingsTogglePressed: false,
+    upgradeBuyPressed: null
+  };
+}
+
+export function mergeInputStates(...states: InputState[]): InputState {
+  const merged = createNeutralInputState();
+
+  for (const state of states) {
+    merged.left ||= state.left;
+    merged.right ||= state.right;
+    merged.up ||= state.up;
+    merged.down ||= state.down;
+    merged.boost ||= state.boost;
+    merged.leftPressed ||= state.leftPressed;
+    merged.rightPressed ||= state.rightPressed;
+    merged.laneUpPressed ||= state.laneUpPressed;
+    merged.laneDownPressed ||= state.laneDownPressed;
+    merged.startPressed ||= state.startPressed;
+    merged.tutorialStartPressed ||= state.tutorialStartPressed;
+    merged.sectorSelectPressed ||= state.sectorSelectPressed;
+    merged.dailyStartPressed ||= state.dailyStartPressed;
+    merged.seededStartPressed ||= state.seededStartPressed;
+    merged.restartPressed ||= state.restartPressed;
+    merged.escapePressed ||= state.escapePressed;
+    merged.pausePressed ||= state.pausePressed;
+    merged.helpTogglePressed ||= state.helpTogglePressed;
+    merged.tutorialSkipPressed ||= state.tutorialSkipPressed;
+    merged.musicTogglePressed ||= state.musicTogglePressed;
+    merged.musicVolumeDownPressed ||= state.musicVolumeDownPressed;
+    merged.musicVolumeUpPressed ||= state.musicVolumeUpPressed;
+    merged.sfxVolumeDownPressed ||= state.sfxVolumeDownPressed;
+    merged.sfxVolumeUpPressed ||= state.sfxVolumeUpPressed;
+    merged.sfxTogglePressed ||= state.sfxTogglePressed;
+    merged.upgradeTogglePressed ||= state.upgradeTogglePressed;
+    merged.settingsTogglePressed ||= state.settingsTogglePressed;
+    merged.upgradeBuyPressed ??= state.upgradeBuyPressed;
+  }
+
+  return merged;
 }
 
 function getUpgradeBuyIndex(code: string): number | null {

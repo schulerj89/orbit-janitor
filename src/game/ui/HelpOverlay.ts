@@ -28,6 +28,10 @@ export class HelpOverlay {
             <strong>Clear the current mission target, then keep improving routes and upgrades.</strong>
             <span>Controls</span>
             <strong>Left/A and Right/D orbit. Up/W and Down/S switch lanes. Space boosts.</strong>
+            <span>Gamepad</span>
+            <strong>Left stick or D-pad rotates. Shoulders or D-pad up/down switch lanes. A selects, B backs out, trigger boosts.</strong>
+            <span>Touch</span>
+            <strong>On phones, use the large edge buttons for orbit, lanes, boost, and start or restart.</strong>
             <span>Orbit lanes</span>
             <strong>Three lanes wrap around the planet. Read lane position before switching.</strong>
             <span>Junk</span>
@@ -35,7 +39,7 @@ export class HelpOverlay {
             <span>Boost fuel</span>
             <strong>Boost drains fuel while held and recharges when released.</strong>
             <span>Hazards</span>
-            <strong>Orange is warning. Red is active danger. Move before red touches your lane.</strong>
+            <strong>WARNING text and yellow/orange pulses mean prepare. DANGER text and red pulses mean active collision.</strong>
             <span>Satellites</span>
             <strong>Satellites are solid obstacles. Avoid their lane or time the orbit.</strong>
             <span>Upgrades</span>
@@ -43,7 +47,9 @@ export class HelpOverlay {
             <span>Challenges</span>
             <strong>Daily and seeded runs use fixed spawn sequences for repeatable routes.</strong>
             <span>Audio</span>
-            <strong>M toggles music, - and = adjust music volume, N toggles SFX.</strong>
+            <strong>M toggles music, - and = adjust music, N toggles SFX, [ and ] adjust SFX volume.</strong>
+            <span>Settings</span>
+            <strong>Open settings with O for reduced motion, shake, audio volume, touch controls, and high-contrast hazards.</strong>
           </div>
           <p class="help-overlay-footer">H close | Escape close</p>
         </section>

@@ -28,7 +28,9 @@ export class PauseOverlay {
             <span>Help</span>
             <strong>H</strong>
             <span>Audio</span>
-            <strong>M music / - = volume / N SFX</strong>
+            <strong>M music / - = music / N SFX / [ ] SFX volume</strong>
+            <span>Settings</span>
+            <strong>O</strong>
           </div>
         </section>
       `

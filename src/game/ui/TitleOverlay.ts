@@ -55,10 +55,12 @@ export class TitleOverlay {
             <strong>R after crash</strong>
             <span>Upgrades</span>
             <strong>U, then 1-6 to buy</strong>
+            <span>Settings</span>
+            <strong>O for accessibility and touch</strong>
           </div>
           <p class="title-overlay-start">Enter sector | T training | C sector select | D daily</p>
           <p class="title-overlay-footer">
-            Audio starts after first input | M music (<span data-title-music>On</span> <span data-title-music-volume>100%</span>) | - = volume | N SFX (<span data-title-sfx>On</span>)
+            Audio starts after first input | M music (<span data-title-music>On</span> <span data-title-music-volume>100%</span>) | N SFX (<span data-title-sfx>On</span>) | Gamepad supported
           </p>
         </section>
       `

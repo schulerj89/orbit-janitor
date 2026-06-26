@@ -51,19 +51,39 @@ npm run preview
 - Space: boost while held, limited by fuel
 - P: pause or resume while playing
 - H: open or close help/instructions
-- Escape: close help or pause overlays
+- O: open or close settings
+- Escape: close help, pause, or settings overlays
 - R: restart after game over
 - U: open upgrades from the title screen or game over
 - 1-6: buy upgrades while the upgrade panel is open
 - M: toggle music
 - - / =: lower or raise music volume
+- [ / ]: lower or raise SFX volume
 - N: toggle SFX
+
+Gamepad:
+
+- Left stick or D-pad left/right: rotate
+- D-pad up/down or shoulder buttons: switch lanes
+- A / Cross: start or select
+- B / Circle: back out or close overlays
+- Right trigger or X / Square: boost
+- Start: pause or resume
+
+Touch:
+
+- On narrow or coarse-pointer screens, touch controls appear automatically.
+- Touch controls can be forced on or off from Settings.
+- Edge buttons rotate, switch lanes, boost, and start or restart without covering the central orbit.
 
 ## Current Features
 
 - Title screen with controls and audio toggle hints
 - Keyboard-first sector select and mission complete overlays
 - Pause and compact help/instructions overlays
+- Settings overlay with reduced motion, shake intensity, audio volume, high-contrast hazards, and touch control mode
+- Gamepad input for movement, lane switching, boost, select/back, and pause
+- Mobile-friendly touch controls on narrow/coarse-pointer screens
 - Interactive Training Orbit tutorial with guided rotate, pickup, lane switch, boost, obstacle, and hazard steps
 - Run summary after game over
 - Persistent best score in localStorage
@@ -83,8 +103,10 @@ npm run preview
 - Optional static SFX and layered music files under `public/audio`
 - MusicDirector support for title ambience, sector drive loops, danger layering, and mission/game-over stingers
 - Persistent music volume controls for making static music prominent over SFX
+- Persistent music and SFX volume controls
 - Dynamic obstacle pacing as score increases
 - Timed hazard telegraphs that warn before becoming dangerous
+- Optional high-contrast hazard colors plus text status for warning and active danger phases
 - Hazard patterns include lane arcs, double lane arcs, sweepers, gate gaps, pulse mines, and debris showers
 - Boss-like sector event waves near mission finales: Debris Storm, Satellite Net, Solar Flare, Comet Pass, and Cleanup Frenzy
 - Objective target: reach 50 cleanup points
@@ -124,6 +146,7 @@ https://schulerj89.github.io/orbit-janitor/
 - Audio uses the Web Audio API, with optional static MP3 files and procedural fallbacks.
 - UI is plain HTML/CSS/TypeScript, with no React.
 - Runtime debug state is exposed on `window.orbitJanitorDebug` for smoke tests.
+- Accessibility and control settings are stored under `orbit-janitor.settings`.
 - Sector progression is stored under the `orbit-janitor.sectors` localStorage prefix.
 - Sector visual identity and modifier tuning live in `src/game/systems/SectorTheme.ts`.
 

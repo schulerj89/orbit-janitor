@@ -20,7 +20,14 @@ import {
   POWERUP_SCRAP_CACHE_BONUS,
   RUN_OBJECTIVE_TARGET_SCORE
 } from './constants';
-import { InputController, type InputState } from './input';
+import {
+  InputController,
+  createNeutralInputState,
+  mergeInputStates,
+  type InputState
+} from './input';
+import { GamepadInput } from './input/GamepadInput';
+import { TouchControls } from './input/TouchControls';
 import {
   angularDistance,
   isAngleSafe,
@@ -67,7 +74,13 @@ import {
   getSectorById
 } from './systems/SectorConfig';
 import { SectorProgress, type SectorProgressSnapshot } from './systems/SectorProgress';
+import { type SectorTheme } from './systems/SectorTheme';
 import { SeededRandom } from './systems/SeededRandom';
+import {
+  SettingsSystem,
+  type ScreenShakeIntensity,
+  type SettingsSnapshot
+} from './systems/SettingsSystem';
 import {
   TutorialDirector,
   type TutorialContext,
@@ -83,6 +96,7 @@ import { PauseOverlay } from './ui/PauseOverlay';
 import { PowerupToast } from './ui/PowerupToast';
 import { RunSummary } from './ui/RunSummary';
 import { SectorSelectOverlay } from './ui/SectorSelectOverlay';
+import { SettingsOverlay } from './ui/SettingsOverlay';
 import { TitleOverlay } from './ui/TitleOverlay';
 import { TutorialOverlay } from './ui/TutorialOverlay';
 import { UpgradePanel } from './ui/UpgradePanel';
@@ -125,14 +139,17 @@ interface OrbitJanitorDebugState {
   tutorialSkipped: boolean;
   isPaused: boolean;
   helpOpen: boolean;
+  settingsOpen: boolean;
   missionIntroActive: boolean;
   reducedMotion: boolean;
+  settings: SettingsSnapshot;
   scrap: number;
   shieldCharges: number;
   musicEnabled: boolean;
   musicVolume: number;
   musicDangerIntensity: number;
   sfxEnabled: boolean;
+  sfxVolume: number;
   playerAngle: number;
   playerLaneIndex: number;
   playerRadius: number;
@@ -171,6 +188,8 @@ export class Game {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly clock = new THREE.Clock();
   private readonly input = new InputController();
+  private readonly gamepadInput = new GamepadInput();
+  private readonly settings = new SettingsSystem();
   private readonly audio = new AudioManager();
   private readonly music = new MusicDirector(this.audio);
   private readonly obstacles: ObstacleSatellite[] = [];
@@ -191,7 +210,7 @@ export class Game {
   private readonly playerPosition = new THREE.Vector3();
   private readonly junkPosition = new THREE.Vector3();
   private readonly obstaclePosition = new THREE.Vector3();
-  private readonly reducedMotion = getReducedMotionPreference();
+  private reducedMotion = this.settings.getSnapshot().reducedMotion;
   private readonly nearMissObstacles = new Set<ObstacleSatellite>();
 
   private renderer!: THREE.WebGPURenderer;
@@ -207,6 +226,8 @@ export class Game {
   private helpOverlay!: HelpOverlay;
   private pauseOverlay!: PauseOverlay;
   private powerupToast!: PowerupToast;
+  private settingsOverlay!: SettingsOverlay;
+  private touchControls!: TouchControls;
   private impactFlash!: ImpactFlash;
   private floatingText!: FloatingText;
   private missionIntroOverlay!: MissionIntroOverlay;
@@ -239,6 +260,8 @@ export class Game {
   private upgradePanelOpen = false;
   private isPaused = false;
   private helpOpen = false;
+  private settingsOpen = false;
+  private settingsSelectionIndex = 0;
   private objectiveAnnounced = false;
   private gameOverReason = 'Impact detected';
   private runRng = new SeededRandom('title');
@@ -275,13 +298,12 @@ export class Game {
     this.pauseOverlay = new PauseOverlay(hudRoot);
     this.helpOverlay = new HelpOverlay(hudRoot);
     this.powerupToast = new PowerupToast(hudRoot);
+    this.settingsOverlay = new SettingsOverlay(hudRoot);
+    this.touchControls = new TouchControls(hudRoot);
     this.impactFlash = new ImpactFlash(hudRoot);
     this.floatingText = new FloatingText(hudRoot);
     this.missionIntroOverlay = new MissionIntroOverlay(hudRoot);
-    this.screenShake.setReducedMotion(this.reducedMotion);
-    this.cameraRig.setReducedMotion(this.reducedMotion);
-    this.impactFlash.setReducedMotion(this.reducedMotion);
-    this.floatingText.setReducedMotion(this.reducedMotion);
+    this.applySettings();
 
     this.scene.background = new THREE.Color(0x02050f);
     this.buildScene();
@@ -331,7 +353,11 @@ export class Game {
 
   private readonly update = (): void => {
     const delta = Math.min(this.clock.getDelta(), 0.05);
-    const input = this.input.consumeFrame();
+    const input = mergeInputStates(
+      this.input.consumeFrame(),
+      this.gamepadInput.consumeFrame(),
+      this.touchControls.consumeFrame()
+    );
 
     if (this.hasPlayerInput(input)) {
       this.music.unlock();
@@ -344,12 +370,26 @@ export class Game {
     }
 
     if (input.musicVolumeDownPressed) {
-      this.music.adjustMusicVolume(-0.1);
+      this.settings.adjustMusicVolume(-0.1);
+      this.applySettings();
       this.audio.playUiSelect();
     }
 
     if (input.musicVolumeUpPressed) {
-      this.music.adjustMusicVolume(0.1);
+      this.settings.adjustMusicVolume(0.1);
+      this.applySettings();
+      this.audio.playUiSelect();
+    }
+
+    if (input.sfxVolumeDownPressed) {
+      this.settings.adjustSfxVolume(-0.1);
+      this.applySettings();
+      this.audio.playUiSelect();
+    }
+
+    if (input.sfxVolumeUpPressed) {
+      this.settings.adjustSfxVolume(0.1);
+      this.applySettings();
       this.audio.playUiSelect();
     }
 
@@ -362,6 +402,7 @@ export class Game {
     const canUseUpgradePanel =
       !this.helpOpen &&
       !this.isPaused &&
+      !this.settingsOpen &&
       (this.state === 'title' ||
         this.state === 'gameover' ||
         this.state === 'missionComplete');
@@ -380,7 +421,7 @@ export class Game {
     }
 
     let consumedStartInput = false;
-    if (consumedOverlayInput || this.helpOpen || this.isPaused) {
+    if (consumedOverlayInput || this.helpOpen || this.isPaused || this.settingsOpen) {
       consumedStartInput = consumedOverlayInput;
     } else if (this.state === 'title') {
       consumedStartInput = this.handleTitleInput(input);
@@ -634,9 +675,33 @@ export class Game {
   }
 
   private handleOverlayInput(input: InputState): boolean {
+    if (input.settingsTogglePressed && this.canToggleSettings()) {
+      this.settingsOpen = !this.settingsOpen;
+      this.helpOpen = false;
+      this.upgradePanelOpen = false;
+      this.audio.playUiSelect();
+
+      if (this.settingsOpen && this.state === 'playing') {
+        this.audio.playBoostLoopStop();
+      }
+
+      return true;
+    }
+
+    if (input.escapePressed && this.settingsOpen) {
+      this.settingsOpen = false;
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (this.settingsOpen) {
+      return this.handleSettingsInput(input);
+    }
+
     if (input.helpTogglePressed && this.canToggleHelp()) {
       this.helpOpen = !this.helpOpen;
       this.upgradePanelOpen = false;
+      this.settingsOpen = false;
       this.audio.playUiSelect();
 
       if (this.helpOpen && this.state === 'playing') {
@@ -665,6 +730,51 @@ export class Game {
     return false;
   }
 
+  private handleSettingsInput(input: InputState): boolean {
+    if (input.laneUpPressed) {
+      this.settingsSelectionIndex = (this.settingsSelectionIndex + 5) % 6;
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (input.laneDownPressed) {
+      this.settingsSelectionIndex = (this.settingsSelectionIndex + 1) % 6;
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (input.leftPressed) {
+      this.adjustSelectedSetting(-1);
+      return true;
+    }
+
+    if (input.rightPressed || input.startPressed) {
+      this.adjustSelectedSetting(1);
+      return true;
+    }
+
+    return false;
+  }
+
+  private adjustSelectedSetting(direction: number): void {
+    if (this.settingsSelectionIndex === 0) {
+      this.settings.toggleReducedMotion();
+    } else if (this.settingsSelectionIndex === 1) {
+      this.settings.cycleScreenShake(direction);
+    } else if (this.settingsSelectionIndex === 2) {
+      this.settings.adjustMusicVolume(direction * 0.1);
+    } else if (this.settingsSelectionIndex === 3) {
+      this.settings.adjustSfxVolume(direction * 0.1);
+    } else if (this.settingsSelectionIndex === 4) {
+      this.settings.toggleHighContrastHazards();
+    } else if (this.settingsSelectionIndex === 5) {
+      this.settings.cycleTouchControlsMode(direction);
+    }
+
+    this.applySettings();
+    this.audio.playUiSelect();
+  }
+
   private canToggleHelp(): boolean {
     return (
       this.state === 'title' ||
@@ -673,6 +783,10 @@ export class Game {
       this.state === 'gameover' ||
       this.state === 'missionComplete'
     );
+  }
+
+  private canToggleSettings(): boolean {
+    return this.canToggleHelp();
   }
 
   private setPaused(isPaused: boolean): void {
@@ -692,6 +806,7 @@ export class Game {
   private isGameplayPaused(): boolean {
     return (
       this.isPaused ||
+      this.settingsOpen ||
       this.missionIntroActive ||
       (this.helpOpen && this.state === 'playing')
     );
@@ -1065,6 +1180,7 @@ export class Game {
     this.state = 'gameover';
     this.isPaused = false;
     this.helpOpen = false;
+    this.settingsOpen = false;
     this.missionIntroActive = false;
     this.missionIntroTimer = 0;
     this.hazardNearMissArmed = false;
@@ -1096,6 +1212,7 @@ export class Game {
     this.state = 'missionComplete';
     this.isPaused = false;
     this.helpOpen = false;
+    this.settingsOpen = false;
     this.missionIntroActive = false;
     this.missionIntroTimer = 0;
     this.hazardWarning = false;
@@ -1138,6 +1255,7 @@ export class Game {
     this.upgradePanelOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
+    this.settingsOpen = false;
     this.music.startTitleMusic();
     this.updateHud(false);
     this.syncDebugAttributes();
@@ -1169,6 +1287,7 @@ export class Game {
     this.upgradePanelOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
+    this.settingsOpen = false;
     this.audio.playUiStart();
     this.music.startSectorMusic(
       this.missionDirector.getCurrentSector().id,
@@ -1192,6 +1311,7 @@ export class Game {
     this.upgradePanelOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
+    this.settingsOpen = false;
     this.audio.playUiStart();
     this.music.startSectorMusic(
       this.missionDirector.getCurrentSector().id,
@@ -1283,6 +1403,7 @@ export class Game {
     this.musicDangerIntensity = 0;
     this.isPaused = false;
     this.helpOpen = false;
+    this.settingsOpen = false;
     this.sectorHintTimer = 2.9;
     this.objectiveAnnounced = false;
     this.newlyUnlockedSectorName = null;
@@ -1696,6 +1817,7 @@ export class Game {
     this.upgradePanelOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
+    this.settingsOpen = false;
     this.selectedSectorId = this.sectorProgress.isUnlocked(this.selectedSectorId)
       ? this.selectedSectorId
       : this.sectorProgress.getDefaultSectorId();
@@ -1743,6 +1865,8 @@ export class Game {
       input.up ||
       input.down ||
       input.boost ||
+      input.leftPressed ||
+      input.rightPressed ||
       input.laneUpPressed ||
       input.laneDownPressed ||
       input.startPressed ||
@@ -1758,8 +1882,11 @@ export class Game {
       input.musicTogglePressed ||
       input.musicVolumeDownPressed ||
       input.musicVolumeUpPressed ||
+      input.sfxVolumeDownPressed ||
+      input.sfxVolumeUpPressed ||
       input.sfxTogglePressed ||
       input.upgradeTogglePressed ||
+      input.settingsTogglePressed ||
       input.upgradeBuyPressed !== null
     );
   }
@@ -1815,6 +1942,7 @@ export class Game {
     const tutorial = this.tutorialDirector.getSnapshot();
     const eventWave = this.eventWaveDirector.getSnapshot();
     const eventEffects = this.eventWaveDirector.getEffects();
+    const settings = this.settings.getSnapshot();
 
     this.hud.update({
       score: this.score,
@@ -1837,6 +1965,7 @@ export class Game {
       runTime: this.runTime,
       objectiveComplete: objective.isComplete && !objective.isEndless,
       hazardWarning: this.hazardWarning,
+      hazardActive: this.hazardActive,
       eventName: eventWave.name,
       eventCallout: eventWave.callout,
       eventCountdown: eventWave.countdown,
@@ -1851,6 +1980,9 @@ export class Game {
       gameOverReason: this.gameOverReason,
       musicEnabled: this.audio.isMusicEnabled(),
       musicVolume: this.music.getMusicVolume(),
+      sfxVolume: this.audio.getSfxVolume(),
+      settingsOpen: this.settingsOpen,
+      highContrastHazards: settings.highContrastHazards,
       sfxEnabled: this.audio.isSfxEnabled()
     });
     this.sectorSelectOverlay.update({
@@ -1913,6 +2045,20 @@ export class Game {
       objectiveText: objective.text,
       objectiveProgressText: objective.progressText
     });
+    this.settingsOverlay.update({
+      isOpen: this.settingsOpen,
+      settings,
+      selectedIndex: this.settingsSelectionIndex
+    });
+    this.touchControls.update({
+      state: this.state,
+      overlaysOpen:
+        this.helpOpen ||
+        this.settingsOpen ||
+        this.upgradePanelOpen ||
+        (this.isPaused && this.state === 'playing') ||
+        this.missionIntroActive
+    });
   }
 
   private readonly handleResize = (): void => {
@@ -1942,8 +2088,30 @@ export class Game {
     this.camera.lookAt(0, 0, 0);
   }
 
+  private applySettings(): void {
+    const settings = this.settings.getSnapshot();
+    const shakeIntensity = getShakeIntensityScale(settings.screenShakeIntensity);
+
+    this.reducedMotion = settings.reducedMotion;
+    this.screenShake.setReducedMotion(settings.reducedMotion);
+    this.screenShake.setIntensity(shakeIntensity);
+    this.cameraRig.setReducedMotion(settings.reducedMotion);
+    this.impactFlash.setReducedMotion(settings.reducedMotion);
+    this.floatingText.setReducedMotion(settings.reducedMotion);
+    this.audio.setMusicVolume(settings.musicVolume);
+    this.audio.setSfxVolume(settings.sfxVolume);
+    this.touchControls?.setMode(settings.touchControlsMode);
+    document.documentElement.dataset.highContrastHazards = String(
+      settings.highContrastHazards
+    );
+
+    if (this.planet) {
+      this.applyCurrentSectorTheme(false);
+    }
+  }
+
   private applyCurrentSectorTheme(showHint: boolean): void {
-    const theme = this.missionDirector.getCurrentTheme();
+    const theme = this.getEffectiveSectorTheme(this.missionDirector.getCurrentTheme());
     const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
 
     if (this.scene.background instanceof THREE.Color) {
@@ -1966,11 +2134,24 @@ export class Game {
     }
   }
 
+  private getEffectiveSectorTheme(theme: SectorTheme): SectorTheme {
+    if (!this.settings.getSnapshot().highContrastHazards) {
+      return theme;
+    }
+
+    return {
+      ...theme,
+      hazardWarningColor: 0xffff00,
+      hazardActiveColor: 0xff1744
+    };
+  }
+
   private getDebugState(): OrbitJanitorDebugState {
     const challenge = this.challengeMode.getSnapshot();
     const sector = this.missionDirector.getCurrentSector();
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
     const tutorial = this.tutorialDirector.getSnapshot();
+    const settings = this.settings.getSnapshot();
 
     return {
       sceneId: 'orbit-janitor',
@@ -1997,14 +2178,17 @@ export class Game {
       tutorialSkipped: tutorial.isSkipped,
       isPaused: this.isPaused,
       helpOpen: this.helpOpen,
+      settingsOpen: this.settingsOpen,
       missionIntroActive: this.missionIntroActive,
       reducedMotion: this.reducedMotion,
+      settings,
       scrap: this.upgrades.getSnapshot().totalScrap,
       shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
       musicVolume: this.music.getMusicVolume(),
       musicDangerIntensity: this.musicDangerIntensity,
       sfxEnabled: this.audio.isSfxEnabled(),
+      sfxVolume: this.audio.getSfxVolume(),
       playerAngle: this.player.angle,
       playerLaneIndex: this.player.targetLaneIndex,
       playerRadius: this.player.currentRadius,
@@ -2033,6 +2217,7 @@ export class Game {
     const sector = this.missionDirector.getCurrentSector();
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
     const tutorial = this.tutorialDirector.getSnapshot();
+    const settings = this.settings.getSnapshot();
 
     this.canvas.dataset.sceneId = 'orbit-janitor';
     this.canvas.dataset.phase = this.state;
@@ -2062,8 +2247,12 @@ export class Game {
     this.canvas.dataset.tutorialSkipped = String(tutorial.isSkipped);
     this.canvas.dataset.paused = String(this.isPaused);
     this.canvas.dataset.helpOpen = String(this.helpOpen);
+    this.canvas.dataset.settingsOpen = String(this.settingsOpen);
     this.canvas.dataset.missionIntroActive = String(this.missionIntroActive);
     this.canvas.dataset.reducedMotion = String(this.reducedMotion);
+    this.canvas.dataset.screenShakeIntensity = settings.screenShakeIntensity;
+    this.canvas.dataset.highContrastHazards = String(settings.highContrastHazards);
+    this.canvas.dataset.touchControlsMode = settings.touchControlsMode;
     this.canvas.dataset.scrap = String(this.upgrades.getSnapshot().totalScrap);
     this.canvas.dataset.shieldCharges = String(this.shieldCharges);
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);
@@ -2071,6 +2260,7 @@ export class Game {
     this.canvas.dataset.musicVolume = this.music.getMusicVolume().toFixed(2);
     this.canvas.dataset.musicDangerIntensity = this.musicDangerIntensity.toFixed(3);
     this.canvas.dataset.sfxEnabled = String(this.audio.isSfxEnabled());
+    this.canvas.dataset.sfxVolume = this.audio.getSfxVolume().toFixed(2);
     this.canvas.dataset.loadedAudioAssets = this.audio.getLoadedAssetIds().join(',');
     this.canvas.dataset.objectiveComplete = String(
       objective.isComplete && !objective.isEndless
@@ -2128,34 +2318,14 @@ function getHudRoot(): HTMLElement {
   return root;
 }
 
-function getReducedMotionPreference(): boolean {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-}
+function getShakeIntensityScale(intensity: ScreenShakeIntensity): number {
+  if (intensity === 'off') {
+    return 0;
+  }
 
-function createNeutralInputState(): InputState {
-  return {
-    left: false,
-    right: false,
-    up: false,
-    down: false,
-    boost: false,
-    laneUpPressed: false,
-    laneDownPressed: false,
-    startPressed: false,
-    tutorialStartPressed: false,
-    sectorSelectPressed: false,
-    dailyStartPressed: false,
-    seededStartPressed: false,
-    restartPressed: false,
-    escapePressed: false,
-    pausePressed: false,
-    helpTogglePressed: false,
-    tutorialSkipPressed: false,
-    musicTogglePressed: false,
-    musicVolumeDownPressed: false,
-    musicVolumeUpPressed: false,
-    sfxTogglePressed: false,
-    upgradeTogglePressed: false,
-    upgradeBuyPressed: null
-  };
+  if (intensity === 'low') {
+    return 0.45;
+  }
+
+  return 1;
 }
