@@ -12,11 +12,14 @@ type DebugState = {
   helpOpen: boolean;
   sectorId: string;
   tutorialActive: boolean;
+  musicEnabled: boolean;
+  sfxEnabled: boolean;
 };
 
 type DebugApi = {
   getState: () => DebugState;
   restart?: () => void;
+  forceGameOver?: (reason?: string) => void;
 };
 
 type WindowWithDebug = Window & {
@@ -47,10 +50,7 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
-    const text = message.text();
-    if (!isAllowedConsoleError(text)) {
-      errorState.consoleErrors.push(text);
-    }
+    errorState.consoleErrors.push(message.text());
   });
 });
 
@@ -70,6 +70,23 @@ test('loads the title scene and exposes debug state', async ({ page }) => {
   const state = await getDebugState(page);
   expect(state.sceneId).toBe('orbit-janitor');
   expect(state.phase).toBe('title');
+});
+
+test('toggles music and sfx preferences from keyboard input', async ({ page }) => {
+  await page.goto('/');
+  await waitForGameReady(page);
+
+  const initial = await getDebugState(page);
+
+  await page.keyboard.press('M');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.musicEnabled))
+    .toBe(!initial.musicEnabled);
+
+  await page.keyboard.press('N');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.sfxEnabled))
+    .toBe(!initial.sfxEnabled);
 });
 
 test('starts gameplay and responds to core controls', async ({ page }) => {
@@ -122,6 +139,34 @@ test('starts gameplay and responds to core controls', async ({ page }) => {
 
     expect(restartedState.runTime).toBeLessThan(runTimeBeforeRestart);
   }
+});
+
+test('restarts from game over with R when debug game-over hook is available', async ({
+  page
+}) => {
+  await page.goto('/');
+  await waitForGameReady(page);
+
+  await page.keyboard.press('Enter');
+  await expectPhase(page, 'playing');
+
+  const hasForceGameOver = await page.evaluate(
+    () =>
+      typeof (window as WindowWithDebug).orbitJanitorDebug?.forceGameOver === 'function'
+  );
+
+  test.skip(!hasForceGameOver, 'Game does not expose a debug game-over hook.');
+
+  await page.evaluate(() =>
+    (window as WindowWithDebug).orbitJanitorDebug?.forceGameOver?.(
+      'Playwright forced game over'
+    )
+  );
+  await expectPhase(page, 'gameover');
+
+  await page.keyboard.press('R');
+  await expectPhase(page, 'playing');
+  expect((await getDebugState(page)).runTime).toBeLessThan(1);
 });
 
 test('supports optional title tutorial, help, pause, and sector select flows', async ({
@@ -189,8 +234,4 @@ async function expectPhase(page: Page, phase: string): Promise<void> {
 function angularDistance(a: number, b: number): number {
   const difference = Math.abs(a - b);
   return Math.min(difference, Math.PI * 2 - difference);
-}
-
-function isAllowedConsoleError(text: string): boolean {
-  return /webgpu|webgl|gpu adapter|requestadapter|navigator\.gpu|dawn/i.test(text);
 }

@@ -119,6 +119,7 @@ declare global {
     orbitJanitorDebug?: {
       getState: () => OrbitJanitorDebugState;
       restart: () => void;
+      forceGameOver: (reason?: string) => void;
     };
   }
 }
@@ -223,7 +224,8 @@ export class Game {
     window.addEventListener('resize', this.handleResize);
     window.orbitJanitorDebug = {
       getState: () => this.getDebugState(),
-      restart: () => this.restart()
+      restart: () => this.restart(),
+      forceGameOver: (reason = 'Debug game over') => this.triggerGameOver(reason)
     };
   }
 
