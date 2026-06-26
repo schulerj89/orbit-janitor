@@ -38,20 +38,33 @@ npm run preview
 - ArrowDown or S: switch inward
 - Space: boost while held, limited by fuel
 - R: restart after game over
+- M: toggle music
+- N: toggle SFX
 
 ## Current Features
 
-- Tiny start overlay and game-over restart overlay
+- Title screen with controls and audio toggle hints
+- Run summary after game over
+- Persistent best score in localStorage
 - Three visible orbit lanes with smooth lane switching
 - Junk and satellite hazards assigned to lanes
 - Combo scoring for quick consecutive pickups
 - Boost fuel drain, recharge, and empty feedback
 - Procedural mesh particle bursts for pickups and impacts
 - Lightweight procedural audio with Web Audio after first input
+- Optional static SFX and music files under `public/audio`
 - Dynamic obstacle pacing as score increases
 - Timed lane hazard telegraphs that warn before becoming dangerous
 - Objective target: reach 50 cleanup points
 - Run timer with objective and hazard status feedback
+
+## Audio Assets
+
+The game works with no audio files present. `AudioManager` attempts to load optional static MP3 files from `public/audio` and falls back to procedural Web Audio sounds if files are missing or fail to decode.
+
+Expected optional file paths are documented in `public/audio/AUDIO_CREDITS.md`. Prompt ideas for generating those files are in `docs/audio-prompts.md`.
+
+ElevenLabs-generated assets can be placed in `public/audio` after generation outside the browser runtime, but they are not required. No ElevenLabs API key should be committed, referenced in browser code, or shipped to the client.
 
 ## Technical Notes
 
@@ -61,7 +74,7 @@ npm run preview
 - Prefers WebGPU and falls back through the renderer when unavailable.
 - Uses no external assets, models, image textures, postprocessing, custom GLSL, or physics engine.
 - All art and effects are procedural geometry and materials.
-- Audio is generated with the Web Audio API; no audio files are used.
+- Audio uses the Web Audio API, with optional static MP3 files and procedural fallbacks.
 - UI is plain HTML/CSS/TypeScript, with no React.
 - Runtime debug state is exposed on `window.orbitJanitorDebug` for smoke tests.
 
@@ -70,6 +83,6 @@ npm run preview
 1. Magnetic junk pickup upgrade
 2. Daily/random challenge seeds
 3. More hazard patterns
-4. Main menu and run summary
+4. Additional title and summary polish
 5. More audio variation
 6. TSL atmosphere and shield effects

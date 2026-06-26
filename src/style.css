@@ -61,7 +61,7 @@ body {
 
 .hud-controls {
   bottom: clamp(12px, 3vw, 26px);
-  width: min(360px, calc(100vw - 24px));
+  width: min(390px, calc(100vw - 24px));
   color: #a9bed0;
   font-size: clamp(0.76rem, 1.8vw, 0.92rem);
   line-height: 1.35;
@@ -184,14 +184,14 @@ body {
   color: #ff8e78;
 }
 
-.start-overlay,
-.game-over {
+.title-overlay,
+.run-summary {
   position: absolute;
   top: 50%;
   left: 50%;
   display: grid;
   pointer-events: none;
-  width: min(420px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 32px));
   min-height: 180px;
   place-items: center;
   padding: 28px;
@@ -209,42 +209,84 @@ body {
   visibility: visible;
 }
 
-.start-overlay.is-hidden,
-.game-over.is-hidden {
+.title-overlay.is-hidden,
+.run-summary.is-hidden {
   opacity: 0;
   transform: translate(-50%, -48%) scale(0.98);
   visibility: hidden;
 }
 
-.start-title {
+.title-overlay-title,
+.run-summary-title {
   margin: 0;
   font-size: clamp(2rem, 8vw, 3.8rem);
   line-height: 1;
   letter-spacing: 0;
 }
 
-.start-objective,
-.start-restart {
+.title-overlay-subtitle {
+  max-width: 450px;
+  margin: 0;
+  color: #d7e8f2;
+  font-size: clamp(0.95rem, 2.4vw, 1.12rem);
+  line-height: 1.45;
+}
+
+.title-controls,
+.run-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) 1fr;
+  gap: 6px 16px;
+  width: 100%;
+  max-width: 430px;
+  margin: 4px 0;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  text-align: left;
+}
+
+.title-controls span,
+.run-summary-grid span {
+  color: #83a4ba;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.title-controls strong,
+.run-summary-grid strong {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.title-overlay-start,
+.title-overlay-footer,
+.run-summary-reason,
+.run-summary-restart {
   margin: 0;
   color: #d2e8f4;
   font-size: clamp(0.95rem, 2.5vw, 1.1rem);
 }
 
-.start-restart {
+.title-overlay-start,
+.run-summary-restart {
   color: #ffe06b;
   font-weight: 800;
 }
 
-.game-over-title {
-  margin: 0;
-  font-size: clamp(2rem, 8vw, 3.6rem);
-  line-height: 1;
-  letter-spacing: 0;
+.title-overlay-footer {
+  color: #9cb5c8;
+  font-size: clamp(0.78rem, 2vw, 0.9rem);
 }
 
-.game-over-score,
-.game-over-restart {
-  margin: 0;
-  color: #d2e8f4;
-  font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+.run-summary {
+  width: min(470px, calc(100vw - 32px));
+}
+
+.run-summary-reason {
+  color: #ffb199;
+  font-weight: 800;
+}
+
+.run-summary-grid .is-complete {
+  color: #ffe06b;
 }

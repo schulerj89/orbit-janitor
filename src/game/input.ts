@@ -8,6 +8,8 @@ export interface InputState {
   laneDownPressed: boolean;
   startPressed: boolean;
   restartPressed: boolean;
+  musicTogglePressed: boolean;
+  sfxTogglePressed: boolean;
 }
 
 export class InputController {
@@ -20,7 +22,9 @@ export class InputController {
     laneUpPressed: false,
     laneDownPressed: false,
     startPressed: false,
-    restartPressed: false
+    restartPressed: false,
+    musicTogglePressed: false,
+    sfxTogglePressed: false
   };
 
   constructor(target: Window = window) {
@@ -34,6 +38,8 @@ export class InputController {
     this.state.laneDownPressed = false;
     this.state.startPressed = false;
     this.state.restartPressed = false;
+    this.state.musicTogglePressed = false;
+    this.state.sfxTogglePressed = false;
     return frameState;
   }
 
@@ -79,6 +85,16 @@ export class InputController {
 
     if (event.code === 'KeyR' && !event.repeat) {
       this.state.restartPressed = true;
+    }
+
+    if (event.code === 'KeyM' && !event.repeat) {
+      this.state.musicTogglePressed = true;
+      event.preventDefault();
+    }
+
+    if (event.code === 'KeyN' && !event.repeat) {
+      this.state.sfxTogglePressed = true;
+      event.preventDefault();
     }
   };
 

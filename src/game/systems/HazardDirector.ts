@@ -23,6 +23,7 @@ export interface HazardDirectorResult {
   hit: boolean;
   warning: boolean;
   active: boolean;
+  completed: boolean;
 }
 
 export interface HazardDirectorDebugState {
@@ -63,7 +64,8 @@ export class HazardDirector {
       }
 
       return this.getCurrentResult(
-        activeHazard.collidesWith(context.playerAngle, context.playerRadius)
+        activeHazard.collidesWith(context.playerAngle, context.playerRadius),
+        result.completed
       );
     }
 
@@ -128,13 +130,14 @@ export class HazardDirector {
     return this.hazards.find((hazard) => hazard.phase !== 'idle');
   }
 
-  private getCurrentResult(hit: boolean): HazardDirectorResult {
+  private getCurrentResult(hit: boolean, completed = false): HazardDirectorResult {
     const hazard = this.getActiveHazard();
 
     return {
       hit,
       warning: hazard?.isWarning() ?? false,
-      active: hazard?.isActive() ?? false
+      active: hazard?.isActive() ?? false,
+      completed
     };
   }
 }

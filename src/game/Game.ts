@@ -28,7 +28,10 @@ import { Planet } from './entities/Planet';
 import { PlayerShip } from './entities/PlayerShip';
 import { Starfield } from './entities/Starfield';
 import { HazardDirector, type HazardDirectorDebugState } from './systems/HazardDirector';
+import { RunStats, type RunStatsSnapshot } from './systems/RunStats';
 import { Hud, type GameState } from './ui/Hud';
+import { RunSummary } from './ui/RunSummary';
+import { TitleOverlay } from './ui/TitleOverlay';
 
 const STARTING_OBSTACLES: ObstacleConfig[] = [
   { laneIndex: 0, angle: Math.PI * 0.72, angularSpeed: -0.72 },
@@ -49,6 +52,9 @@ interface OrbitJanitorDebugState {
   isBoosting: boolean;
   runTime: number;
   objectiveComplete: boolean;
+  bestScore: number;
+  musicEnabled: boolean;
+  sfxEnabled: boolean;
   playerAngle: number;
   playerLaneIndex: number;
   playerRadius: number;
@@ -56,6 +62,7 @@ interface OrbitJanitorDebugState {
   junkLaneIndex: number;
   obstacles: LaneAngle[];
   hazard: HazardDirectorDebugState;
+  runStats: RunStatsSnapshot;
   playerPosition: number[];
   cameraPosition: number[];
   loadedAssetIds: string[];
@@ -87,6 +94,7 @@ export class Game {
   private readonly particles = new ParticleBurst();
   private readonly screenShake = new ScreenShake();
   private readonly hazardDirector = new HazardDirector();
+  private readonly runStats = new RunStats(RUN_OBJECTIVE_TARGET_SCORE);
   private readonly baseCameraPosition = new THREE.Vector3();
   private readonly shakenCameraPosition = new THREE.Vector3();
   private readonly playerPosition = new THREE.Vector3();
@@ -95,12 +103,14 @@ export class Game {
 
   private renderer!: THREE.WebGPURenderer;
   private hud!: Hud;
+  private titleOverlay!: TitleOverlay;
+  private runSummary!: RunSummary;
   private orbitLanes!: OrbitLanes;
   private planet!: Planet;
   private starfield!: Starfield;
   private player!: PlayerShip;
   private junk!: Junk;
-  private state: GameState = 'ready';
+  private state: GameState = 'title';
   private score = 0;
   private comboCount = 0;
   private comboMultiplier = 1;
@@ -111,6 +121,8 @@ export class Game {
   private isBoosting = false;
   private runTime = 0;
   private hazardWarning = false;
+  private hazardActive = false;
+  private objectiveAnnounced = false;
   private gameOverReason = 'Impact detected';
 
   constructor(canvas: HTMLCanvasElement) {
@@ -126,11 +138,14 @@ export class Game {
 
   async init(): Promise<void> {
     this.renderer = await createRenderer(this.canvas);
-    this.hud = new Hud(getHudRoot());
+    const hudRoot = getHudRoot();
+    this.hud = new Hud(hudRoot);
+    this.titleOverlay = new TitleOverlay(hudRoot);
+    this.runSummary = new RunSummary(hudRoot);
 
     this.scene.background = new THREE.Color(0x02050f);
     this.buildScene();
-    this.prepareFirstRun();
+    this.prepareTitle();
 
     window.addEventListener('resize', this.handleResize);
     window.orbitJanitorDebug = {
@@ -173,11 +188,24 @@ export class Game {
     const input = this.input.consumeFrame();
 
     if (this.hasPlayerInput(input)) {
-      this.audio.start();
+      this.audio.unlock();
     }
 
-    const consumedStartInput =
-      this.state === 'ready' && (input.startPressed || input.boost);
+    if (input.musicTogglePressed) {
+      const musicEnabled = this.audio.toggleMusic();
+      this.audio.playUiSelect();
+
+      if (musicEnabled && this.state === 'playing') {
+        this.audio.startMusic();
+      }
+    }
+
+    if (input.sfxTogglePressed) {
+      this.audio.toggleSfx();
+      this.audio.playUiSelect();
+    }
+
+    const consumedStartInput = this.state === 'title' && input.startPressed;
     if (consumedStartInput) {
       this.startRun();
     }
@@ -215,6 +243,8 @@ export class Game {
       this.runTime += delta;
       this.updateCombo(delta);
       this.updateObstacles(delta);
+      const wasHazardWarning = this.hazardWarning;
+      const wasHazardActive = this.hazardActive;
       const hazardResult = this.hazardDirector.update(delta, {
         score: this.score,
         playerAngle: this.player.angle,
@@ -224,6 +254,19 @@ export class Game {
         isGameOver
       });
       this.hazardWarning = hazardResult.warning;
+      this.hazardActive = hazardResult.active;
+
+      if (hazardResult.warning && !wasHazardWarning) {
+        this.audio.playHazardWarning();
+      }
+
+      if (hazardResult.active && !wasHazardActive) {
+        this.audio.playHazardActive();
+      }
+
+      if (hazardResult.completed) {
+        this.runStats.recordHazardSurvived();
+      }
 
       if (hazardResult.hit) {
         this.triggerGameOver('Destroyed by lane hazard');
@@ -241,8 +284,10 @@ export class Game {
       });
     } else {
       this.hazardWarning = false;
+      this.hazardActive = false;
     }
 
+    this.syncRunStats();
     this.applyCameraShake();
     this.updateHud(this.shouldShowBoostEmpty(input));
     this.renderer.render(this.scene, this.camera);
@@ -354,6 +399,7 @@ export class Game {
   }
 
   private collectJunk(): void {
+    const previousScore = this.score;
     const previousMultiplier = this.comboMultiplier;
 
     if (this.comboTimer > 0) {
@@ -371,7 +417,19 @@ export class Game {
 
     this.audio.playCollect();
     if (this.comboMultiplier > previousMultiplier) {
-      this.audio.playCombo(this.comboMultiplier);
+      this.audio.playComboUp(this.comboMultiplier);
+    }
+
+    this.runStats.recordJunkCollected();
+    this.syncRunStats();
+
+    if (
+      !this.objectiveAnnounced &&
+      previousScore < RUN_OBJECTIVE_TARGET_SCORE &&
+      this.score >= RUN_OBJECTIVE_TARGET_SCORE
+    ) {
+      this.objectiveAnnounced = true;
+      this.audio.playObjectiveComplete();
     }
 
     this.particles.emit(this.junk.getPosition(this.junkPosition), 0xffb43a, 12);
@@ -387,25 +445,32 @@ export class Game {
 
     this.state = 'gameover';
     this.gameOverReason = reason;
-    this.audio.playHit();
+    this.syncRunStats();
+    this.runStats.complete(reason);
+    this.audio.playImpact();
     this.audio.playBoostLoopStop();
+    this.audio.stopMusic();
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xcfefff, 28, true);
     this.screenShake.add(0.22);
   }
 
-  private prepareFirstRun(): void {
+  private prepareTitle(): void {
     this.resetRunState();
-    this.state = 'ready';
+    this.state = 'title';
+    this.audio.stopMusic();
     this.updateHud(false);
     this.syncDebugAttributes();
   }
 
   private startRun(): void {
-    if (this.state !== 'ready') {
+    if (this.state !== 'title') {
       return;
     }
 
+    this.resetRunState();
     this.state = 'playing';
+    this.audio.playUiStart();
+    this.audio.startMusic();
     this.updateHud(false);
     this.syncDebugAttributes();
   }
@@ -413,6 +478,8 @@ export class Game {
   private restart(): void {
     this.resetRunState();
     this.state = 'playing';
+    this.audio.playUiStart();
+    this.audio.startMusic();
     this.updateHud(false);
     this.syncDebugAttributes();
   }
@@ -428,8 +495,11 @@ export class Game {
     this.isBoosting = false;
     this.runTime = 0;
     this.hazardWarning = false;
+    this.hazardActive = false;
+    this.objectiveAnnounced = false;
     this.gameOverReason = 'Impact detected';
     this.audio.stopAll();
+    this.runStats.reset();
     this.screenShake.clear();
     this.particles.clear();
     this.hazardDirector.reset();
@@ -560,11 +630,24 @@ export class Game {
       input.laneUpPressed ||
       input.laneDownPressed ||
       input.startPressed ||
-      input.restartPressed
+      input.restartPressed ||
+      input.musicTogglePressed ||
+      input.sfxTogglePressed
+    );
+  }
+
+  private syncRunStats(): void {
+    this.runStats.syncProgress(
+      this.score,
+      this.runTime,
+      this.comboCount,
+      this.comboMultiplier
     );
   }
 
   private updateHud(boostEmpty: boolean): void {
+    const stats = this.runStats.getSnapshot();
+
     this.hud.update({
       score: this.score,
       state: this.state,
@@ -578,7 +661,18 @@ export class Game {
       objectiveTargetScore: RUN_OBJECTIVE_TARGET_SCORE,
       objectiveComplete: this.score >= RUN_OBJECTIVE_TARGET_SCORE,
       hazardWarning: this.hazardWarning,
-      gameOverReason: this.gameOverReason
+      gameOverReason: this.gameOverReason,
+      musicEnabled: this.audio.isMusicEnabled(),
+      sfxEnabled: this.audio.isSfxEnabled()
+    });
+    this.titleOverlay.update({
+      state: this.state,
+      musicEnabled: this.audio.isMusicEnabled(),
+      sfxEnabled: this.audio.isSfxEnabled()
+    });
+    this.runSummary.update({
+      state: this.state,
+      stats
     });
   }
 
@@ -617,6 +711,9 @@ export class Game {
       isBoosting: this.isBoosting,
       runTime: this.runTime,
       objectiveComplete: this.score >= RUN_OBJECTIVE_TARGET_SCORE,
+      bestScore: this.runStats.getSnapshot().bestScore,
+      musicEnabled: this.audio.isMusicEnabled(),
+      sfxEnabled: this.audio.isSfxEnabled(),
       playerAngle: this.player.angle,
       playerLaneIndex: this.player.targetLaneIndex,
       playerRadius: this.player.currentRadius,
@@ -624,6 +721,7 @@ export class Game {
       junkLaneIndex: this.junk.laneIndex,
       obstacles: this.getObstacleLaneAngles(),
       hazard: this.hazardDirector.getDebugState(),
+      runStats: this.runStats.getSnapshot(),
       playerPosition: this.player.getPosition(this.playerPosition).toArray(),
       cameraPosition: this.camera.position.toArray(),
       loadedAssetIds: [],
@@ -646,6 +744,9 @@ export class Game {
     this.canvas.dataset.boostFuel = this.boostFuel.toFixed(3);
     this.canvas.dataset.isBoosting = String(this.isBoosting);
     this.canvas.dataset.runTime = this.runTime.toFixed(2);
+    this.canvas.dataset.bestScore = String(this.runStats.getSnapshot().bestScore);
+    this.canvas.dataset.musicEnabled = String(this.audio.isMusicEnabled());
+    this.canvas.dataset.sfxEnabled = String(this.audio.isSfxEnabled());
     this.canvas.dataset.objectiveComplete = String(
       this.score >= RUN_OBJECTIVE_TARGET_SCORE
     );

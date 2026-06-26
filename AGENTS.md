@@ -8,11 +8,13 @@ This repo is a small, highly iterable Vite + TypeScript + Three.js arcade game. 
 - Do not change gameplay behavior unless the user explicitly asks for gameplay changes.
 - Do not add dependencies without explicit approval.
 - Do not introduce React, R3F, Drei, Phaser, Babylon, Cannon, Rapier, Ammo, GLTF, image textures, external asset CDNs, postprocessing, custom GLSL, or a physics engine.
-- Keep all art, effects, and audio procedural.
+- Keep art and effects procedural. Audio must work through procedural fallbacks.
 - Keep using `WebGPURenderer` from `three/webgpu`.
 - Do not mix imports from `three` and `three/webgpu`; use `three/webgpu` consistently for Three.js imports.
 - Keep assets procedural unless explicitly asked.
-- Use the Web Audio API directly for sound. Do not add audio files.
+- Use the Web Audio API directly for sound. Optional static audio files belong under `public/audio`.
+- Do not call ElevenLabs or other external audio services from browser code.
+- Do not commit or reference API keys in client code, docs, or manifests.
 - Avoid broad rewrites. Touch only the files needed for the task.
 - Prefer small, playable iterations.
 - Run `npm run typecheck` and `npm run build` before finishing.
@@ -48,6 +50,8 @@ npm run build
 - `src/game/systems/` contains orchestration systems such as hazard scheduling.
 - `src/game/effects/` contains transient visual feedback systems.
 - `src/game/audio/AudioManager.ts` owns procedural Web Audio.
+- `src/game/audio/audioManifest.ts` maps optional static audio paths.
+- `public/audio/` is reserved for optional static audio files and credits.
 - `src/game/ui/Hud.ts` owns HUD markup and state display.
 - `src/style.css` owns page, HUD, and overlay styling.
 
@@ -57,6 +61,7 @@ npm run build
 - Keep collision simple and readable. Existing collision uses distances, lane radius proximity, and angular checks.
 - Keep HUD changes in `Hud.ts` and `style.css`; avoid pushing display logic into gameplay entities.
 - Keep audio calls in `Game.ts` at gameplay event boundaries, and synthesis details inside `AudioManager`.
+- Static audio is optional; missing files must not break gameplay.
 - Keep debug state in `window.orbitJanitorDebug` useful for browser smoke tests.
 
 ## Review Guidance
