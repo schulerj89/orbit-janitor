@@ -35,7 +35,13 @@ import { PlayerShip } from './entities/PlayerShip';
 import { getPowerupColor, type PowerupType } from './entities/Powerup';
 import { Starfield } from './entities/Starfield';
 import { ChallengeMode, type ChallengeRunMode } from './systems/ChallengeMode';
+import {
+  EventWaveDirector,
+  type EventWaveDebugState,
+  type SatelliteNetEffect
+} from './systems/EventWaveDirector';
 import { HazardDirector, type HazardDirectorDebugState } from './systems/HazardDirector';
+import type { HazardPatternType } from './systems/HazardTypes';
 import { MissionDirector } from './systems/MissionDirector';
 import {
   PowerupDirector,
@@ -112,6 +118,7 @@ interface OrbitJanitorDebugState {
   junkLaneIndex: number;
   obstacles: LaneAngle[];
   hazard: HazardDirectorDebugState;
+  eventWave: EventWaveDebugState;
   powerup: PowerupDirectorDebugState;
   runStats: RunStatsSnapshot;
   upgrades: UpgradeSnapshot;
@@ -148,6 +155,7 @@ export class Game {
   private readonly particles = new ParticleBurst();
   private readonly screenShake = new ScreenShake();
   private readonly hazardDirector = new HazardDirector();
+  private readonly eventWaveDirector = new EventWaveDirector();
   private readonly powerupDirector = new PowerupDirector();
   private readonly runStats = new RunStats(RUN_OBJECTIVE_TARGET_SCORE);
   private readonly upgrades = new UpgradeSystem();
@@ -271,6 +279,7 @@ export class Game {
       this.directionalLight,
       this.planet.group,
       this.orbitLanes.group,
+      this.eventWaveDirector.group,
       this.hazardDirector.group,
       this.powerupDirector.group,
       this.ghostMarker.group,
@@ -399,11 +408,18 @@ export class Game {
 
     if (isGameplayActive) {
       this.runTime += delta;
+      this.syncRunStats();
+      this.updateEventWave(delta);
       this.updatePowerups(delta);
       const powerupEffects = this.powerupDirector.getEffects();
+      const eventEffects = this.eventWaveDirector.getEffects();
       this.applyMagnetSurge(delta, powerupEffects.magnetSurge);
       this.updateCombo(delta, powerupEffects.comboLock);
-      this.updateObstacles(delta, powerupEffects.timeDilationScale);
+      this.updateObstacles(
+        delta,
+        powerupEffects.timeDilationScale,
+        eventEffects.satelliteNet
+      );
       this.syncRunStats();
       this.updateTutorial(delta, input, isBoosting);
 
@@ -423,11 +439,17 @@ export class Game {
             junkAngle: this.junk.angle,
             junkLaneIndex: this.junk.laneIndex,
             rng: this.runRng,
-            hazardIntensity: difficulty.hazardIntensity,
-            hazardIntervalMultiplier: difficulty.hazardIntervalMultiplier,
-            hazardTelegraphMultiplier: difficulty.hazardTelegraphMultiplier,
-            hazardActiveMultiplier: difficulty.hazardActiveMultiplier,
-            hazardSpeedMultiplier: difficulty.hazardSpeedMultiplier,
+            hazardIntensity:
+              difficulty.hazardIntensity * eventEffects.regularHazardIntensityMultiplier,
+            hazardIntervalMultiplier:
+              difficulty.hazardIntervalMultiplier * eventEffects.hazardIntervalMultiplier,
+            hazardTelegraphMultiplier:
+              difficulty.hazardTelegraphMultiplier *
+              eventEffects.hazardTelegraphMultiplier,
+            hazardActiveMultiplier:
+              difficulty.hazardActiveMultiplier * eventEffects.hazardActiveMultiplier,
+            hazardSpeedMultiplier:
+              difficulty.hazardSpeedMultiplier * eventEffects.hazardSpeedMultiplier,
             allowedHazardTypes: difficulty.allowedHazardTypes,
             isGameOver
           }
@@ -617,6 +639,67 @@ export class Game {
     return this.isPaused || (this.helpOpen && this.state === 'playing');
   }
 
+  private updateEventWave(delta: number): void {
+    const stats = this.runStats.getSnapshot();
+    const result = this.eventWaveDirector.update(delta, {
+      sector: this.missionDirector.getCurrentSector(),
+      objective: this.missionDirector.getObjective(stats),
+      stats,
+      playerAngle: this.player.angle,
+      playerRadius: this.player.currentRadius,
+      rng: this.runRng,
+      hazard: this.hazardDirector.getDebugState(),
+      canStart: !this.tutorialDirector.getSnapshot().isActive
+    });
+
+    if (result.started) {
+      this.hazardDirector.delayNextSpawn(2.25);
+      this.audio.playHazardWarning();
+    }
+
+    if (result.activated) {
+      this.audio.playHazardActive();
+      this.screenShake.add(0.04);
+    }
+
+    if (result.forcedHazardType) {
+      this.forceEventHazard(result.forcedHazardType);
+    }
+
+    if (result.completed) {
+      this.hazardDirector.delayNextSpawn(1.4);
+    }
+  }
+
+  private forceEventHazard(type: HazardPatternType): void {
+    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+    const eventEffects = this.eventWaveDirector.getEffects();
+
+    if (
+      this.hazardDirector.forceHazard(type, {
+        score: this.score,
+        runTime: this.runTime,
+        playerAngle: this.player.angle,
+        playerRadius: this.player.currentRadius,
+        junkAngle: this.junk.angle,
+        junkLaneIndex: this.junk.laneIndex,
+        rng: this.runRng,
+        hazardIntensity: 1,
+        hazardIntervalMultiplier: 1.8,
+        hazardTelegraphMultiplier:
+          difficulty.hazardTelegraphMultiplier * eventEffects.hazardTelegraphMultiplier,
+        hazardActiveMultiplier:
+          difficulty.hazardActiveMultiplier * eventEffects.hazardActiveMultiplier,
+        hazardSpeedMultiplier:
+          difficulty.hazardSpeedMultiplier * eventEffects.hazardSpeedMultiplier,
+        allowedHazardTypes: [type],
+        isGameOver: false
+      })
+    ) {
+      this.audio.playHazardWarning();
+    }
+  }
+
   private updatePowerups(delta: number): void {
     const tutorial = this.tutorialDirector.getSnapshot();
     const result = this.powerupDirector.update(delta, {
@@ -692,7 +775,16 @@ export class Game {
     }
   }
 
-  private updateObstacles(delta: number, timeScale: number): void {
+  private updateObstacles(
+    delta: number,
+    timeScale: number,
+    satelliteNet: SatelliteNetEffect | null
+  ): void {
+    if (satelliteNet) {
+      this.updateSatelliteNetObstacles(delta * timeScale, satelliteNet);
+      return;
+    }
+
     this.ensureObstacleCount();
     const difficultyFactor = 1 + Math.min(this.score / 60, 0.6);
     const scaledDelta = delta * timeScale;
@@ -700,6 +792,26 @@ export class Game {
     for (const obstacle of this.obstacles) {
       obstacle.update(scaledDelta, difficultyFactor);
     }
+  }
+
+  private updateSatelliteNetObstacles(
+    delta: number,
+    satelliteNet: SatelliteNetEffect
+  ): void {
+    this.ensureObstacleCount(4);
+    const dangerLanes = ORBIT_LANES.map((_, index) => index).filter(
+      (laneIndex) => laneIndex !== satelliteNet.safeLaneIndex
+    );
+    const spacing = (Math.PI * 2) / Math.max(3, this.obstacles.length);
+
+    this.obstacles.forEach((obstacle, index) => {
+      const laneIndex = dangerLanes[index % dangerLanes.length];
+      const laneOffset = index % dangerLanes.length === 0 ? -0.18 : 0.18;
+
+      obstacle.laneIndex = laneIndex;
+      obstacle.angle = wrapAngle(satelliteNet.centerAngle + index * spacing + laneOffset);
+      obstacle.update(delta, 0);
+    });
   }
 
   private checkCollisions(): void {
@@ -748,7 +860,8 @@ export class Game {
       1 + Math.floor(this.comboCount / 3)
     );
     this.score += this.comboMultiplier;
-    this.comboTimer = this.currentComboWindow;
+    this.comboTimer =
+      this.currentComboWindow + this.eventWaveDirector.getEffects().comboWindowBonus;
 
     this.audio.playCollect();
     if (this.comboMultiplier > previousMultiplier) {
@@ -810,6 +923,7 @@ export class Game {
     this.audio.playImpact();
     this.audio.playBoostLoopStop();
     this.music.playGameOver();
+    this.eventWaveDirector.reset(this.runRng);
     this.powerupDirector.reset(this.runRng);
     this.powerupToast.clear();
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xcfefff, 28, true);
@@ -843,6 +957,7 @@ export class Game {
     this.audio.playBoostLoopStop();
     this.music.playMissionComplete();
     this.hazardDirector.reset();
+    this.eventWaveDirector.reset(this.runRng);
     this.powerupDirector.reset(this.runRng);
     this.powerupToast.clear();
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xffe06b, 24, true);
@@ -953,6 +1068,7 @@ export class Game {
     this.audio.stopAll();
     this.runStats.reset();
     this.tutorialDirector.reset();
+    this.eventWaveDirector.reset(this.runRng);
     this.powerupDirector.reset(this.runRng);
     this.powerupToast.clear();
     this.ghostMarker.clear();
@@ -987,8 +1103,8 @@ export class Game {
     this.obstacles.length = 0;
   }
 
-  private ensureObstacleCount(): void {
-    const desiredCount = this.getDesiredObstacleCount();
+  private ensureObstacleCount(minimumCount = 0): void {
+    const desiredCount = Math.max(this.getDesiredObstacleCount(), minimumCount);
 
     while (this.obstacles.length < desiredCount) {
       this.createObstacle(this.createSafeObstacleConfig(this.obstacles.length));
@@ -1085,6 +1201,11 @@ export class Game {
   private respawnJunk(): void {
     const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
 
+    if (this.eventWaveDirector.getEffects().cleanupFrenzy) {
+      this.respawnCleanupFrenzyJunk();
+      return;
+    }
+
     this.junk.respawn(
       this.player.angle,
       this.player.targetLaneIndex,
@@ -1092,6 +1213,23 @@ export class Game {
       this.runRng,
       difficulty.junkLaneWeights
     );
+  }
+
+  private respawnCleanupFrenzyJunk(): void {
+    const laneOffset = this.runRng.pick([-1, 0, 1]);
+    const laneIndex = Math.max(
+      0,
+      Math.min(ORBIT_LANES.length - 1, this.player.targetLaneIndex + laneOffset)
+    );
+    const direction = this.runRng.next() < 0.5 ? -1 : 1;
+    const disallowedAngles = this.getDisallowedAnglesForLane(laneIndex);
+    let angle = wrapAngle(this.player.angle + direction * this.runRng.range(0.58, 1.05));
+
+    if (!isAngleSafe(angle, disallowedAngles, 0.56)) {
+      angle = randomAngleAvoiding(disallowedAngles, 0.72, this.runRng);
+    }
+
+    this.junk.place(laneIndex, angle, this.runRng);
   }
 
   private getObstacleLaneAngles(): LaneAngle[] {
@@ -1425,8 +1563,10 @@ export class Game {
     const comboPressure =
       this.comboMultiplier >= 4 ? 0.38 : this.comboMultiplier >= 2 ? 0.18 : 0;
     const hazardPressure = this.hazardActive ? 1 : this.hazardWarning ? 0.65 : 0;
+    const eventPressure = this.eventWaveDirector.getEffects().dangerIntensity;
 
     this.musicDangerIntensity = Math.max(
+      eventPressure,
       hazardPressure,
       comboPressure,
       Math.min(0.36, objectivePressure)
@@ -1442,6 +1582,8 @@ export class Game {
     const objective = this.missionDirector.getObjective(stats);
     const sectorProgress = this.sectorProgress.getSnapshot();
     const tutorial = this.tutorialDirector.getSnapshot();
+    const eventWave = this.eventWaveDirector.getSnapshot();
+    const eventEffects = this.eventWaveDirector.getEffects();
 
     this.hud.update({
       score: this.score,
@@ -1457,13 +1599,18 @@ export class Game {
       objectiveProgressText: objective.progressText,
       comboMultiplier: this.comboMultiplier,
       comboTimer: this.comboTimer,
-      comboWindow: this.currentComboWindow,
+      comboWindow: this.currentComboWindow + eventEffects.comboWindowBonus,
       laneName: laneName(this.player.targetLaneIndex),
       boostFuel: this.boostFuel / this.currentBoostFuelMax,
       boostEmpty,
       runTime: this.runTime,
       objectiveComplete: objective.isComplete && !objective.isEndless,
       hazardWarning: this.hazardWarning,
+      eventName: eventWave.name,
+      eventCallout: eventWave.callout,
+      eventCountdown: eventWave.countdown,
+      eventTimeRemaining: eventWave.timeRemaining,
+      eventPhase: eventWave.phase,
       activePowerups: this.powerupDirector.getActivePowerups(),
       tutorialActive: tutorial.isActive,
       tutorialStepLabel: tutorial.currentStep?.id ?? null,
@@ -1577,6 +1724,7 @@ export class Game {
     this.starfield.applyTheme(theme);
     this.junk.applyTheme(theme, difficulty.junkColorVariance);
     this.hazardDirector.applyTheme(theme);
+    this.eventWaveDirector.applyTheme(theme);
 
     if (showHint) {
       this.sectorHintTimer = 2.9;
@@ -1627,6 +1775,7 @@ export class Game {
       junkLaneIndex: this.junk.laneIndex,
       obstacles: this.getObstacleLaneAngles(),
       hazard: this.hazardDirector.getDebugState(),
+      eventWave: this.eventWaveDirector.getDebugState(),
       powerup: this.powerupDirector.getDebugState(),
       runStats: this.runStats.getSnapshot(),
       upgrades: this.upgrades.getSnapshot(),
@@ -1705,6 +1854,14 @@ export class Game {
     this.canvas.dataset.hazardAngle =
       hazard.angle === null ? '' : hazard.angle.toFixed(4);
     this.canvas.dataset.hazardNextSpawn = hazard.nextSpawnIn.toFixed(2);
+    const eventWave = this.eventWaveDirector.getDebugState();
+    this.canvas.dataset.eventWaveType = eventWave.type;
+    this.canvas.dataset.eventWavePhase = eventWave.phase;
+    this.canvas.dataset.eventWaveCallout = eventWave.callout;
+    this.canvas.dataset.eventWaveCountdown = eventWave.countdown.toFixed(2);
+    this.canvas.dataset.eventWaveRemaining = eventWave.timeRemaining.toFixed(2);
+    this.canvas.dataset.eventWaveSafeLane =
+      eventWave.safeLaneIndex === null ? '' : String(eventWave.safeLaneIndex);
     const powerup = this.powerupDirector.getDebugState();
     this.canvas.dataset.powerupType = powerup.collectibleType;
     this.canvas.dataset.powerupLane =

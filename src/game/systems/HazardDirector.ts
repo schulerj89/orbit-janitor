@@ -136,6 +136,10 @@ export class HazardDirector {
     return true;
   }
 
+  delayNextSpawn(seconds: number): void {
+    this.spawnTimer = Math.max(this.spawnTimer, seconds);
+  }
+
   getDebugState(): HazardDirectorDebugState {
     const hazard = this.getActiveHazard();
     const hazardDebug = hazard?.getDebugState();

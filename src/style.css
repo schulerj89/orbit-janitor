@@ -172,6 +172,57 @@ body {
   font-weight: 800;
 }
 
+.hud-event {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  margin: 2px 0 8px;
+  padding: 5px 8px;
+  border: 1px solid rgb(255 177 61 / 42%);
+  border-radius: 6px;
+  background: rgb(35 18 10 / 62%);
+  color: #ffe06b;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  opacity: 1;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    visibility 140ms ease;
+  visibility: visible;
+}
+
+.hud-event.is-hidden {
+  opacity: 0;
+  transform: translateY(-3px);
+  visibility: hidden;
+}
+
+.hud-event.is-active {
+  border-color: rgb(255 82 49 / 54%);
+  background: rgb(42 10 10 / 68%);
+  color: #ffb199;
+}
+
+.hud-event span,
+.hud-event strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-event span {
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.hud-event strong {
+  color: #ffffff;
+  font-size: 0.82rem;
+}
+
 .hud-row.is-hot .hud-value {
   color: #ffc857;
 }

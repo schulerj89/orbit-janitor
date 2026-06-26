@@ -1,4 +1,5 @@
 import type { ActivePowerupSnapshot } from '../systems/PowerupDirector';
+import type { EventWavePhase } from '../systems/EventWaveDirector';
 
 export type GameState =
   | 'title'
@@ -28,6 +29,11 @@ export interface HudSnapshot {
   runTime: number;
   objectiveComplete: boolean;
   hazardWarning: boolean;
+  eventName: string;
+  eventCallout: string;
+  eventCountdown: number;
+  eventTimeRemaining: number;
+  eventPhase: EventWavePhase;
   activePowerups: ActivePowerupSnapshot[];
   tutorialActive: boolean;
   tutorialStepLabel: string | null;
@@ -50,6 +56,8 @@ export class Hud {
   private readonly laneValue: HTMLElement;
   private readonly timerValue: HTMLElement;
   private readonly objectiveValue: HTMLElement;
+  private readonly eventValue: HTMLElement;
+  private readonly eventCountdownValue: HTMLElement;
   private readonly comboRow: HTMLElement;
   private readonly comboValue: HTMLElement;
   private readonly comboTimerFill: HTMLElement;
@@ -88,6 +96,10 @@ export class Hud {
           <span class="hud-value hud-seed-value" data-hud-seed>OJ-0000000</span>
         </div>
         <div class="hud-objective" data-hud-objective>Objective: Reach 50 cleanup points</div>
+        <div class="hud-event is-hidden" data-hud-event>
+          <span data-hud-event-callout>DEBRIS STORM</span>
+          <strong data-hud-event-countdown>2s</strong>
+        </div>
         <div class="hud-row" data-hud-combo-row>
           <span class="hud-label">Combo</span>
           <span class="hud-value" data-hud-combo>x1</span>
@@ -142,6 +154,8 @@ export class Hud {
     this.laneValue = getElement(root, '[data-hud-lane]');
     this.timerValue = getElement(root, '[data-hud-timer]');
     this.objectiveValue = getElement(root, '[data-hud-objective]');
+    this.eventValue = getElement(root, '[data-hud-event]');
+    this.eventCountdownValue = getElement(root, '[data-hud-event-countdown]');
     this.comboRow = getElement(root, '[data-hud-combo-row]');
     this.comboValue = getElement(root, '[data-hud-combo]');
     this.comboTimerFill = getElement(root, '[data-hud-combo-fill]');
@@ -180,6 +194,7 @@ export class Hud {
       ? `Mission Complete: ${snapshot.objectiveProgressText}`
       : `${snapshot.objectiveText} (${snapshot.objectiveProgressText})`;
     this.objectiveValue.classList.toggle('is-complete', snapshot.objectiveComplete);
+    this.updateEvent(snapshot);
     this.comboValue.textContent = `x${snapshot.comboMultiplier}`;
     this.comboRow.classList.toggle('is-hot', snapshot.comboMultiplier > 1);
     this.comboTimerFill.style.transform = `scaleX(${comboPercent})`;
@@ -207,6 +222,11 @@ export class Hud {
       this.statusValue.textContent = 'SHIELD BROKEN';
     } else if (snapshot.hazardWarning) {
       this.statusValue.textContent = 'WARNING: Lane hazard incoming';
+    } else if (snapshot.eventCallout) {
+      this.statusValue.textContent =
+        snapshot.eventPhase === 'warning'
+          ? `${snapshot.eventCallout} in ${Math.ceil(snapshot.eventCountdown)}`
+          : snapshot.eventCallout;
     } else if (snapshot.tutorialActive && snapshot.tutorialStepLabel) {
       this.statusValue.textContent = `Training: ${snapshot.tutorialStepLabel}`;
     } else if (snapshot.shieldCharges > 0) {
@@ -224,6 +244,20 @@ export class Hud {
     } else {
       this.statusValue.textContent = 'Cleaning orbit';
     }
+  }
+
+  private updateEvent(snapshot: HudSnapshot): void {
+    const isVisible = snapshot.eventCallout.length > 0;
+    const callout = getElement(this.eventValue, '[data-hud-event-callout]');
+
+    callout.textContent = snapshot.eventCallout;
+    this.eventValue.title = snapshot.eventName;
+    this.eventCountdownValue.textContent =
+      snapshot.eventPhase === 'warning'
+        ? `${Math.ceil(snapshot.eventCountdown)}s`
+        : `${Math.ceil(snapshot.eventTimeRemaining)}s`;
+    this.eventValue.classList.toggle('is-hidden', !isVisible);
+    this.eventValue.classList.toggle('is-active', snapshot.eventPhase === 'active');
   }
 
   private updatePowerups(activePowerups: ActivePowerupSnapshot[]): void {

@@ -1,3 +1,4 @@
+import type { EventWaveType } from './EventWaveDirector';
 import type { HazardPatternType } from './HazardTypes';
 import type { SectorThemeId } from './SectorTheme';
 
@@ -55,6 +56,7 @@ export interface SectorConfig {
   hazardIntensity: number;
   junkSpawnBias: JunkSpawnBias;
   allowedHazardTypes: readonly HazardPatternType[];
+  eventWaveTypes: readonly EventWaveType[];
   planetPalette: SectorPalette;
   lanePalette: SectorPalette;
   unlockRequirement: SectorUnlockRequirement;
@@ -88,6 +90,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       laneWeights: [1.15, 1, 1.15]
     },
     allowedHazardTypes: [],
+    eventWaveTypes: [],
     planetPalette: {
       primary: 0x0f6f8f,
       secondary: 0x2aa4a8,
@@ -125,6 +128,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       laneWeights: [1, 1, 1]
     },
     allowedHazardTypes: ['laneArc', 'doubleLaneArc', 'pulseMine'],
+    eventWaveTypes: ['solarFlare', 'cleanupFrenzy'],
     planetPalette: {
       primary: 0x0f6f8f,
       secondary: 0x0a4d6e,
@@ -162,6 +166,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       laneWeights: [1.35, 0.75, 1.35]
     },
     allowedHazardTypes: ['laneArc', 'doubleLaneArc', 'pulseMine'],
+    eventWaveTypes: ['debrisStorm', 'satelliteNet', 'cleanupFrenzy'],
     planetPalette: {
       primary: 0x3d7895,
       secondary: 0x8f4a32,
@@ -199,6 +204,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       laneWeights: [1, 1.2, 1]
     },
     allowedHazardTypes: ['laneArc', 'doubleLaneArc', 'pulseMine', 'sweeper'],
+    eventWaveTypes: ['solarFlare', 'debrisStorm'],
     planetPalette: {
       primary: 0x5d7fb8,
       secondary: 0xffb13d,
@@ -236,6 +242,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       laneWeights: [0.9, 1.25, 0.9]
     },
     allowedHazardTypes: ['laneArc', 'doubleLaneArc', 'pulseMine', 'sweeper', 'gate'],
+    eventWaveTypes: ['satelliteNet', 'solarFlare'],
     planetPalette: {
       primary: 0x18305a,
       secondary: 0x243b6c,
@@ -273,6 +280,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       laneWeights: [1.15, 0.9, 1.15]
     },
     allowedHazardTypes: ['sweeper', 'gate', 'pulseMine', 'debrisShower'],
+    eventWaveTypes: ['cometPass', 'debrisStorm', 'solarFlare'],
     planetPalette: {
       primary: 0x234f5c,
       secondary: 0x6d6f7e,
@@ -315,6 +323,13 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       'sweeper',
       'gate',
       'debrisShower'
+    ],
+    eventWaveTypes: [
+      'debrisStorm',
+      'satelliteNet',
+      'solarFlare',
+      'cometPass',
+      'cleanupFrenzy'
     ],
     planetPalette: {
       primary: 0x0f6f8f,

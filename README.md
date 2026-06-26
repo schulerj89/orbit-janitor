@@ -86,10 +86,11 @@ npm run preview
 - Dynamic obstacle pacing as score increases
 - Timed hazard telegraphs that warn before becoming dangerous
 - Hazard patterns include lane arcs, double lane arcs, sweepers, gate gaps, pulse mines, and debris showers
+- Boss-like sector event waves near mission finales: Debris Storm, Satellite Net, Solar Flare, Comet Pass, and Cleanup Frenzy
 - Objective target: reach 50 cleanup points
 - Structured sectors with score, junk, timer, hazard-survival, and endless objectives
 - Sector-specific procedural visual themes for planet, lanes, stars, junk, hazards, lighting, and background
-- Sector modifiers including forgiving training telegraphs, solar-storm hazard cadence, comet-wake hazard speed, and endless scaling
+- Sector modifiers including forgiving training telegraphs, solar-storm hazard cadence, comet-wake hazard speed, finale event waves, and endless scaling
 - Run timer with sector objective and hazard status feedback
 
 ## Audio Assets
@@ -133,4 +134,4 @@ https://schulerj89.github.io/orbit-janitor/
 3. More audio variation
 4. TSL atmosphere and shield effects
 5. Additional upgrade choices and run modifiers
-6. More sector-specific hazard and powerup rules
+6. More sector-specific hazard, event-wave, and powerup rules

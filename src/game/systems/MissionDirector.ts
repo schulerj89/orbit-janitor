@@ -31,6 +31,7 @@ export interface MissionDifficulty {
   modifierHint: string;
   junkLaneWeights: readonly [number, number, number];
   allowedHazardTypes: SectorConfig['allowedHazardTypes'];
+  eventWaveTypes: SectorConfig['eventWaveTypes'];
 }
 
 export class MissionDirector {
@@ -73,7 +74,8 @@ export class MissionDirector {
       junkColorVariance: modifiers.junkColorVariance,
       modifierHint: modifiers.hint,
       junkLaneWeights: this.currentSector.junkSpawnBias.laneWeights,
-      allowedHazardTypes: this.currentSector.allowedHazardTypes
+      allowedHazardTypes: this.currentSector.allowedHazardTypes,
+      eventWaveTypes: this.currentSector.eventWaveTypes
     };
   }
 
