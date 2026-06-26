@@ -25,6 +25,7 @@ export interface HudSnapshot {
   hazardWarning: boolean;
   tutorialActive: boolean;
   tutorialStepLabel: string | null;
+  isPaused: boolean;
   shieldCharges: number;
   shieldBroken: boolean;
   gameOverReason: string;
@@ -107,6 +108,8 @@ export class Hud {
           <strong>Up/W Down/S</strong>
           <span>Boost</span>
           <strong>Space</strong>
+          <span>Help</span>
+          <strong>H Help | P Pause</strong>
           <span>Training</span>
           <strong>K skip tutorial</strong>
           <span>Restart</span>
@@ -178,6 +181,8 @@ export class Hud {
       this.statusValue.textContent = 'Awaiting launch';
     } else if (snapshot.state === 'sectorSelect') {
       this.statusValue.textContent = 'Choose sector';
+    } else if (snapshot.isPaused) {
+      this.statusValue.textContent = 'Paused';
     } else if (snapshot.state === 'missionComplete') {
       this.statusValue.textContent = 'Mission Complete';
     } else if (snapshot.state === 'gameover') {

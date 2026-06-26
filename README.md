@@ -45,6 +45,9 @@ npm run preview
 - ArrowUp or W: switch outward
 - ArrowDown or S: switch inward
 - Space: boost while held, limited by fuel
+- P: pause or resume while playing
+- H: open or close help/instructions
+- Escape: close help or pause overlays
 - R: restart after game over
 - U: open upgrades from the title screen or game over
 - 1-6: buy upgrades while the upgrade panel is open
@@ -55,6 +58,7 @@ npm run preview
 
 - Title screen with controls and audio toggle hints
 - Keyboard-first sector select and mission complete overlays
+- Pause and compact help/instructions overlays
 - Interactive Training Orbit tutorial with guided rotate, pickup, lane switch, boost, obstacle, and hazard steps
 - Run summary after game over
 - Persistent best score in localStorage

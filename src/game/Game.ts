@@ -46,8 +46,10 @@ import {
   type TutorialSetupAction
 } from './systems/TutorialDirector';
 import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
+import { HelpOverlay } from './ui/HelpOverlay';
 import { Hud, type GameState } from './ui/Hud';
 import { MissionCompleteOverlay } from './ui/MissionCompleteOverlay';
+import { PauseOverlay } from './ui/PauseOverlay';
 import { RunSummary } from './ui/RunSummary';
 import { SectorSelectOverlay } from './ui/SectorSelectOverlay';
 import { TitleOverlay } from './ui/TitleOverlay';
@@ -85,6 +87,8 @@ interface OrbitJanitorDebugState {
   tutorialActive: boolean;
   tutorialStepId: string | null;
   tutorialSkipped: boolean;
+  isPaused: boolean;
+  helpOpen: boolean;
   scrap: number;
   shieldCharges: number;
   musicEnabled: boolean;
@@ -151,6 +155,8 @@ export class Game {
   private runSummary!: RunSummary;
   private upgradePanel!: UpgradePanel;
   private tutorialOverlay!: TutorialOverlay;
+  private helpOverlay!: HelpOverlay;
+  private pauseOverlay!: PauseOverlay;
   private orbitLanes!: OrbitLanes;
   private planet!: Planet;
   private starfield!: Starfield;
@@ -178,6 +184,8 @@ export class Game {
   private shieldBrokenTimer = 0;
   private shieldGraceTimer = 0;
   private upgradePanelOpen = false;
+  private isPaused = false;
+  private helpOpen = false;
   private objectiveAnnounced = false;
   private gameOverReason = 'Impact detected';
   private runRng = new SeededRandom('title');
@@ -205,6 +213,8 @@ export class Game {
     this.runSummary = new RunSummary(hudRoot);
     this.upgradePanel = new UpgradePanel(hudRoot);
     this.tutorialOverlay = new TutorialOverlay(hudRoot);
+    this.pauseOverlay = new PauseOverlay(hudRoot);
+    this.helpOverlay = new HelpOverlay(hudRoot);
 
     this.scene.background = new THREE.Color(0x02050f);
     this.buildScene();
@@ -267,10 +277,13 @@ export class Game {
       this.audio.playUiSelect();
     }
 
+    const consumedOverlayInput = this.handleOverlayInput(input);
     const canUseUpgradePanel =
-      this.state === 'title' ||
-      this.state === 'gameover' ||
-      this.state === 'missionComplete';
+      !this.helpOpen &&
+      !this.isPaused &&
+      (this.state === 'title' ||
+        this.state === 'gameover' ||
+        this.state === 'missionComplete');
     if (input.upgradeTogglePressed && canUseUpgradePanel) {
       this.upgradePanelOpen = !this.upgradePanelOpen;
       this.audio.playUiSelect();
@@ -286,7 +299,9 @@ export class Game {
     }
 
     let consumedStartInput = false;
-    if (this.state === 'title') {
+    if (consumedOverlayInput || this.helpOpen || this.isPaused) {
+      consumedStartInput = consumedOverlayInput;
+    } else if (this.state === 'title') {
       consumedStartInput = this.handleTitleInput(input);
     } else if (this.state === 'sectorSelect') {
       consumedStartInput = this.handleSectorSelectInput(input);
@@ -294,13 +309,14 @@ export class Game {
       consumedStartInput = this.handleMissionCompleteInput(input);
     }
 
-    if (input.restartPressed && this.state === 'gameover') {
+    if (input.restartPressed && this.state === 'gameover' && !this.helpOpen) {
       this.restart();
     }
 
     if (
       input.tutorialSkipPressed &&
       this.state === 'playing' &&
+      !this.isGameplayPaused() &&
       this.tutorialDirector.getSnapshot().isActive
     ) {
       this.tutorialDirector.skip();
@@ -308,9 +324,11 @@ export class Game {
       this.triggerMissionComplete();
     }
 
-    const isGameplayActive = this.state === 'playing';
+    const gameplayPaused = this.isGameplayPaused();
+    const isGameplayActive = this.state === 'playing' && !gameplayPaused;
     const isGameOver = this.state === 'gameover';
-    const controlsLocked = !isGameplayActive || consumedStartInput;
+    const controlsLocked =
+      this.state !== 'playing' || gameplayPaused || consumedStartInput;
     const wasBoosting = this.isBoosting;
     const isBoosting = this.updateBoost(delta, input, controlsLocked);
     const previousTargetLane = this.player.targetLaneIndex;
@@ -402,7 +420,7 @@ export class Game {
         rng: this.runRng,
         isGameOver
       });
-    } else {
+    } else if (this.state !== 'playing') {
       this.hazardWarning = false;
       this.hazardActive = false;
     }
@@ -472,6 +490,66 @@ export class Game {
         this.boostFuel < BOOST_MIN_TO_ACTIVATE ||
         this.boostEmptyFlashTimer > 0)
     );
+  }
+
+  private handleOverlayInput(input: InputState): boolean {
+    if (input.helpTogglePressed && this.canToggleHelp()) {
+      this.helpOpen = !this.helpOpen;
+      this.upgradePanelOpen = false;
+      this.audio.playUiSelect();
+
+      if (this.helpOpen && this.state === 'playing') {
+        this.audio.playBoostLoopStop();
+      }
+
+      return true;
+    }
+
+    if (input.escapePressed && this.helpOpen) {
+      this.helpOpen = false;
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (input.pausePressed && this.state === 'playing' && !this.helpOpen) {
+      this.setPaused(!this.isPaused);
+      return true;
+    }
+
+    if (input.escapePressed && this.state === 'playing' && this.isPaused) {
+      this.setPaused(false);
+      return true;
+    }
+
+    return false;
+  }
+
+  private canToggleHelp(): boolean {
+    return (
+      this.state === 'title' ||
+      this.state === 'sectorSelect' ||
+      this.state === 'playing' ||
+      this.state === 'gameover' ||
+      this.state === 'missionComplete'
+    );
+  }
+
+  private setPaused(isPaused: boolean): void {
+    if (this.state !== 'playing') {
+      this.isPaused = false;
+      return;
+    }
+
+    this.isPaused = isPaused;
+    this.audio.playUiSelect();
+
+    if (isPaused) {
+      this.audio.playBoostLoopStop();
+    }
+  }
+
+  private isGameplayPaused(): boolean {
+    return this.isPaused || (this.helpOpen && this.state === 'playing');
   }
 
   private updateCombo(delta: number): void {
@@ -587,6 +665,8 @@ export class Game {
     }
 
     this.state = 'gameover';
+    this.isPaused = false;
+    this.helpOpen = false;
     this.gameOverReason = reason;
     this.syncRunStats();
     this.runStats.complete(reason);
@@ -605,6 +685,8 @@ export class Game {
     }
 
     this.state = 'missionComplete';
+    this.isPaused = false;
+    this.helpOpen = false;
     this.hazardWarning = false;
     this.hazardActive = false;
     this.syncRunStats();
@@ -634,6 +716,8 @@ export class Game {
     this.resetRunState();
     this.state = 'title';
     this.upgradePanelOpen = false;
+    this.isPaused = false;
+    this.helpOpen = false;
     this.music.startTitleMusic();
     this.updateHud(false);
     this.syncDebugAttributes();
@@ -661,6 +745,8 @@ export class Game {
     this.startTutorialIfNeeded();
     this.state = 'playing';
     this.upgradePanelOpen = false;
+    this.isPaused = false;
+    this.helpOpen = false;
     this.audio.playUiStart();
     this.music.startSectorMusic(
       this.missionDirector.getCurrentSector().id,
@@ -680,6 +766,8 @@ export class Game {
     this.startTutorialIfNeeded();
     this.state = 'playing';
     this.upgradePanelOpen = false;
+    this.isPaused = false;
+    this.helpOpen = false;
     this.audio.playUiStart();
     this.music.startSectorMusic(
       this.missionDirector.getCurrentSector().id,
@@ -712,6 +800,8 @@ export class Game {
     this.hazardWarning = false;
     this.hazardActive = false;
     this.musicDangerIntensity = 0;
+    this.isPaused = false;
+    this.helpOpen = false;
     this.objectiveAnnounced = false;
     this.newlyUnlockedSectorName = null;
     this.gameOverReason = 'Impact detected';
@@ -1080,6 +1170,8 @@ export class Game {
   private openSectorSelect(): void {
     this.state = 'sectorSelect';
     this.upgradePanelOpen = false;
+    this.isPaused = false;
+    this.helpOpen = false;
     this.selectedSectorId = this.sectorProgress.isUnlocked(this.selectedSectorId)
       ? this.selectedSectorId
       : this.sectorProgress.getDefaultSectorId();
@@ -1136,6 +1228,8 @@ export class Game {
       input.seededStartPressed ||
       input.restartPressed ||
       input.escapePressed ||
+      input.pausePressed ||
+      input.helpTogglePressed ||
       input.tutorialSkipPressed ||
       input.musicTogglePressed ||
       input.sfxTogglePressed ||
@@ -1161,7 +1255,7 @@ export class Game {
   }
 
   private updateMusicIntensity(): void {
-    if (this.state !== 'playing') {
+    if (this.state !== 'playing' || this.isGameplayPaused()) {
       this.musicDangerIntensity = 0;
       this.music.setDangerIntensity(0);
       return;
@@ -1211,6 +1305,7 @@ export class Game {
       hazardWarning: this.hazardWarning,
       tutorialActive: tutorial.isActive,
       tutorialStepLabel: tutorial.currentStep?.id ?? null,
+      isPaused: this.isPaused,
       shieldCharges: this.shieldCharges,
       shieldBroken: this.shieldBrokenTimer > 0,
       gameOverReason: this.gameOverReason,
@@ -1260,6 +1355,21 @@ export class Game {
       state: this.state,
       tutorial,
       upgradePanelOpen: this.upgradePanelOpen
+    });
+    this.pauseOverlay.update({
+      state: this.state,
+      isPaused: this.isPaused,
+      helpOpen: this.helpOpen,
+      sectorName: sector.name,
+      objectiveText: objective.text,
+      objectiveProgressText: objective.progressText
+    });
+    this.helpOverlay.update({
+      state: this.state,
+      isOpen: this.helpOpen,
+      sectorName: sector.name,
+      objectiveText: objective.text,
+      objectiveProgressText: objective.progressText
     });
   }
 
@@ -1315,6 +1425,8 @@ export class Game {
       tutorialActive: tutorial.isActive,
       tutorialStepId: tutorial.isActive ? (tutorial.currentStep?.id ?? null) : null,
       tutorialSkipped: tutorial.isSkipped,
+      isPaused: this.isPaused,
+      helpOpen: this.helpOpen,
       scrap: this.upgrades.getSnapshot().totalScrap,
       shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
@@ -1373,6 +1485,8 @@ export class Game {
       ? (tutorial.currentStep?.id ?? '')
       : '';
     this.canvas.dataset.tutorialSkipped = String(tutorial.isSkipped);
+    this.canvas.dataset.paused = String(this.isPaused);
+    this.canvas.dataset.helpOpen = String(this.helpOpen);
     this.canvas.dataset.scrap = String(this.upgrades.getSnapshot().totalScrap);
     this.canvas.dataset.shieldCharges = String(this.shieldCharges);
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);
@@ -1433,6 +1547,8 @@ function createNeutralInputState(): InputState {
     seededStartPressed: false,
     restartPressed: false,
     escapePressed: false,
+    pausePressed: false,
+    helpTogglePressed: false,
     tutorialSkipPressed: false,
     musicTogglePressed: false,
     sfxTogglePressed: false,
