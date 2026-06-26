@@ -76,6 +76,18 @@ Expected optional file paths are documented in `public/audio/AUDIO_CREDITS.md`. 
 
 ElevenLabs-generated assets can be placed in `public/audio` after generation outside the browser runtime, but they are not required. No ElevenLabs API key should be committed, referenced in browser code, or shipped to the client.
 
+## GitHub Pages Deployment
+
+Production builds use the `/orbit-janitor/` Vite base path for GitHub Pages. Local development still runs from `/` with `npm run dev`.
+
+The `Deploy GitHub Pages` workflow builds `dist`, uploads it as a Pages artifact, and deploys it when changes land on `main`. If Pages is not enabled yet, open the GitHub repository settings, go to **Pages**, set **Build and deployment** source to **GitHub Actions**, then rerun the workflow or push to `main`.
+
+The deployed site should be available at:
+
+```text
+https://schulerj89.github.io/orbit-janitor/
+```
+
 ## Technical Notes
 
 - Uses Vite, vanilla TypeScript, and Three.js.
