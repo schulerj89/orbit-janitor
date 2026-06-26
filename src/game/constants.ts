@@ -25,3 +25,12 @@ export const BOOST_FUEL_MAX = 1.0;
 export const BOOST_FUEL_DRAIN_PER_SECOND = 0.55;
 export const BOOST_FUEL_RECHARGE_PER_SECOND = 0.32;
 export const BOOST_MIN_TO_ACTIVATE = 0.12;
+
+export const HAZARD_FIRST_SPAWN_TIME = 8;
+export const HAZARD_BASE_INTERVAL = 7;
+export const HAZARD_MIN_INTERVAL = 3.2;
+export const HAZARD_TELEGRAPH_DURATION = 1.25;
+export const HAZARD_ACTIVE_DURATION = 0.65;
+export const HAZARD_ARC_WIDTH_RADIANS = 0.65;
+export const HAZARD_COLLISION_RADIUS = 0.45;
+export const RUN_OBJECTIVE_TARGET_SCORE = 50;

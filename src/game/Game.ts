@@ -12,7 +12,8 @@ import {
   MAX_COMBO_MULTIPLIER,
   OBSTACLE_COLLISION_RADIUS,
   ORBIT_LANES,
-  PLAYER_COLLISION_RADIUS
+  PLAYER_COLLISION_RADIUS,
+  RUN_OBJECTIVE_TARGET_SCORE
 } from './constants';
 import { InputController, type InputState } from './input';
 import { isAngleSafe, laneName, randomAngleAvoiding } from './math';
@@ -25,6 +26,7 @@ import { OrbitLanes } from './entities/OrbitLanes';
 import { Planet } from './entities/Planet';
 import { PlayerShip } from './entities/PlayerShip';
 import { Starfield } from './entities/Starfield';
+import { HazardDirector, type HazardDirectorDebugState } from './systems/HazardDirector';
 import { Hud, type GameState } from './ui/Hud';
 
 const STARTING_OBSTACLES: ObstacleConfig[] = [
@@ -44,12 +46,15 @@ interface OrbitJanitorDebugState {
   comboTimer: number;
   boostFuel: number;
   isBoosting: boolean;
+  runTime: number;
+  objectiveComplete: boolean;
   playerAngle: number;
   playerLaneIndex: number;
   playerRadius: number;
   junkAngle: number;
   junkLaneIndex: number;
   obstacles: LaneAngle[];
+  hazard: HazardDirectorDebugState;
   playerPosition: number[];
   cameraPosition: number[];
   loadedAssetIds: string[];
@@ -79,6 +84,7 @@ export class Game {
   private readonly obstacles: ObstacleSatellite[] = [];
   private readonly particles = new ParticleBurst();
   private readonly screenShake = new ScreenShake();
+  private readonly hazardDirector = new HazardDirector();
   private readonly baseCameraPosition = new THREE.Vector3();
   private readonly shakenCameraPosition = new THREE.Vector3();
   private readonly playerPosition = new THREE.Vector3();
@@ -101,6 +107,9 @@ export class Game {
   private boostLocked = false;
   private boostEmptyFlashTimer = 0;
   private isBoosting = false;
+  private runTime = 0;
+  private hazardWarning = false;
+  private gameOverReason = 'Impact detected';
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -150,6 +159,7 @@ export class Game {
       directionalLight,
       this.planet.group,
       this.orbitLanes.group,
+      this.hazardDirector.group,
       this.player.group,
       this.junk.group,
       this.particles.group
@@ -174,9 +184,33 @@ export class Game {
     this.screenShake.update(delta);
 
     if (!isGameOver) {
+      this.runTime += delta;
       this.updateCombo(delta);
       this.updateObstacles(delta);
-      this.checkCollisions();
+      const hazardResult = this.hazardDirector.update(delta, {
+        score: this.score,
+        playerAngle: this.player.angle,
+        playerRadius: this.player.currentRadius,
+        junkAngle: this.junk.angle,
+        junkLaneIndex: this.junk.laneIndex,
+        isGameOver
+      });
+      this.hazardWarning = hazardResult.warning;
+
+      if (hazardResult.hit) {
+        this.triggerGameOver('Destroyed by lane hazard');
+      } else {
+        this.checkCollisions();
+      }
+    } else {
+      this.hazardDirector.update(delta, {
+        score: this.score,
+        playerAngle: this.player.angle,
+        playerRadius: this.player.currentRadius,
+        junkAngle: this.junk.angle,
+        junkLaneIndex: this.junk.laneIndex,
+        isGameOver
+      });
     }
 
     this.applyCameraShake();
@@ -274,10 +308,12 @@ export class Game {
 
     for (const obstacle of this.obstacles) {
       if (
+        Math.abs(this.player.currentRadius - ORBIT_LANES[obstacle.laneIndex]) <=
+          OBSTACLE_COLLISION_RADIUS &&
         playerPosition.distanceTo(obstacle.getPosition(this.obstaclePosition)) <=
         PLAYER_COLLISION_RADIUS + OBSTACLE_COLLISION_RADIUS
       ) {
-        this.triggerGameOver();
+        this.triggerGameOver('Impact detected');
         return;
       }
     }
@@ -303,12 +339,13 @@ export class Game {
     this.ensureObstacleCount();
   }
 
-  private triggerGameOver(): void {
+  private triggerGameOver(reason: string): void {
     if (this.state === 'gameover') {
       return;
     }
 
     this.state = 'gameover';
+    this.gameOverReason = reason;
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xcfefff, 28, true);
     this.screenShake.add(0.22);
   }
@@ -323,8 +360,12 @@ export class Game {
     this.boostLocked = false;
     this.boostEmptyFlashTimer = 0;
     this.isBoosting = false;
+    this.runTime = 0;
+    this.hazardWarning = false;
+    this.gameOverReason = 'Impact detected';
     this.screenShake.clear();
     this.particles.clear();
+    this.hazardDirector.reset();
     this.player.reset();
     this.resetObstacles();
     this.respawnJunk();
@@ -449,7 +490,12 @@ export class Game {
       comboWindow: COMBO_WINDOW,
       laneName: laneName(this.player.targetLaneIndex),
       boostFuel: this.boostFuel / BOOST_FUEL_MAX,
-      boostEmpty
+      boostEmpty,
+      runTime: this.runTime,
+      objectiveTargetScore: RUN_OBJECTIVE_TARGET_SCORE,
+      objectiveComplete: this.score >= RUN_OBJECTIVE_TARGET_SCORE,
+      hazardWarning: this.hazardWarning,
+      gameOverReason: this.gameOverReason
     });
   }
 
@@ -484,12 +530,15 @@ export class Game {
       comboTimer: this.comboTimer,
       boostFuel: this.boostFuel,
       isBoosting: this.isBoosting,
+      runTime: this.runTime,
+      objectiveComplete: this.score >= RUN_OBJECTIVE_TARGET_SCORE,
       playerAngle: this.player.angle,
       playerLaneIndex: this.player.targetLaneIndex,
       playerRadius: this.player.currentRadius,
       junkAngle: this.junk.angle,
       junkLaneIndex: this.junk.laneIndex,
       obstacles: this.getObstacleLaneAngles(),
+      hazard: this.hazardDirector.getDebugState(),
       playerPosition: this.player.getPosition(this.playerPosition).toArray(),
       cameraPosition: this.camera.position.toArray(),
       loadedAssetIds: [],
@@ -511,6 +560,8 @@ export class Game {
     this.canvas.dataset.comboTimer = this.comboTimer.toFixed(3);
     this.canvas.dataset.boostFuel = this.boostFuel.toFixed(3);
     this.canvas.dataset.isBoosting = String(this.isBoosting);
+    this.canvas.dataset.runTime = this.runTime.toFixed(2);
+    this.canvas.dataset.objectiveComplete = String(this.score >= RUN_OBJECTIVE_TARGET_SCORE);
     this.canvas.dataset.playerAngle = this.player.angle.toFixed(4);
     this.canvas.dataset.playerLane = String(this.player.targetLaneIndex);
     this.canvas.dataset.playerRadius = this.player.currentRadius.toFixed(3);
@@ -520,6 +571,11 @@ export class Game {
     this.canvas.dataset.obstacleAngles = this.obstacles
       .map((obstacle) => `${obstacle.laneIndex}:${obstacle.angle.toFixed(4)}`)
       .join(',');
+    const hazard = this.hazardDirector.getDebugState();
+    this.canvas.dataset.hazardPhase = hazard.phase;
+    this.canvas.dataset.hazardLane = hazard.laneIndex === null ? '' : String(hazard.laneIndex);
+    this.canvas.dataset.hazardAngle = hazard.angle === null ? '' : hazard.angle.toFixed(4);
+    this.canvas.dataset.hazardNextSpawn = hazard.nextSpawnIn.toFixed(2);
     this.canvas.dataset.renderCalls = String(this.renderer.info.render.calls);
     this.canvas.dataset.renderTriangles = String(this.renderer.info.render.triangles);
     this.canvas.dataset.renderGeometries = String(this.renderer.info.memory.geometries);

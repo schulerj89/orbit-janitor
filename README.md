@@ -27,6 +27,9 @@ npm run build
 - Boost fuel drain, recharge, and empty feedback
 - Procedural mesh particle bursts for pickups and impacts
 - Dynamic obstacle pacing as score increases
+- Timed lane hazard telegraphs that warn before becoming dangerous
+- Objective target: reach 50 cleanup points
+- Run timer with objective and hazard status feedback
 
 ## Technical Notes
 
@@ -38,9 +41,9 @@ npm run build
 
 ## Roadmap
 
-1. Hazard telegraphs
-2. Magnetic junk pickup upgrade
-3. Daily/random challenge seeds
-4. TSL atmosphere and shield effects
-5. Audio
-6. Main menu and run summary
+1. Magnetic junk pickup upgrade
+2. Daily/random challenge seeds
+3. TSL atmosphere and shield effects
+4. Audio
+5. Main menu and run summary
+6. More hazard patterns

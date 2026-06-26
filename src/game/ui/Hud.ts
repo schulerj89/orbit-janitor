@@ -9,12 +9,19 @@ export interface HudSnapshot {
   laneName: string;
   boostFuel: number;
   boostEmpty: boolean;
+  runTime: number;
+  objectiveTargetScore: number;
+  objectiveComplete: boolean;
+  hazardWarning: boolean;
+  gameOverReason: string;
 }
 
 export class Hud {
   private readonly scoreValue: HTMLElement;
   private readonly statusValue: HTMLElement;
   private readonly laneValue: HTMLElement;
+  private readonly timerValue: HTMLElement;
+  private readonly objectiveValue: HTMLElement;
   private readonly comboRow: HTMLElement;
   private readonly comboValue: HTMLElement;
   private readonly comboTimerFill: HTMLElement;
@@ -35,6 +42,11 @@ export class Hud {
           <span class="hud-label">Lane</span>
           <span class="hud-value" data-hud-lane>Middle</span>
         </div>
+        <div class="hud-row">
+          <span class="hud-label">Time</span>
+          <span class="hud-value" data-hud-timer>0:00</span>
+        </div>
+        <div class="hud-objective" data-hud-objective>Objective: Reach 50 cleanup points</div>
         <div class="hud-row" data-hud-combo-row>
           <span class="hud-label">Combo</span>
           <span class="hud-value" data-hud-combo>x1</span>
@@ -67,6 +79,8 @@ export class Hud {
     this.scoreValue = getElement(root, '[data-hud-score]');
     this.statusValue = getElement(root, '[data-hud-status]');
     this.laneValue = getElement(root, '[data-hud-lane]');
+    this.timerValue = getElement(root, '[data-hud-timer]');
+    this.objectiveValue = getElement(root, '[data-hud-objective]');
     this.comboRow = getElement(root, '[data-hud-combo-row]');
     this.comboValue = getElement(root, '[data-hud-combo]');
     this.comboTimerFill = getElement(root, '[data-hud-combo-fill]');
@@ -84,6 +98,11 @@ export class Hud {
 
     this.scoreValue.textContent = String(snapshot.score);
     this.laneValue.textContent = snapshot.laneName;
+    this.timerValue.textContent = formatRunTime(snapshot.runTime);
+    this.objectiveValue.textContent = snapshot.objectiveComplete
+      ? 'Objective Complete'
+      : `Objective: Reach ${snapshot.objectiveTargetScore} cleanup points`;
+    this.objectiveValue.classList.toggle('is-complete', snapshot.objectiveComplete);
     this.comboValue.textContent = `x${snapshot.comboMultiplier}`;
     this.comboRow.classList.toggle('is-hot', snapshot.comboMultiplier > 1);
     this.comboTimerFill.style.transform = `scaleX(${comboPercent})`;
@@ -92,9 +111,13 @@ export class Hud {
     this.boostValue.classList.toggle('is-empty', snapshot.boostEmpty);
 
     if (snapshot.state === 'gameover') {
-      this.statusValue.textContent = 'Impact detected';
+      this.statusValue.textContent = snapshot.gameOverReason;
+    } else if (snapshot.hazardWarning) {
+      this.statusValue.textContent = 'WARNING: Lane hazard incoming';
     } else if (snapshot.boostEmpty) {
       this.statusValue.textContent = 'BOOST EMPTY';
+    } else if (snapshot.objectiveComplete) {
+      this.statusValue.textContent = 'Objective Complete';
     } else if (snapshot.comboMultiplier > 1) {
       this.statusValue.textContent = 'Combo active';
     } else {
@@ -104,6 +127,14 @@ export class Hud {
     this.finalScore.textContent = `Final score: ${snapshot.score}`;
     this.gameOver.hidden = snapshot.state !== 'gameover';
   }
+}
+
+function formatRunTime(runTime: number): string {
+  const totalSeconds = Math.max(0, Math.floor(runTime));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function getElement(root: HTMLElement, selector: string): HTMLElement {

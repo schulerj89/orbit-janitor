@@ -67,6 +67,22 @@ export function clampLaneIndex(laneIndex: number): number {
   return Math.min(Math.max(Math.round(laneIndex), 0), ORBIT_LANES.length - 1);
 }
 
+export function nearestLaneIndexForRadius(radius: number): number {
+  let nearestIndex = 0;
+  let nearestDistance = Infinity;
+
+  ORBIT_LANES.forEach((laneRadius, index) => {
+    const distance = Math.abs(laneRadius - radius);
+
+    if (distance < nearestDistance) {
+      nearestIndex = index;
+      nearestDistance = distance;
+    }
+  });
+
+  return nearestIndex;
+}
+
 function getNearestAngularDistance(angle: number, disallowedAngles: number[]): number {
   if (disallowedAngles.length === 0) {
     return Infinity;
