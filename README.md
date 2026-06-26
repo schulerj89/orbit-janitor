@@ -18,6 +18,8 @@ npm run dev
 npm run format
 npm run format:check
 npm run typecheck
+npm run test:e2e
+npm run test:e2e:ui
 npm run build
 npm run preview
 ```
@@ -26,6 +28,8 @@ npm run preview
 - `format`: format supported source, config, and docs files with Prettier
 - `format:check`: verify Prettier formatting without writing files
 - `typecheck`: run TypeScript without emitting files
+- `test:e2e`: run Playwright smoke tests against the Vite dev server
+- `test:e2e:ui`: open the Playwright UI runner
 - `build`: typecheck and create a production build
 - `preview`: serve the production build locally
 

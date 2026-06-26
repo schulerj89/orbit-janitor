@@ -30,6 +30,8 @@ npm run dev
 npm run format
 npm run format:check
 npm run typecheck
+npm run test:e2e
+npm run test:e2e:ui
 npm run build
 npm run preview
 ```
@@ -74,5 +76,6 @@ When reviewing or modifying this repo, check:
 - No browser autoplay errors or stuck audio loops.
 - HUD text does not overlap at desktop or mobile widths.
 - `npm run typecheck` and `npm run build` pass.
+- Run `npm run test:e2e` when touching input, HUD overlays, game states, or debug state.
 
 Known non-blocking warning: current Three.js emits a `THREE.Clock` deprecation warning in the browser console.
