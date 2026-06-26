@@ -4,12 +4,22 @@ export class ScreenShake {
   private readonly offset = new THREE.Vector3();
   private trauma = 0;
   private time = 0;
+  private reducedMotion = false;
 
   add(amount: number): void {
+    if (this.reducedMotion) {
+      return;
+    }
+
     this.trauma = Math.min(1, this.trauma + amount);
   }
 
   update(delta: number): void {
+    if (this.reducedMotion) {
+      this.clear();
+      return;
+    }
+
     this.time += delta;
     this.trauma = Math.max(0, this.trauma - delta * 1.8);
 
@@ -23,6 +33,14 @@ export class ScreenShake {
 
   getOffset(): THREE.Vector3 {
     return this.offset;
+  }
+
+  setReducedMotion(reducedMotion: boolean): void {
+    this.reducedMotion = reducedMotion;
+
+    if (reducedMotion) {
+      this.clear();
+    }
   }
 
   clear(): void {

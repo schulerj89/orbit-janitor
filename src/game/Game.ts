@@ -8,6 +8,7 @@ import {
   CAMERA_FOV,
   CAMERA_NEAR,
   COMBO_WINDOW,
+  HAZARD_COLLISION_RADIUS,
   JUNK_COLLISION_RADIUS,
   MAX_COMBO_MULTIPLIER,
   OBSTACLE_COLLISION_RADIUS,
@@ -20,10 +21,18 @@ import {
   RUN_OBJECTIVE_TARGET_SCORE
 } from './constants';
 import { InputController, type InputState } from './input';
-import { isAngleSafe, laneName, randomAngleAvoiding, wrapAngle } from './math';
+import {
+  angularDistance,
+  isAngleSafe,
+  laneName,
+  randomAngleAvoiding,
+  wrapAngle
+} from './math';
 import { createRenderer } from './renderer';
 import { AudioManager } from './audio/AudioManager';
 import { MusicDirector } from './audio/MusicDirector';
+import { CameraRig } from './effects/CameraRig';
+import { ImpactFlash } from './effects/ImpactFlash';
 import { ParticleBurst } from './effects/ParticleBurst';
 import { ScreenShake } from './effects/ScreenShake';
 import { GhostMarker } from './entities/GhostMarker';
@@ -40,7 +49,11 @@ import {
   type EventWaveDebugState,
   type SatelliteNetEffect
 } from './systems/EventWaveDirector';
-import { HazardDirector, type HazardDirectorDebugState } from './systems/HazardDirector';
+import {
+  HazardDirector,
+  type HazardDirectorDebugState,
+  type HazardDirectorResult
+} from './systems/HazardDirector';
 import type { HazardPatternType } from './systems/HazardTypes';
 import { MissionDirector } from './systems/MissionDirector';
 import {
@@ -61,9 +74,11 @@ import {
   type TutorialSetupAction
 } from './systems/TutorialDirector';
 import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
+import { FloatingText } from './ui/FloatingText';
 import { HelpOverlay } from './ui/HelpOverlay';
 import { Hud, type GameState } from './ui/Hud';
 import { MissionCompleteOverlay } from './ui/MissionCompleteOverlay';
+import { MissionIntroOverlay } from './ui/MissionIntroOverlay';
 import { PauseOverlay } from './ui/PauseOverlay';
 import { PowerupToast } from './ui/PowerupToast';
 import { RunSummary } from './ui/RunSummary';
@@ -79,6 +94,11 @@ const STARTING_OBSTACLES: ObstacleConfig[] = [
 
 const OBSTACLE_SPEEDS = [-0.72, 0.58, -0.88, 0.69];
 const OBSTACLE_SPAWN_MIN_SEPARATION = 1.0;
+const MISSION_INTRO_DURATION = 3.35;
+const MISSION_INTRO_REDUCED_MOTION_DURATION = 0.95;
+const NEAR_MISS_DISTANCE_BONUS = 0.36;
+const NEAR_MISS_COOLDOWN = 0.72;
+const HAZARD_NEAR_MISS_ANGLE = 0.92;
 
 interface OrbitJanitorDebugState {
   sceneId: 'orbit-janitor';
@@ -105,6 +125,8 @@ interface OrbitJanitorDebugState {
   tutorialSkipped: boolean;
   isPaused: boolean;
   helpOpen: boolean;
+  missionIntroActive: boolean;
+  reducedMotion: boolean;
   scrap: number;
   shieldCharges: number;
   musicEnabled: boolean;
@@ -154,6 +176,7 @@ export class Game {
   private readonly obstacles: ObstacleSatellite[] = [];
   private readonly particles = new ParticleBurst();
   private readonly screenShake = new ScreenShake();
+  private readonly cameraRig = new CameraRig();
   private readonly hazardDirector = new HazardDirector();
   private readonly eventWaveDirector = new EventWaveDirector();
   private readonly powerupDirector = new PowerupDirector();
@@ -168,6 +191,8 @@ export class Game {
   private readonly playerPosition = new THREE.Vector3();
   private readonly junkPosition = new THREE.Vector3();
   private readonly obstaclePosition = new THREE.Vector3();
+  private readonly reducedMotion = getReducedMotionPreference();
+  private readonly nearMissObstacles = new Set<ObstacleSatellite>();
 
   private renderer!: THREE.WebGPURenderer;
   private ambientLight!: THREE.AmbientLight;
@@ -182,6 +207,9 @@ export class Game {
   private helpOverlay!: HelpOverlay;
   private pauseOverlay!: PauseOverlay;
   private powerupToast!: PowerupToast;
+  private impactFlash!: ImpactFlash;
+  private floatingText!: FloatingText;
+  private missionIntroOverlay!: MissionIntroOverlay;
   private orbitLanes!: OrbitLanes;
   private planet!: Planet;
   private starfield!: Starfield;
@@ -218,6 +246,10 @@ export class Game {
   private newlyUnlockedSectorName: string | null = null;
   private sectorHintTimer = 0;
   private runBonusScrap = 0;
+  private missionIntroTimer = 0;
+  private missionIntroActive = false;
+  private nearMissCooldown = 0;
+  private hazardNearMissArmed = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -243,6 +275,13 @@ export class Game {
     this.pauseOverlay = new PauseOverlay(hudRoot);
     this.helpOverlay = new HelpOverlay(hudRoot);
     this.powerupToast = new PowerupToast(hudRoot);
+    this.impactFlash = new ImpactFlash(hudRoot);
+    this.floatingText = new FloatingText(hudRoot);
+    this.missionIntroOverlay = new MissionIntroOverlay(hudRoot);
+    this.screenShake.setReducedMotion(this.reducedMotion);
+    this.cameraRig.setReducedMotion(this.reducedMotion);
+    this.impactFlash.setReducedMotion(this.reducedMotion);
+    this.floatingText.setReducedMotion(this.reducedMotion);
 
     this.scene.background = new THREE.Color(0x02050f);
     this.buildScene();
@@ -366,11 +405,16 @@ export class Game {
       this.triggerMissionComplete();
     }
 
+    this.updateMissionIntro(delta);
     const gameplayPaused = this.isGameplayPaused();
-    const isGameplayActive = this.state === 'playing' && !gameplayPaused;
+    const isGameplayActive =
+      this.state === 'playing' && !gameplayPaused && !this.missionIntroActive;
     const isGameOver = this.state === 'gameover';
     const controlsLocked =
-      this.state !== 'playing' || gameplayPaused || consumedStartInput;
+      this.state !== 'playing' ||
+      gameplayPaused ||
+      consumedStartInput ||
+      this.missionIntroActive;
     const inputPowerupEffects = this.powerupDirector.getEffects();
     const wasBoosting = this.isBoosting;
     const isBoosting = this.updateBoost(
@@ -384,6 +428,7 @@ export class Game {
     if (isBoosting && !wasBoosting) {
       this.audio.playBoostStart();
       this.audio.playBoostLoopStart();
+      this.cameraRig.punch(0.08);
     } else if (!isBoosting && wasBoosting) {
       this.audio.playBoostLoopStop();
       this.audio.playBoostEnd();
@@ -401,10 +446,14 @@ export class Game {
     this.ghostMarker.update(delta);
     this.particles.update(delta);
     this.screenShake.update(delta);
+    this.cameraRig.update(delta, isBoosting);
+    this.impactFlash.update(delta);
+    this.floatingText.update(delta);
     this.powerupToast.update(delta);
     this.shieldBrokenTimer = Math.max(0, this.shieldBrokenTimer - delta);
     this.shieldGraceTimer = Math.max(0, this.shieldGraceTimer - delta);
     this.sectorHintTimer = Math.max(0, this.sectorHintTimer - delta);
+    this.nearMissCooldown = Math.max(0, this.nearMissCooldown - delta);
 
     if (isGameplayActive) {
       this.runTime += delta;
@@ -458,14 +507,17 @@ export class Game {
         this.hazardActive = hazardResult.active;
 
         if (hazardResult.warning && !wasHazardWarning) {
+          this.hazardNearMissArmed = true;
           this.audio.playHazardWarning();
         }
 
         if (hazardResult.active && !wasHazardActive) {
+          this.hazardNearMissArmed = true;
           this.audio.playHazardActive();
         }
 
         if (hazardResult.completed) {
+          this.hazardNearMissArmed = false;
           this.runStats.recordHazardSurvived();
           this.syncRunStats();
           this.updateTutorial(0, input, isBoosting);
@@ -478,6 +530,7 @@ export class Game {
         } else if (hazardResult.hit) {
           this.handlePlayerHit('Destroyed by lane hazard');
         } else {
+          this.checkHazardNearMiss(hazardResult);
           this.checkCollisions();
           this.syncRunStats();
           this.updateTutorial(0, input, isBoosting);
@@ -498,6 +551,7 @@ export class Game {
     } else if (this.state !== 'playing') {
       this.hazardWarning = false;
       this.hazardActive = false;
+      this.hazardNearMissArmed = false;
     }
 
     this.updateMusicIntensity();
@@ -636,7 +690,11 @@ export class Game {
   }
 
   private isGameplayPaused(): boolean {
-    return this.isPaused || (this.helpOpen && this.state === 'playing');
+    return (
+      this.isPaused ||
+      this.missionIntroActive ||
+      (this.helpOpen && this.state === 'playing')
+    );
   }
 
   private updateEventWave(delta: number): void {
@@ -770,9 +828,18 @@ export class Game {
     this.comboTimer = Math.max(0, this.comboTimer - delta);
 
     if (this.comboTimer <= 0) {
+      if (this.comboMultiplier > 1) {
+        this.handleComboBreak();
+      }
+
       this.comboCount = 0;
       this.comboMultiplier = 1;
     }
+  }
+
+  private handleComboBreak(): void {
+    this.floatingText.show('COMBO LOST', 'lost');
+    this.screenShake.add(0.025);
   }
 
   private updateObstacles(
@@ -834,16 +901,93 @@ export class Game {
     }
 
     for (const obstacle of this.obstacles) {
+      const laneDistance = Math.abs(
+        this.player.currentRadius - ORBIT_LANES[obstacle.laneIndex]
+      );
+      const obstacleDistance = playerPosition.distanceTo(
+        obstacle.getPosition(this.obstaclePosition)
+      );
+      const collisionDistance = PLAYER_COLLISION_RADIUS + OBSTACLE_COLLISION_RADIUS;
+
       if (
-        Math.abs(this.player.currentRadius - ORBIT_LANES[obstacle.laneIndex]) <=
-          OBSTACLE_COLLISION_RADIUS &&
-        playerPosition.distanceTo(obstacle.getPosition(this.obstaclePosition)) <=
-          PLAYER_COLLISION_RADIUS + OBSTACLE_COLLISION_RADIUS
+        laneDistance <= OBSTACLE_COLLISION_RADIUS &&
+        obstacleDistance <= collisionDistance
       ) {
         this.handlePlayerHit('Impact detected');
         return;
       }
+
+      if (
+        !this.nearMissObstacles.has(obstacle) &&
+        laneDistance <= OBSTACLE_COLLISION_RADIUS + 0.2 &&
+        obstacleDistance > collisionDistance &&
+        obstacleDistance <= collisionDistance + NEAR_MISS_DISTANCE_BONUS
+      ) {
+        this.nearMissObstacles.add(obstacle);
+        this.triggerNearMiss();
+      }
     }
+  }
+
+  private checkHazardNearMiss(result: HazardDirectorResult): void {
+    if (
+      !result.active ||
+      result.hit ||
+      !this.hazardNearMissArmed ||
+      this.nearMissCooldown > 0
+    ) {
+      return;
+    }
+
+    const hazard = this.hazardDirector.getDebugState();
+    const hazardAngle = hazard.angle;
+    const laneIndices =
+      hazard.laneIndices.length > 0
+        ? hazard.laneIndices
+        : hazard.laneIndex === null
+          ? []
+          : [hazard.laneIndex];
+
+    if (hazardAngle === null || laneIndices.length === 0) {
+      return;
+    }
+
+    const nearLane = laneIndices.some(
+      (laneIndex) =>
+        Math.abs(this.player.currentRadius - ORBIT_LANES[laneIndex]) <=
+        HAZARD_COLLISION_RADIUS + 0.26
+    );
+
+    if (!nearLane) {
+      return;
+    }
+
+    const nearAngle =
+      hazard.type === 'gate'
+        ? angularDistance(this.player.angle, hazardAngle) <= 0.68
+        : angularDistance(this.player.angle, hazardAngle) <= HAZARD_NEAR_MISS_ANGLE;
+
+    if (!nearAngle) {
+      return;
+    }
+
+    this.hazardNearMissArmed = false;
+    this.triggerNearMiss();
+  }
+
+  private triggerNearMiss(): void {
+    if (this.nearMissCooldown > 0 || this.state !== 'playing') {
+      return;
+    }
+
+    this.nearMissCooldown = NEAR_MISS_COOLDOWN;
+    this.score += 1;
+    this.syncRunStats();
+    this.floatingText.show('NEAR MISS +1', 'bonus');
+    this.impactFlash.flash('nearMiss');
+    this.screenShake.add(0.035);
+    this.cameraRig.punch(0.12);
+    this.audio.playUiSelect();
   }
 
   private collectJunk(): void {
@@ -864,8 +1008,13 @@ export class Game {
       this.currentComboWindow + this.eventWaveDirector.getEffects().comboWindowBonus;
 
     this.audio.playCollect();
+    this.floatingText.show(
+      `+${this.comboMultiplier}`,
+      this.comboMultiplier > 1 ? 'bonus' : 'score'
+    );
     if (this.comboMultiplier > previousMultiplier) {
       this.audio.playComboUp(this.comboMultiplier);
+      this.floatingText.show(`COMBO x${this.comboMultiplier}`, 'bonus');
     }
 
     this.runStats.recordJunkCollected();
@@ -898,6 +1047,9 @@ export class Game {
         true
       );
       this.screenShake.add(0.09);
+      this.cameraRig.punch(0.16);
+      this.impactFlash.flash('nearMiss');
+      this.floatingText.show('SHIELD BROKEN', 'warning');
       this.audio.playShieldBreak();
       return;
     }
@@ -913,6 +1065,9 @@ export class Game {
     this.state = 'gameover';
     this.isPaused = false;
     this.helpOpen = false;
+    this.missionIntroActive = false;
+    this.missionIntroTimer = 0;
+    this.hazardNearMissArmed = false;
     this.gameOverReason = reason;
     this.syncRunStats();
     this.runStats.complete(reason);
@@ -928,6 +1083,9 @@ export class Game {
     this.powerupToast.clear();
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xcfefff, 28, true);
     this.screenShake.add(0.22);
+    this.cameraRig.punch(0.34);
+    this.impactFlash.flash('hit');
+    this.floatingText.show('CRITICAL HIT', 'warning');
   }
 
   private triggerMissionComplete(): void {
@@ -938,8 +1096,11 @@ export class Game {
     this.state = 'missionComplete';
     this.isPaused = false;
     this.helpOpen = false;
+    this.missionIntroActive = false;
+    this.missionIntroTimer = 0;
     this.hazardWarning = false;
     this.hazardActive = false;
+    this.hazardNearMissArmed = false;
     this.syncRunStats();
     this.runStats.complete('Mission complete');
     const finalStats = this.runStats.getSnapshot();
@@ -962,6 +1123,9 @@ export class Game {
     this.powerupToast.clear();
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xffe06b, 24, true);
     this.screenShake.add(0.08);
+    this.cameraRig.punch(0.22);
+    this.impactFlash.flash('complete');
+    this.floatingText.show('MISSION COMPLETE', 'bonus');
   }
 
   private prepareTitle(): void {
@@ -1001,6 +1165,7 @@ export class Game {
     this.resetRunState();
     this.startTutorialIfNeeded();
     this.state = 'playing';
+    this.startMissionIntro();
     this.upgradePanelOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
@@ -1023,6 +1188,7 @@ export class Game {
     this.resetRunState();
     this.startTutorialIfNeeded();
     this.state = 'playing';
+    this.startMissionIntro();
     this.upgradePanelOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
@@ -1033,6 +1199,63 @@ export class Game {
     );
     this.updateHud(false);
     this.syncDebugAttributes();
+  }
+
+  private startMissionIntro(): void {
+    this.missionIntroTimer = this.reducedMotion
+      ? MISSION_INTRO_REDUCED_MOTION_DURATION
+      : MISSION_INTRO_DURATION;
+    this.missionIntroActive = true;
+    this.audio.playBoostLoopStop();
+  }
+
+  private updateMissionIntro(delta: number): void {
+    if (this.state !== 'playing') {
+      this.missionIntroActive = false;
+      this.missionIntroTimer = 0;
+    } else if (this.missionIntroActive && !this.helpOpen && !this.isPaused) {
+      this.missionIntroTimer = Math.max(0, this.missionIntroTimer - delta);
+
+      if (this.missionIntroTimer <= 0) {
+        this.missionIntroActive = false;
+        this.floatingText.show('CLEAN', 'bonus');
+      }
+    }
+
+    const sector = this.missionDirector.getCurrentSector();
+    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+
+    this.missionIntroOverlay.update({
+      isVisible: this.missionIntroActive,
+      sectorName: sector.name,
+      objectiveText: objective.text,
+      countdownLabel: this.getMissionIntroCountdownLabel()
+    });
+  }
+
+  private getMissionIntroCountdownLabel(): string {
+    if (!this.missionIntroActive) {
+      return '';
+    }
+
+    const duration = this.reducedMotion
+      ? MISSION_INTRO_REDUCED_MOTION_DURATION
+      : MISSION_INTRO_DURATION;
+    const progress = 1 - this.missionIntroTimer / duration;
+
+    if (progress < 0.28) {
+      return '3';
+    }
+
+    if (progress < 0.56) {
+      return '2';
+    }
+
+    if (progress < 0.82) {
+      return '1';
+    }
+
+    return 'CLEAN';
   }
 
   private resetRunState(): void {
@@ -1065,6 +1288,11 @@ export class Game {
     this.newlyUnlockedSectorName = null;
     this.gameOverReason = 'Impact detected';
     this.runBonusScrap = 0;
+    this.missionIntroTimer = 0;
+    this.missionIntroActive = false;
+    this.nearMissCooldown = 0;
+    this.hazardNearMissArmed = false;
+    this.nearMissObstacles.clear();
     this.audio.stopAll();
     this.runStats.reset();
     this.tutorialDirector.reset();
@@ -1073,6 +1301,9 @@ export class Game {
     this.powerupToast.clear();
     this.ghostMarker.clear();
     this.screenShake.clear();
+    this.cameraRig.clear();
+    this.impactFlash.clear();
+    this.floatingText.clear();
     this.particles.clear();
     this.hazardDirector.reset();
     this.player.setLaneSwitchDuration(upgradeEffects.laneSwitchDuration);
@@ -1700,9 +1931,13 @@ export class Game {
   }
 
   private applyCameraShake(): void {
-    this.shakenCameraPosition
-      .copy(this.baseCameraPosition)
-      .add(this.screenShake.getOffset());
+    this.cameraRig.apply(
+      this.camera,
+      this.baseCameraPosition,
+      this.shakenCameraPosition,
+      CAMERA_FOV
+    );
+    this.shakenCameraPosition.add(this.screenShake.getOffset());
     this.camera.position.copy(this.shakenCameraPosition);
     this.camera.lookAt(0, 0, 0);
   }
@@ -1762,6 +1997,8 @@ export class Game {
       tutorialSkipped: tutorial.isSkipped,
       isPaused: this.isPaused,
       helpOpen: this.helpOpen,
+      missionIntroActive: this.missionIntroActive,
+      reducedMotion: this.reducedMotion,
       scrap: this.upgrades.getSnapshot().totalScrap,
       shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
@@ -1825,6 +2062,8 @@ export class Game {
     this.canvas.dataset.tutorialSkipped = String(tutorial.isSkipped);
     this.canvas.dataset.paused = String(this.isPaused);
     this.canvas.dataset.helpOpen = String(this.helpOpen);
+    this.canvas.dataset.missionIntroActive = String(this.missionIntroActive);
+    this.canvas.dataset.reducedMotion = String(this.reducedMotion);
     this.canvas.dataset.scrap = String(this.upgrades.getSnapshot().totalScrap);
     this.canvas.dataset.shieldCharges = String(this.shieldCharges);
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);
@@ -1887,6 +2126,10 @@ function getHudRoot(): HTMLElement {
   }
 
   return root;
+}
+
+function getReducedMotionPreference(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
 
 function createNeutralInputState(): InputState {

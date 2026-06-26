@@ -10,6 +10,7 @@ type DebugState = {
   runTime: number;
   isPaused: boolean;
   helpOpen: boolean;
+  missionIntroActive: boolean;
   sectorId: string;
   tutorialActive: boolean;
   musicEnabled: boolean;
@@ -95,6 +96,7 @@ test('starts gameplay and responds to core controls', async ({ page }) => {
 
   await page.keyboard.press('Enter');
   await expectPhase(page, 'playing');
+  await waitForMissionIntro(page);
 
   const angleBefore = (await getDebugState(page)).playerAngle;
   await page.keyboard.down('ArrowRight');
@@ -149,6 +151,7 @@ test('restarts from game over with R when debug game-over hook is available', as
 
   await page.keyboard.press('Enter');
   await expectPhase(page, 'playing');
+  await waitForMissionIntro(page);
 
   const hasForceGameOver = await page.evaluate(
     () =>
@@ -229,6 +232,14 @@ async function getDebugState(page: Page): Promise<DebugState> {
 
 async function expectPhase(page: Page, phase: string): Promise<void> {
   await expect.poll(() => getDebugState(page).then((state) => state.phase)).toBe(phase);
+}
+
+async function waitForMissionIntro(page: Page): Promise<void> {
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.missionIntroActive), {
+      timeout: 6000
+    })
+    .toBe(false);
 }
 
 function angularDistance(a: number, b: number): number {

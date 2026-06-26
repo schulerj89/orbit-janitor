@@ -56,6 +56,7 @@ export class PlayerShip {
   private facingDirection = 1;
   private bankAngle = 0;
   private enginePulse = 0;
+  private boostSquash = 0;
   private laneSwitchStartRadius: number = ORBIT_LANES[STARTING_LANE_INDEX];
   private laneSwitchElapsed = LANE_SWITCH_DURATION;
   private laneSwitchDuration = LANE_SWITCH_DURATION;
@@ -127,7 +128,10 @@ export class PlayerShip {
     this.laneSwitchCooldownRemaining = 0;
     this.bankAngle = 0;
     this.enginePulse = 0;
+    this.boostSquash = 0;
     this.setAngle(0);
+    this.model.group.position.set(0, 0, 0);
+    this.model.group.scale.set(1, 1, 1);
     this.model.engineFlame.visible = false;
     this.model.engineGlow.visible = false;
     this.model.engineFlame.scale.setScalar(1);
@@ -180,6 +184,15 @@ export class PlayerShip {
   private updateEngineVisuals(isGameOver: boolean, isBoosting: boolean): void {
     const engineVisible = !isGameOver && isBoosting;
     const pulse = 1 + Math.sin(this.enginePulse) * 0.18;
+    const boostTarget = engineVisible ? 1 : 0;
+
+    this.boostSquash += (boostTarget - this.boostSquash) * 0.22;
+    this.model.group.position.z = -0.035 * this.boostSquash;
+    this.model.group.scale.set(
+      1 + this.boostSquash * 0.035,
+      1,
+      1 + this.boostSquash * 0.02
+    );
 
     this.model.engineFlame.visible = engineVisible;
     this.model.engineGlow.visible = engineVisible;

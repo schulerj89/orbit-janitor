@@ -346,6 +346,153 @@ body {
   line-height: 1.1;
 }
 
+.impact-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: calc(var(--flash-progress, 0) * 0.36);
+  transition: opacity 80ms linear;
+  visibility: visible;
+}
+
+.impact-flash-hit {
+  background:
+    radial-gradient(circle at 50% 46%, rgb(255 255 255 / 28%), transparent 26%),
+    radial-gradient(circle at 50% 50%, transparent 52%, rgb(255 64 32 / 62%) 100%);
+}
+
+.impact-flash-complete {
+  background:
+    radial-gradient(circle at 50% 46%, rgb(255 255 255 / 28%), transparent 24%),
+    radial-gradient(circle at 50% 50%, transparent 50%, rgb(255 224 107 / 48%) 100%);
+}
+
+.impact-flash-nearMiss {
+  background: radial-gradient(circle at 50% 44%, rgb(159 255 238 / 22%), transparent 34%);
+}
+
+.impact-flash.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.floating-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.floating-text {
+  position: absolute;
+  top: clamp(170px, 34vh, 320px);
+  left: 50%;
+  min-width: 120px;
+  color: #ffffff;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: clamp(1rem, 3vw, 1.45rem);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-shadow:
+    0 2px 14px rgb(0 0 0 / 90%),
+    0 0 18px currentcolor;
+  text-transform: uppercase;
+  white-space: nowrap;
+  will-change: transform, opacity;
+}
+
+.floating-text-score {
+  color: #f5fbff;
+}
+
+.floating-text-bonus {
+  color: #ffe06b;
+}
+
+.floating-text-lost,
+.floating-text-warning {
+  color: #ffb199;
+}
+
+.mission-intro-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  pointer-events: none;
+  place-items: center;
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 220ms ease;
+  visibility: visible;
+}
+
+.mission-intro-overlay.is-hidden {
+  opacity: 0;
+  transform: scale(1.02);
+  visibility: hidden;
+}
+
+.mission-intro-card {
+  display: grid;
+  gap: 8px;
+  width: min(560px, calc(100vw - 32px));
+  min-height: 240px;
+  place-items: center;
+  padding: clamp(24px, 5vw, 38px);
+  border: 1px solid rgb(255 224 107 / 34%);
+  border-radius: 8px;
+  background: rgb(4 10 18 / 76%);
+  box-shadow: 0 24px 90px rgb(0 0 0 / 44%);
+  text-align: center;
+  text-shadow: 0 2px 16px rgb(0 0 0 / 88%);
+}
+
+.mission-intro-kicker {
+  color: #9fffee;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: clamp(0.78rem, 2vw, 0.95rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mission-intro-card h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2rem, 7vw, 3.6rem);
+  line-height: 1;
+}
+
+.mission-intro-card p {
+  max-width: 450px;
+  margin: 0;
+  color: #d7e8f2;
+  font-size: clamp(0.92rem, 2.4vw, 1.1rem);
+  line-height: 1.35;
+}
+
+.mission-intro-card strong {
+  color: #ffe06b;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: clamp(3.2rem, 15vw, 7rem);
+  line-height: 0.95;
+  text-shadow:
+    0 2px 16px rgb(0 0 0 / 88%),
+    0 0 32px rgb(255 224 107 / 64%);
+}
+
+.mission-intro-card strong.is-clean {
+  color: #9fffee;
+  font-size: clamp(2.6rem, 12vw, 5.5rem);
+  text-shadow:
+    0 2px 16px rgb(0 0 0 / 88%),
+    0 0 34px rgb(159 255 238 / 62%);
+}
+
 .tutorial-overlay {
   position: absolute;
   bottom: clamp(92px, 14vh, 150px);
@@ -425,9 +572,9 @@ body {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
   transition:
-    opacity 160ms ease,
-    transform 160ms ease,
-    visibility 160ms ease;
+    opacity 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 220ms ease;
   visibility: visible;
 }
 
@@ -439,7 +586,7 @@ body {
 .pause-overlay.is-hidden,
 .help-overlay.is-hidden {
   opacity: 0;
-  transform: translate(-50%, -48%) scale(0.98);
+  transform: translate(-50%, -47%) scale(0.97);
   visibility: hidden;
 }
 
@@ -947,5 +1094,47 @@ body {
   .upgrade-item-cost {
     grid-column: 2;
     text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .floating-text,
+  .mission-intro-overlay,
+  .title-overlay,
+  .run-summary,
+  .sector-select-overlay,
+  .mission-complete-overlay,
+  .upgrade-panel,
+  .pause-overlay,
+  .help-overlay {
+    transform: none;
+  }
+
+  .title-overlay,
+  .run-summary,
+  .sector-select-overlay,
+  .mission-complete-overlay,
+  .upgrade-panel,
+  .pause-overlay,
+  .help-overlay {
+    transform: translate(-50%, -50%);
+  }
+
+  .title-overlay.is-hidden,
+  .run-summary.is-hidden,
+  .sector-select-overlay.is-hidden,
+  .mission-complete-overlay.is-hidden,
+  .upgrade-panel.is-hidden,
+  .pause-overlay.is-hidden,
+  .help-overlay.is-hidden {
+    transform: translate(-50%, -50%);
   }
 }
