@@ -1,3 +1,5 @@
+import type { ActivePowerupSnapshot } from '../systems/PowerupDirector';
+
 export type GameState =
   | 'title'
   | 'sectorSelect'
@@ -26,6 +28,7 @@ export interface HudSnapshot {
   runTime: number;
   objectiveComplete: boolean;
   hazardWarning: boolean;
+  activePowerups: ActivePowerupSnapshot[];
   tutorialActive: boolean;
   tutorialStepLabel: string | null;
   isPaused: boolean;
@@ -51,6 +54,7 @@ export class Hud {
   private readonly comboTimerFill: HTMLElement;
   private readonly boostFill: HTMLElement;
   private readonly boostValue: HTMLElement;
+  private readonly powerupsValue: HTMLElement;
   private readonly audioStateValue: HTMLElement;
 
   constructor(root: HTMLElement) {
@@ -97,6 +101,7 @@ export class Hud {
         <div class="hud-meter hud-meter-boost" aria-hidden="true">
           <span data-hud-boost-fill></span>
         </div>
+        <div class="hud-powerups is-hidden" data-hud-powerups aria-label="Active powerups"></div>
         <div class="hud-row hud-status">
           <span class="hud-label">Status</span>
           <span class="hud-value" data-hud-status>Cleaning orbit</span>
@@ -141,6 +146,7 @@ export class Hud {
     this.comboTimerFill = getElement(root, '[data-hud-combo-fill]');
     this.boostFill = getElement(root, '[data-hud-boost-fill]');
     this.boostValue = getElement(root, '[data-hud-boost-value]');
+    this.powerupsValue = getElement(root, '[data-hud-powerups]');
     this.audioStateValue = getElement(root, '[data-hud-audio-state]');
   }
 
@@ -179,6 +185,7 @@ export class Hud {
     this.boostFill.style.transform = `scaleX(${boostPercent})`;
     this.boostValue.textContent = `${Math.round(boostPercent * 100)}%`;
     this.boostValue.classList.toggle('is-empty', snapshot.boostEmpty);
+    this.updatePowerups(snapshot.activePowerups);
     this.audioStateValue.textContent = `Music ${snapshot.musicEnabled ? 'On' : 'Off'} | SFX ${snapshot.sfxEnabled ? 'On' : 'Off'}`;
     this.audioStateValue.classList.toggle(
       'is-muted',
@@ -203,6 +210,10 @@ export class Hud {
       this.statusValue.textContent = `Training: ${snapshot.tutorialStepLabel}`;
     } else if (snapshot.shieldCharges > 0) {
       this.statusValue.textContent = 'Shield ready';
+    } else if (snapshot.activePowerups.length > 0) {
+      this.statusValue.textContent = snapshot.activePowerups
+        .map((powerup) => powerup.name)
+        .join(' + ');
     } else if (snapshot.boostEmpty) {
       this.statusValue.textContent = 'BOOST EMPTY';
     } else if (snapshot.objectiveComplete) {
@@ -212,6 +223,19 @@ export class Hud {
     } else {
       this.statusValue.textContent = 'Cleaning orbit';
     }
+  }
+
+  private updatePowerups(activePowerups: ActivePowerupSnapshot[]): void {
+    this.powerupsValue.replaceChildren(
+      ...activePowerups.map((powerup) => {
+        const pill = document.createElement('span');
+
+        pill.className = 'hud-powerup-pill';
+        pill.textContent = `${powerup.name} ${Math.ceil(powerup.remaining)}s`;
+        return pill;
+      })
+    );
+    this.powerupsValue.classList.toggle('is-hidden', activePowerups.length === 0);
   }
 }
 

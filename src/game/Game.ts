@@ -13,6 +13,10 @@ import {
   OBSTACLE_COLLISION_RADIUS,
   ORBIT_LANES,
   PLAYER_COLLISION_RADIUS,
+  POWERUP_MAGNET_PICKUP_RADIUS_BONUS,
+  POWERUP_MAGNET_PULL_RANGE,
+  POWERUP_MAGNET_PULL_SPEED,
+  POWERUP_SCRAP_CACHE_BONUS,
   RUN_OBJECTIVE_TARGET_SCORE
 } from './constants';
 import { InputController, type InputState } from './input';
@@ -28,10 +32,15 @@ import { ObstacleSatellite, type ObstacleConfig } from './entities/ObstacleSatel
 import { OrbitLanes } from './entities/OrbitLanes';
 import { Planet } from './entities/Planet';
 import { PlayerShip } from './entities/PlayerShip';
+import { getPowerupColor, type PowerupType } from './entities/Powerup';
 import { Starfield } from './entities/Starfield';
 import { ChallengeMode, type ChallengeRunMode } from './systems/ChallengeMode';
 import { HazardDirector, type HazardDirectorDebugState } from './systems/HazardDirector';
 import { MissionDirector } from './systems/MissionDirector';
+import {
+  PowerupDirector,
+  type PowerupDirectorDebugState
+} from './systems/PowerupDirector';
 import { RunStats, type RunStatsSnapshot } from './systems/RunStats';
 import {
   DEFAULT_SECTOR_ID,
@@ -50,6 +59,7 @@ import { HelpOverlay } from './ui/HelpOverlay';
 import { Hud, type GameState } from './ui/Hud';
 import { MissionCompleteOverlay } from './ui/MissionCompleteOverlay';
 import { PauseOverlay } from './ui/PauseOverlay';
+import { PowerupToast } from './ui/PowerupToast';
 import { RunSummary } from './ui/RunSummary';
 import { SectorSelectOverlay } from './ui/SectorSelectOverlay';
 import { TitleOverlay } from './ui/TitleOverlay';
@@ -101,6 +111,7 @@ interface OrbitJanitorDebugState {
   junkLaneIndex: number;
   obstacles: LaneAngle[];
   hazard: HazardDirectorDebugState;
+  powerup: PowerupDirectorDebugState;
   runStats: RunStatsSnapshot;
   upgrades: UpgradeSnapshot;
   playerPosition: number[];
@@ -136,6 +147,7 @@ export class Game {
   private readonly particles = new ParticleBurst();
   private readonly screenShake = new ScreenShake();
   private readonly hazardDirector = new HazardDirector();
+  private readonly powerupDirector = new PowerupDirector();
   private readonly runStats = new RunStats(RUN_OBJECTIVE_TARGET_SCORE);
   private readonly upgrades = new UpgradeSystem();
   private readonly challengeMode = new ChallengeMode();
@@ -160,6 +172,7 @@ export class Game {
   private tutorialOverlay!: TutorialOverlay;
   private helpOverlay!: HelpOverlay;
   private pauseOverlay!: PauseOverlay;
+  private powerupToast!: PowerupToast;
   private orbitLanes!: OrbitLanes;
   private planet!: Planet;
   private starfield!: Starfield;
@@ -195,6 +208,7 @@ export class Game {
   private selectedSectorId = DEFAULT_SECTOR_ID;
   private newlyUnlockedSectorName: string | null = null;
   private sectorHintTimer = 0;
+  private runBonusScrap = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -219,6 +233,7 @@ export class Game {
     this.tutorialOverlay = new TutorialOverlay(hudRoot);
     this.pauseOverlay = new PauseOverlay(hudRoot);
     this.helpOverlay = new HelpOverlay(hudRoot);
+    this.powerupToast = new PowerupToast(hudRoot);
 
     this.scene.background = new THREE.Color(0x02050f);
     this.buildScene();
@@ -256,6 +271,7 @@ export class Game {
       this.planet.group,
       this.orbitLanes.group,
       this.hazardDirector.group,
+      this.powerupDirector.group,
       this.ghostMarker.group,
       this.player.group,
       this.junk.group,
@@ -335,8 +351,14 @@ export class Game {
     const isGameOver = this.state === 'gameover';
     const controlsLocked =
       this.state !== 'playing' || gameplayPaused || consumedStartInput;
+    const inputPowerupEffects = this.powerupDirector.getEffects();
     const wasBoosting = this.isBoosting;
-    const isBoosting = this.updateBoost(delta, input, controlsLocked);
+    const isBoosting = this.updateBoost(
+      delta,
+      input,
+      controlsLocked,
+      inputPowerupEffects.overdrive
+    );
     const previousTargetLane = this.player.targetLaneIndex;
 
     if (isBoosting && !wasBoosting) {
@@ -359,14 +381,18 @@ export class Game {
     this.ghostMarker.update(delta);
     this.particles.update(delta);
     this.screenShake.update(delta);
+    this.powerupToast.update(delta);
     this.shieldBrokenTimer = Math.max(0, this.shieldBrokenTimer - delta);
     this.shieldGraceTimer = Math.max(0, this.shieldGraceTimer - delta);
     this.sectorHintTimer = Math.max(0, this.sectorHintTimer - delta);
 
     if (isGameplayActive) {
       this.runTime += delta;
-      this.updateCombo(delta);
-      this.updateObstacles(delta);
+      this.updatePowerups(delta);
+      const powerupEffects = this.powerupDirector.getEffects();
+      this.applyMagnetSurge(delta, powerupEffects.magnetSurge);
+      this.updateCombo(delta, powerupEffects.comboLock);
+      this.updateObstacles(delta, powerupEffects.timeDilationScale);
       this.syncRunStats();
       this.updateTutorial(delta, input, isBoosting);
 
@@ -376,22 +402,25 @@ export class Game {
         );
         const wasHazardWarning = this.hazardWarning;
         const wasHazardActive = this.hazardActive;
-        const hazardResult = this.hazardDirector.update(delta, {
-          score: this.score,
-          runTime: this.runTime,
-          playerAngle: this.player.angle,
-          playerRadius: this.player.currentRadius,
-          junkAngle: this.junk.angle,
-          junkLaneIndex: this.junk.laneIndex,
-          rng: this.runRng,
-          hazardIntensity: difficulty.hazardIntensity,
-          hazardIntervalMultiplier: difficulty.hazardIntervalMultiplier,
-          hazardTelegraphMultiplier: difficulty.hazardTelegraphMultiplier,
-          hazardActiveMultiplier: difficulty.hazardActiveMultiplier,
-          hazardSpeedMultiplier: difficulty.hazardSpeedMultiplier,
-          allowedHazardTypes: difficulty.allowedHazardTypes,
-          isGameOver
-        });
+        const hazardResult = this.hazardDirector.update(
+          delta * powerupEffects.timeDilationScale,
+          {
+            score: this.score,
+            runTime: this.runTime,
+            playerAngle: this.player.angle,
+            playerRadius: this.player.currentRadius,
+            junkAngle: this.junk.angle,
+            junkLaneIndex: this.junk.laneIndex,
+            rng: this.runRng,
+            hazardIntensity: difficulty.hazardIntensity,
+            hazardIntervalMultiplier: difficulty.hazardIntervalMultiplier,
+            hazardTelegraphMultiplier: difficulty.hazardTelegraphMultiplier,
+            hazardActiveMultiplier: difficulty.hazardActiveMultiplier,
+            hazardSpeedMultiplier: difficulty.hazardSpeedMultiplier,
+            allowedHazardTypes: difficulty.allowedHazardTypes,
+            isGameOver
+          }
+        );
         this.hazardWarning = hazardResult.warning;
         this.hazardActive = hazardResult.active;
 
@@ -449,7 +478,8 @@ export class Game {
   private updateBoost(
     delta: number,
     input: InputState,
-    controlsLocked: boolean
+    controlsLocked: boolean,
+    freeBoost: boolean
   ): boolean {
     this.boostEmptyFlashTimer = Math.max(0, this.boostEmptyFlashTimer - delta);
 
@@ -462,12 +492,19 @@ export class Game {
       this.boostLocked = false;
     }
 
-    const hasFuelToStart = this.isBoosting
-      ? this.boostFuel > 0
-      : this.boostFuel >= BOOST_MIN_TO_ACTIVATE;
-    const shouldBoost = input.boost && !this.boostLocked && hasFuelToStart;
+    const hasFuelToStart = freeBoost
+      ? true
+      : this.isBoosting
+        ? this.boostFuel > 0
+        : this.boostFuel >= BOOST_MIN_TO_ACTIVATE;
+    const shouldBoost = input.boost && hasFuelToStart && (freeBoost || !this.boostLocked);
 
     if (shouldBoost) {
+      if (freeBoost) {
+        this.isBoosting = true;
+        return true;
+      }
+
       this.boostFuel = Math.max(0, this.boostFuel - BOOST_FUEL_DRAIN_PER_SECOND * delta);
       this.isBoosting = true;
 
@@ -496,6 +533,10 @@ export class Game {
   }
 
   private shouldShowBoostEmpty(input: InputState): boolean {
+    if (this.powerupDirector.getEffects().overdrive) {
+      return false;
+    }
+
     return (
       input.boost &&
       !this.isBoosting &&
@@ -565,8 +606,70 @@ export class Game {
     return this.isPaused || (this.helpOpen && this.state === 'playing');
   }
 
-  private updateCombo(delta: number): void {
+  private updatePowerups(delta: number): void {
+    const tutorial = this.tutorialDirector.getSnapshot();
+    const result = this.powerupDirector.update(delta, {
+      playerAngle: this.player.angle,
+      playerRadius: this.player.currentRadius,
+      junkAngle: this.junk.angle,
+      junkLaneIndex: this.junk.laneIndex,
+      obstacles: this.getObstacleLaneAngles(),
+      hazard: this.hazardDirector.getDebugState(),
+      rng: this.runRng,
+      canSpawn: !tutorial.isActive
+    });
+
+    if (result.collected) {
+      this.handlePowerupCollected(result.collected);
+    }
+  }
+
+  private handlePowerupCollected(type: PowerupType): void {
+    this.powerupToast.show(type);
+    this.audio.playCollect();
+    this.particles.emit(
+      this.powerupDirector.powerup.getPosition(this.junkPosition),
+      getPowerupColor(type),
+      16,
+      type === 'shieldPickup'
+    );
+    this.screenShake.add(0.035);
+
+    if (type === 'shieldPickup') {
+      this.shieldCharges += 1;
+      this.audio.playUiSelect();
+      return;
+    }
+
+    if (type === 'scrapCache') {
+      this.runBonusScrap += POWERUP_SCRAP_CACHE_BONUS;
+      this.audio.playUiSelect();
+      return;
+    }
+
+    this.audio.playUiSelect();
+  }
+
+  private applyMagnetSurge(delta: number, isActive: boolean): void {
+    if (!isActive) {
+      return;
+    }
+
+    this.junk.pullToward(
+      this.player.angle,
+      this.player.targetLaneIndex,
+      delta,
+      POWERUP_MAGNET_PULL_RANGE,
+      POWERUP_MAGNET_PULL_SPEED
+    );
+  }
+
+  private updateCombo(delta: number, comboLocked: boolean): void {
     if (this.comboTimer <= 0) {
+      return;
+    }
+
+    if (comboLocked) {
       return;
     }
 
@@ -578,21 +681,27 @@ export class Game {
     }
   }
 
-  private updateObstacles(delta: number): void {
+  private updateObstacles(delta: number, timeScale: number): void {
     this.ensureObstacleCount();
     const difficultyFactor = 1 + Math.min(this.score / 60, 0.6);
+    const scaledDelta = delta * timeScale;
 
     for (const obstacle of this.obstacles) {
-      obstacle.update(delta, difficultyFactor);
+      obstacle.update(scaledDelta, difficultyFactor);
     }
   }
 
   private checkCollisions(): void {
     const playerPosition = this.player.getPosition(this.playerPosition);
+    const pickupRadius =
+      this.currentJunkCollisionRadius +
+      (this.powerupDirector.getEffects().magnetSurge
+        ? POWERUP_MAGNET_PICKUP_RADIUS_BONUS
+        : 0);
 
     if (
       playerPosition.distanceTo(this.junk.getPosition(this.junkPosition)) <=
-      PLAYER_COLLISION_RADIUS + this.currentJunkCollisionRadius
+      PLAYER_COLLISION_RADIUS + pickupRadius
     ) {
       this.collectJunk();
 
@@ -683,11 +792,15 @@ export class Game {
     this.gameOverReason = reason;
     this.syncRunStats();
     this.runStats.complete(reason);
-    this.challengeMode.completeRun(this.runStats.getSnapshot().finalScore);
-    this.upgrades.awardRunScrap(this.runStats.getSnapshot());
+    const finalStats = this.runStats.getSnapshot();
+
+    this.challengeMode.completeRun(finalStats.finalScore);
+    this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
     this.audio.playImpact();
     this.audio.playBoostLoopStop();
     this.music.playGameOver();
+    this.powerupDirector.reset(this.runRng);
+    this.powerupToast.clear();
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xcfefff, 28, true);
     this.screenShake.add(0.22);
   }
@@ -704,7 +817,9 @@ export class Game {
     this.hazardActive = false;
     this.syncRunStats();
     this.runStats.complete('Mission complete');
-    this.challengeMode.completeRun(this.runStats.getSnapshot().finalScore);
+    const finalStats = this.runStats.getSnapshot();
+
+    this.challengeMode.completeRun(finalStats.finalScore);
 
     const unlockedSectorId = this.sectorProgress.completeSector(
       this.missionDirector.getCurrentSector().id
@@ -712,11 +827,13 @@ export class Game {
     this.newlyUnlockedSectorName =
       unlockedSectorId === null ? null : getSectorById(unlockedSectorId).name;
 
-    this.upgrades.awardRunScrap(this.runStats.getSnapshot());
+    this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
     this.audio.playObjectiveComplete();
     this.audio.playBoostLoopStop();
     this.music.playMissionComplete();
     this.hazardDirector.reset();
+    this.powerupDirector.reset(this.runRng);
+    this.powerupToast.clear();
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xffe06b, 24, true);
     this.screenShake.add(0.08);
   }
@@ -821,9 +938,12 @@ export class Game {
     this.objectiveAnnounced = false;
     this.newlyUnlockedSectorName = null;
     this.gameOverReason = 'Impact detected';
+    this.runBonusScrap = 0;
     this.audio.stopAll();
     this.runStats.reset();
     this.tutorialDirector.reset();
+    this.powerupDirector.reset(this.runRng);
+    this.powerupToast.clear();
     this.ghostMarker.clear();
     this.screenShake.clear();
     this.particles.clear();
@@ -1331,6 +1451,7 @@ export class Game {
       runTime: this.runTime,
       objectiveComplete: objective.isComplete && !objective.isEndless,
       hazardWarning: this.hazardWarning,
+      activePowerups: this.powerupDirector.getActivePowerups(),
       tutorialActive: tutorial.isActive,
       tutorialStepLabel: tutorial.currentStep?.id ?? null,
       isPaused: this.isPaused,
@@ -1490,6 +1611,7 @@ export class Game {
       junkLaneIndex: this.junk.laneIndex,
       obstacles: this.getObstacleLaneAngles(),
       hazard: this.hazardDirector.getDebugState(),
+      powerup: this.powerupDirector.getDebugState(),
       runStats: this.runStats.getSnapshot(),
       upgrades: this.upgrades.getSnapshot(),
       playerPosition: this.player.getPosition(this.playerPosition).toArray(),
@@ -1565,6 +1687,16 @@ export class Game {
     this.canvas.dataset.hazardAngle =
       hazard.angle === null ? '' : hazard.angle.toFixed(4);
     this.canvas.dataset.hazardNextSpawn = hazard.nextSpawnIn.toFixed(2);
+    const powerup = this.powerupDirector.getDebugState();
+    this.canvas.dataset.powerupType = powerup.collectibleType;
+    this.canvas.dataset.powerupLane =
+      powerup.collectibleLaneIndex === null ? '' : String(powerup.collectibleLaneIndex);
+    this.canvas.dataset.powerupAngle =
+      powerup.collectibleAngle === null ? '' : powerup.collectibleAngle.toFixed(4);
+    this.canvas.dataset.powerupNextSpawn = powerup.nextSpawnIn.toFixed(2);
+    this.canvas.dataset.activePowerups = powerup.activeEffects
+      .map((effect) => `${effect.type}:${effect.remaining.toFixed(2)}`)
+      .join(',');
     this.canvas.dataset.renderCalls = String(this.renderer.info.render.calls);
     this.canvas.dataset.renderTriangles = String(this.renderer.info.render.triangles);
     this.canvas.dataset.renderGeometries = String(this.renderer.info.memory.geometries);

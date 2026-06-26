@@ -70,11 +70,13 @@ npm run preview
 - Normal, seeded, and daily challenge run modes
 - Persistent daily best score in localStorage
 - Persistent scrap and ship upgrades in localStorage
+- Temporary in-run powerups: Magnet Surge, Time Dilation, Overdrive, Shield Pickup, Combo Lock, and Scrap Cache
 - Three visible orbit lanes with smooth lane switching
 - Junk and satellite hazards assigned to lanes
 - Upgradeable junk pickup radius, boost fuel, boost recharge, lane switching, combo timing, and one-run shield
 - Combo scoring for quick consecutive pickups
 - Boost fuel drain, recharge, and empty feedback
+- Powerup HUD timers and pickup toasts for active run modifiers
 - Procedural mesh particle bursts for pickups and impacts
 - Lightweight procedural audio with Web Audio after first input
 - Optional static SFX and layered music files under `public/audio`
@@ -129,4 +131,4 @@ https://schulerj89.github.io/orbit-janitor/
 3. More audio variation
 4. TSL atmosphere and shield effects
 5. Additional upgrade choices and run modifiers
-6. More sector-specific hazard rules
+6. More sector-specific hazard and powerup rules

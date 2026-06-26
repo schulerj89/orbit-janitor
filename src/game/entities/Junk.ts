@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { JUNK_MIN_ANGLE_SEPARATION, ORBIT_LANES } from '../constants';
 import {
+  angularDistance,
   clampLaneIndex,
   type RandomSource,
   randomAngleAvoiding,
@@ -73,6 +74,28 @@ export class Junk {
     return target.copy(this.group.position);
   }
 
+  pullToward(
+    targetAngle: number,
+    targetLaneIndex: number,
+    delta: number,
+    range: number,
+    speed: number
+  ): void {
+    if (this.laneIndex !== targetLaneIndex) {
+      return;
+    }
+
+    const distance = angularDistance(this.angle, targetAngle);
+
+    if (distance > range) {
+      return;
+    }
+
+    const signedDistance = getSignedAngularDistance(this.angle, targetAngle);
+    const pullStrength = (1 - distance / range) * speed * delta;
+    this.setAngle(this.angle + signedDistance * Math.min(1, pullStrength));
+  }
+
   applyTheme(theme: SectorTheme, colorVariance: number): void {
     this.junkPalette = theme.junkPalette;
     this.colorVariance = Math.max(0, Math.min(1, colorVariance));
@@ -104,6 +127,18 @@ export class Junk {
       material.color.setHex(palette[(index + offset) % palette.length]);
     });
   }
+}
+
+function getSignedAngularDistance(fromAngle: number, toAngle: number): number {
+  let difference = wrapAngle(toAngle) - wrapAngle(fromAngle);
+
+  if (difference > Math.PI) {
+    difference -= Math.PI * 2;
+  } else if (difference < -Math.PI) {
+    difference += Math.PI * 2;
+  }
+
+  return difference;
 }
 
 function pickLaneIndex(rng: RandomSource, laneWeights: readonly number[]): number {

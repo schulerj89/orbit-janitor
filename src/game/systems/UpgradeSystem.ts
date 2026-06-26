@@ -151,9 +151,11 @@ export class UpgradeSystem {
     return true;
   }
 
-  awardRunScrap(stats: RunStatsSnapshot): number {
+  awardRunScrap(stats: RunStatsSnapshot, bonusScrap = 0): number {
     const earned =
-      stats.junkCollected + (stats.objectiveComplete ? OBJECTIVE_SCRAP_BONUS : 0);
+      stats.junkCollected +
+      Math.max(0, Math.floor(bonusScrap)) +
+      (stats.objectiveComplete ? OBJECTIVE_SCRAP_BONUS : 0);
 
     this.lastRunScrapEarned = earned;
     this.totalScrap += earned;
