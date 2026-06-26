@@ -1,9 +1,12 @@
 import type { RunStatsSnapshot } from '../systems/RunStats';
+import type { UpgradeSnapshot } from '../systems/UpgradeSystem';
 import type { GameState } from './Hud';
 
 export interface RunSummarySnapshot {
   state: GameState;
   stats: RunStatsSnapshot;
+  upgrades: UpgradeSnapshot;
+  upgradePanelOpen: boolean;
 }
 
 export class RunSummary {
@@ -16,6 +19,8 @@ export class RunSummary {
   private readonly comboValue: HTMLElement;
   private readonly multiplierValue: HTMLElement;
   private readonly objectiveValue: HTMLElement;
+  private readonly scrapEarnedValue: HTMLElement;
+  private readonly totalScrapValue: HTMLElement;
 
   constructor(root: HTMLElement) {
     root.insertAdjacentHTML(
@@ -39,6 +44,10 @@ export class RunSummary {
             <strong data-summary-multiplier>x1</strong>
             <span>Objective</span>
             <strong data-summary-objective>Objective failed</strong>
+            <span>Scrap earned</span>
+            <strong data-summary-scrap-earned>0</strong>
+            <span>Total scrap</span>
+            <strong data-summary-total-scrap>0</strong>
           </div>
           <p class="run-summary-restart">Press R to restart</p>
         </section>
@@ -54,6 +63,8 @@ export class RunSummary {
     this.comboValue = getElement(root, '[data-summary-combo]');
     this.multiplierValue = getElement(root, '[data-summary-multiplier]');
     this.objectiveValue = getElement(root, '[data-summary-objective]');
+    this.scrapEarnedValue = getElement(root, '[data-summary-scrap-earned]');
+    this.totalScrapValue = getElement(root, '[data-summary-total-scrap]');
   }
 
   update(snapshot: RunSummarySnapshot): void {
@@ -70,7 +81,9 @@ export class RunSummary {
       ? 'Objective complete'
       : 'Objective failed';
     this.objectiveValue.classList.toggle('is-complete', stats.objectiveComplete);
-    this.setVisible(snapshot.state === 'gameover');
+    this.scrapEarnedValue.textContent = String(snapshot.upgrades.lastRunScrapEarned);
+    this.totalScrapValue.textContent = String(snapshot.upgrades.totalScrap);
+    this.setVisible(snapshot.state === 'gameover' && !snapshot.upgradePanelOpen);
   }
 
   private setVisible(isVisible: boolean): void {

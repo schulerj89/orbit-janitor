@@ -21,6 +21,7 @@ export class PlayerShip {
   private facingDirection = 1;
   private laneSwitchStartRadius: number = ORBIT_LANES[STARTING_LANE_INDEX];
   private laneSwitchElapsed = LANE_SWITCH_DURATION;
+  private laneSwitchDuration = LANE_SWITCH_DURATION;
   private laneSwitchCooldownRemaining = 0;
 
   constructor() {
@@ -113,13 +114,18 @@ export class PlayerShip {
     return target.copy(this.group.position);
   }
 
+  setLaneSwitchDuration(duration: number): void {
+    this.laneSwitchDuration = Math.max(0.05, duration);
+    this.laneSwitchElapsed = Math.min(this.laneSwitchElapsed, this.laneSwitchDuration);
+  }
+
   reset(): void {
     this.facingDirection = 1;
     this.laneIndex = STARTING_LANE_INDEX;
     this.targetLaneIndex = STARTING_LANE_INDEX;
     this.currentRadius = ORBIT_LANES[STARTING_LANE_INDEX];
     this.laneSwitchStartRadius = this.currentRadius;
-    this.laneSwitchElapsed = LANE_SWITCH_DURATION;
+    this.laneSwitchElapsed = this.laneSwitchDuration;
     this.laneSwitchCooldownRemaining = 0;
     this.setAngle(0);
     this.engineGlow.visible = false;
@@ -153,16 +159,16 @@ export class PlayerShip {
   }
 
   private updateLaneSwitch(delta: number): void {
-    if (this.laneSwitchElapsed >= LANE_SWITCH_DURATION) {
+    if (this.laneSwitchElapsed >= this.laneSwitchDuration) {
       this.currentRadius = ORBIT_LANES[this.targetLaneIndex];
       return;
     }
 
     this.laneSwitchElapsed = Math.min(
       this.laneSwitchElapsed + delta,
-      LANE_SWITCH_DURATION
+      this.laneSwitchDuration
     );
-    const t = this.laneSwitchElapsed / LANE_SWITCH_DURATION;
+    const t = this.laneSwitchElapsed / this.laneSwitchDuration;
     const easedT = t * t * (3 - 2 * t);
     this.currentRadius =
       this.laneSwitchStartRadius +

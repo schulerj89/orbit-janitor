@@ -38,6 +38,8 @@ npm run preview
 - ArrowDown or S: switch inward
 - Space: boost while held, limited by fuel
 - R: restart after game over
+- U: open upgrades from the title screen or game over
+- 1-6: buy upgrades while the upgrade panel is open
 - M: toggle music
 - N: toggle SFX
 
@@ -46,8 +48,10 @@ npm run preview
 - Title screen with controls and audio toggle hints
 - Run summary after game over
 - Persistent best score in localStorage
+- Persistent scrap and ship upgrades in localStorage
 - Three visible orbit lanes with smooth lane switching
 - Junk and satellite hazards assigned to lanes
+- Upgradeable junk pickup radius, boost fuel, boost recharge, lane switching, combo timing, and one-run shield
 - Combo scoring for quick consecutive pickups
 - Boost fuel drain, recharge, and empty feedback
 - Procedural mesh particle bursts for pickups and impacts
@@ -80,9 +84,9 @@ ElevenLabs-generated assets can be placed in `public/audio` after generation out
 
 ## Roadmap
 
-1. Magnetic junk pickup upgrade
-2. Daily/random challenge seeds
-3. More hazard patterns
-4. Additional title and summary polish
-5. More audio variation
-6. TSL atmosphere and shield effects
+1. Daily/random challenge seeds
+2. More hazard patterns
+3. Additional title and summary polish
+4. More audio variation
+5. TSL atmosphere and shield effects
+6. Additional upgrade choices and run modifiers

@@ -2,6 +2,7 @@ import type { GameState } from './Hud';
 
 export interface TitleOverlaySnapshot {
   state: GameState;
+  upgradePanelOpen: boolean;
   musicEnabled: boolean;
   sfxEnabled: boolean;
 }
@@ -27,6 +28,8 @@ export class TitleOverlay {
             <strong>Space</strong>
             <span>Restart</span>
             <strong>R after crash</strong>
+            <span>Upgrades</span>
+            <strong>U, then 1-6 to buy</strong>
           </div>
           <p class="title-overlay-start">Press Enter or Space to start</p>
           <p class="title-overlay-footer">
@@ -44,7 +47,7 @@ export class TitleOverlay {
   update(snapshot: TitleOverlaySnapshot): void {
     this.musicValue.textContent = snapshot.musicEnabled ? 'On' : 'Off';
     this.sfxValue.textContent = snapshot.sfxEnabled ? 'On' : 'Off';
-    this.setVisible(snapshot.state === 'title');
+    this.setVisible(snapshot.state === 'title' && !snapshot.upgradePanelOpen);
   }
 
   private setVisible(isVisible: boolean): void {

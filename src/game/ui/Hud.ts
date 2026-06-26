@@ -13,6 +13,8 @@ export interface HudSnapshot {
   objectiveTargetScore: number;
   objectiveComplete: boolean;
   hazardWarning: boolean;
+  shieldCharges: number;
+  shieldBroken: boolean;
   gameOverReason: string;
   musicEnabled: boolean;
   sfxEnabled: boolean;
@@ -80,6 +82,8 @@ export class Hud {
           <strong>R</strong>
           <span>Audio</span>
           <strong>M music / N SFX</strong>
+          <span>Upgrades</span>
+          <strong>U on title / game over</strong>
         </div>
       </section>
     `;
@@ -123,8 +127,12 @@ export class Hud {
       this.statusValue.textContent = 'Awaiting launch';
     } else if (snapshot.state === 'gameover') {
       this.statusValue.textContent = snapshot.gameOverReason;
+    } else if (snapshot.shieldBroken) {
+      this.statusValue.textContent = 'SHIELD BROKEN';
     } else if (snapshot.hazardWarning) {
       this.statusValue.textContent = 'WARNING: Lane hazard incoming';
+    } else if (snapshot.shieldCharges > 0) {
+      this.statusValue.textContent = 'Shield ready';
     } else if (snapshot.boostEmpty) {
       this.statusValue.textContent = 'BOOST EMPTY';
     } else if (snapshot.objectiveComplete) {

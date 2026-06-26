@@ -10,6 +10,8 @@ export interface InputState {
   restartPressed: boolean;
   musicTogglePressed: boolean;
   sfxTogglePressed: boolean;
+  upgradeTogglePressed: boolean;
+  upgradeBuyPressed: number | null;
 }
 
 export class InputController {
@@ -24,7 +26,9 @@ export class InputController {
     startPressed: false,
     restartPressed: false,
     musicTogglePressed: false,
-    sfxTogglePressed: false
+    sfxTogglePressed: false,
+    upgradeTogglePressed: false,
+    upgradeBuyPressed: null
   };
 
   constructor(target: Window = window) {
@@ -40,6 +44,8 @@ export class InputController {
     this.state.restartPressed = false;
     this.state.musicTogglePressed = false;
     this.state.sfxTogglePressed = false;
+    this.state.upgradeTogglePressed = false;
+    this.state.upgradeBuyPressed = null;
     return frameState;
   }
 
@@ -96,6 +102,17 @@ export class InputController {
       this.state.sfxTogglePressed = true;
       event.preventDefault();
     }
+
+    if (event.code === 'KeyU' && !event.repeat) {
+      this.state.upgradeTogglePressed = true;
+      event.preventDefault();
+    }
+
+    const upgradeBuyIndex = getUpgradeBuyIndex(event.code);
+    if (upgradeBuyIndex !== null && !event.repeat) {
+      this.state.upgradeBuyPressed = upgradeBuyIndex;
+      event.preventDefault();
+    }
   };
 
   private readonly handleKeyUp = (event: KeyboardEvent): void => {
@@ -124,4 +141,18 @@ export class InputController {
       event.preventDefault();
     }
   };
+}
+
+function getUpgradeBuyIndex(code: string): number | null {
+  if (code.startsWith('Digit')) {
+    const digit = Number(code.slice('Digit'.length));
+    return digit >= 1 && digit <= 6 ? digit - 1 : null;
+  }
+
+  if (code.startsWith('Numpad')) {
+    const digit = Number(code.slice('Numpad'.length));
+    return digit >= 1 && digit <= 6 ? digit - 1 : null;
+  }
+
+  return null;
 }

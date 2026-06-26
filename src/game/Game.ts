@@ -29,9 +29,11 @@ import { PlayerShip } from './entities/PlayerShip';
 import { Starfield } from './entities/Starfield';
 import { HazardDirector, type HazardDirectorDebugState } from './systems/HazardDirector';
 import { RunStats, type RunStatsSnapshot } from './systems/RunStats';
+import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
 import { Hud, type GameState } from './ui/Hud';
 import { RunSummary } from './ui/RunSummary';
 import { TitleOverlay } from './ui/TitleOverlay';
+import { UpgradePanel } from './ui/UpgradePanel';
 
 const STARTING_OBSTACLES: ObstacleConfig[] = [
   { laneIndex: 0, angle: Math.PI * 0.72, angularSpeed: -0.72 },
@@ -53,6 +55,8 @@ interface OrbitJanitorDebugState {
   runTime: number;
   objectiveComplete: boolean;
   bestScore: number;
+  scrap: number;
+  shieldCharges: number;
   musicEnabled: boolean;
   sfxEnabled: boolean;
   playerAngle: number;
@@ -63,6 +67,7 @@ interface OrbitJanitorDebugState {
   obstacles: LaneAngle[];
   hazard: HazardDirectorDebugState;
   runStats: RunStatsSnapshot;
+  upgrades: UpgradeSnapshot;
   playerPosition: number[];
   cameraPosition: number[];
   loadedAssetIds: string[];
@@ -95,6 +100,7 @@ export class Game {
   private readonly screenShake = new ScreenShake();
   private readonly hazardDirector = new HazardDirector();
   private readonly runStats = new RunStats(RUN_OBJECTIVE_TARGET_SCORE);
+  private readonly upgrades = new UpgradeSystem();
   private readonly baseCameraPosition = new THREE.Vector3();
   private readonly shakenCameraPosition = new THREE.Vector3();
   private readonly playerPosition = new THREE.Vector3();
@@ -105,6 +111,7 @@ export class Game {
   private hud!: Hud;
   private titleOverlay!: TitleOverlay;
   private runSummary!: RunSummary;
+  private upgradePanel!: UpgradePanel;
   private orbitLanes!: OrbitLanes;
   private planet!: Planet;
   private starfield!: Starfield;
@@ -116,12 +123,20 @@ export class Game {
   private comboMultiplier = 1;
   private comboTimer = 0;
   private boostFuel = BOOST_FUEL_MAX;
+  private currentJunkCollisionRadius = JUNK_COLLISION_RADIUS;
+  private currentBoostFuelMax = BOOST_FUEL_MAX;
+  private currentBoostRechargePerSecond = BOOST_FUEL_RECHARGE_PER_SECOND;
+  private currentComboWindow = COMBO_WINDOW;
   private boostLocked = false;
   private boostEmptyFlashTimer = 0;
   private isBoosting = false;
   private runTime = 0;
   private hazardWarning = false;
   private hazardActive = false;
+  private shieldCharges = 0;
+  private shieldBrokenTimer = 0;
+  private shieldGraceTimer = 0;
+  private upgradePanelOpen = false;
   private objectiveAnnounced = false;
   private gameOverReason = 'Impact detected';
 
@@ -142,6 +157,7 @@ export class Game {
     this.hud = new Hud(hudRoot);
     this.titleOverlay = new TitleOverlay(hudRoot);
     this.runSummary = new RunSummary(hudRoot);
+    this.upgradePanel = new UpgradePanel(hudRoot);
 
     this.scene.background = new THREE.Color(0x02050f);
     this.buildScene();
@@ -205,6 +221,21 @@ export class Game {
       this.audio.playUiSelect();
     }
 
+    const canUseUpgradePanel = this.state === 'title' || this.state === 'gameover';
+    if (input.upgradeTogglePressed && canUseUpgradePanel) {
+      this.upgradePanelOpen = !this.upgradePanelOpen;
+      this.audio.playUiSelect();
+    }
+
+    if (
+      input.upgradeBuyPressed !== null &&
+      this.upgradePanelOpen &&
+      canUseUpgradePanel &&
+      this.upgrades.buyUpgrade(input.upgradeBuyPressed)
+    ) {
+      this.audio.playUiSelect();
+    }
+
     const consumedStartInput = this.state === 'title' && input.startPressed;
     if (consumedStartInput) {
       this.startRun();
@@ -238,6 +269,8 @@ export class Game {
     this.junk.update(delta);
     this.particles.update(delta);
     this.screenShake.update(delta);
+    this.shieldBrokenTimer = Math.max(0, this.shieldBrokenTimer - delta);
+    this.shieldGraceTimer = Math.max(0, this.shieldGraceTimer - delta);
 
     if (isGameplayActive) {
       this.runTime += delta;
@@ -269,7 +302,7 @@ export class Game {
       }
 
       if (hazardResult.hit) {
-        this.triggerGameOver('Destroyed by lane hazard');
+        this.handlePlayerHit('Destroyed by lane hazard');
       } else {
         this.checkCollisions();
       }
@@ -332,8 +365,8 @@ export class Game {
 
     this.isBoosting = false;
     this.boostFuel = Math.min(
-      BOOST_FUEL_MAX,
-      this.boostFuel + BOOST_FUEL_RECHARGE_PER_SECOND * delta
+      this.currentBoostFuelMax,
+      this.boostFuel + this.currentBoostRechargePerSecond * delta
     );
 
     if (input.boost && this.boostFuel < BOOST_MIN_TO_ACTIVATE) {
@@ -380,7 +413,7 @@ export class Game {
 
     if (
       playerPosition.distanceTo(this.junk.getPosition(this.junkPosition)) <=
-      PLAYER_COLLISION_RADIUS + JUNK_COLLISION_RADIUS
+      PLAYER_COLLISION_RADIUS + this.currentJunkCollisionRadius
     ) {
       this.collectJunk();
     }
@@ -392,7 +425,7 @@ export class Game {
         playerPosition.distanceTo(obstacle.getPosition(this.obstaclePosition)) <=
           PLAYER_COLLISION_RADIUS + OBSTACLE_COLLISION_RADIUS
       ) {
-        this.triggerGameOver('Impact detected');
+        this.handlePlayerHit('Impact detected');
         return;
       }
     }
@@ -413,7 +446,7 @@ export class Game {
       1 + Math.floor(this.comboCount / 3)
     );
     this.score += this.comboMultiplier;
-    this.comboTimer = COMBO_WINDOW;
+    this.comboTimer = this.currentComboWindow;
 
     this.audio.playCollect();
     if (this.comboMultiplier > previousMultiplier) {
@@ -438,6 +471,28 @@ export class Game {
     this.ensureObstacleCount();
   }
 
+  private handlePlayerHit(reason: string): void {
+    if (this.shieldGraceTimer > 0) {
+      return;
+    }
+
+    if (this.shieldCharges > 0) {
+      this.shieldCharges -= 1;
+      this.shieldBrokenTimer = 1.2;
+      this.shieldGraceTimer = 1.15;
+      this.particles.emit(
+        this.player.getPosition(this.playerPosition),
+        0x7ee7ff,
+        24,
+        true
+      );
+      this.screenShake.add(0.09);
+      return;
+    }
+
+    this.triggerGameOver(reason);
+  }
+
   private triggerGameOver(reason: string): void {
     if (this.state === 'gameover') {
       return;
@@ -447,6 +502,7 @@ export class Game {
     this.gameOverReason = reason;
     this.syncRunStats();
     this.runStats.complete(reason);
+    this.upgrades.awardRunScrap(this.runStats.getSnapshot());
     this.audio.playImpact();
     this.audio.playBoostLoopStop();
     this.audio.stopMusic();
@@ -457,6 +513,7 @@ export class Game {
   private prepareTitle(): void {
     this.resetRunState();
     this.state = 'title';
+    this.upgradePanelOpen = false;
     this.audio.stopMusic();
     this.updateHud(false);
     this.syncDebugAttributes();
@@ -469,6 +526,7 @@ export class Game {
 
     this.resetRunState();
     this.state = 'playing';
+    this.upgradePanelOpen = false;
     this.audio.playUiStart();
     this.audio.startMusic();
     this.updateHud(false);
@@ -478,6 +536,7 @@ export class Game {
   private restart(): void {
     this.resetRunState();
     this.state = 'playing';
+    this.upgradePanelOpen = false;
     this.audio.playUiStart();
     this.audio.startMusic();
     this.updateHud(false);
@@ -485,11 +544,21 @@ export class Game {
   }
 
   private resetRunState(): void {
+    const upgradeEffects = this.upgrades.getRunEffects();
+
+    this.currentJunkCollisionRadius =
+      JUNK_COLLISION_RADIUS + upgradeEffects.junkPickupRadiusBonus;
+    this.currentBoostFuelMax = upgradeEffects.boostFuelMax;
+    this.currentBoostRechargePerSecond = upgradeEffects.boostRechargePerSecond;
+    this.currentComboWindow = upgradeEffects.comboWindow;
+    this.shieldCharges = upgradeEffects.shieldCharges;
+    this.shieldBrokenTimer = 0;
+    this.shieldGraceTimer = 0;
     this.score = 0;
     this.comboCount = 0;
     this.comboMultiplier = 1;
     this.comboTimer = 0;
-    this.boostFuel = BOOST_FUEL_MAX;
+    this.boostFuel = this.currentBoostFuelMax;
     this.boostLocked = false;
     this.boostEmptyFlashTimer = 0;
     this.isBoosting = false;
@@ -503,6 +572,7 @@ export class Game {
     this.screenShake.clear();
     this.particles.clear();
     this.hazardDirector.reset();
+    this.player.setLaneSwitchDuration(upgradeEffects.laneSwitchDuration);
     this.player.reset();
     this.resetObstacles();
     this.respawnJunk();
@@ -632,7 +702,9 @@ export class Game {
       input.startPressed ||
       input.restartPressed ||
       input.musicTogglePressed ||
-      input.sfxTogglePressed
+      input.sfxTogglePressed ||
+      input.upgradeTogglePressed ||
+      input.upgradeBuyPressed !== null
     );
   }
 
@@ -653,26 +725,36 @@ export class Game {
       state: this.state,
       comboMultiplier: this.comboMultiplier,
       comboTimer: this.comboTimer,
-      comboWindow: COMBO_WINDOW,
+      comboWindow: this.currentComboWindow,
       laneName: laneName(this.player.targetLaneIndex),
-      boostFuel: this.boostFuel / BOOST_FUEL_MAX,
+      boostFuel: this.boostFuel / this.currentBoostFuelMax,
       boostEmpty,
       runTime: this.runTime,
       objectiveTargetScore: RUN_OBJECTIVE_TARGET_SCORE,
       objectiveComplete: this.score >= RUN_OBJECTIVE_TARGET_SCORE,
       hazardWarning: this.hazardWarning,
+      shieldCharges: this.shieldCharges,
+      shieldBroken: this.shieldBrokenTimer > 0,
       gameOverReason: this.gameOverReason,
       musicEnabled: this.audio.isMusicEnabled(),
       sfxEnabled: this.audio.isSfxEnabled()
     });
     this.titleOverlay.update({
       state: this.state,
+      upgradePanelOpen: this.upgradePanelOpen,
       musicEnabled: this.audio.isMusicEnabled(),
       sfxEnabled: this.audio.isSfxEnabled()
     });
     this.runSummary.update({
       state: this.state,
-      stats
+      stats,
+      upgrades: this.upgrades.getSnapshot(),
+      upgradePanelOpen: this.upgradePanelOpen
+    });
+    this.upgradePanel.update({
+      isOpen: this.upgradePanelOpen,
+      canShow: this.state === 'title' || this.state === 'gameover',
+      upgrades: this.upgrades.getSnapshot()
     });
   }
 
@@ -712,6 +794,8 @@ export class Game {
       runTime: this.runTime,
       objectiveComplete: this.score >= RUN_OBJECTIVE_TARGET_SCORE,
       bestScore: this.runStats.getSnapshot().bestScore,
+      scrap: this.upgrades.getSnapshot().totalScrap,
+      shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
       sfxEnabled: this.audio.isSfxEnabled(),
       playerAngle: this.player.angle,
@@ -722,6 +806,7 @@ export class Game {
       obstacles: this.getObstacleLaneAngles(),
       hazard: this.hazardDirector.getDebugState(),
       runStats: this.runStats.getSnapshot(),
+      upgrades: this.upgrades.getSnapshot(),
       playerPosition: this.player.getPosition(this.playerPosition).toArray(),
       cameraPosition: this.camera.position.toArray(),
       loadedAssetIds: [],
@@ -745,6 +830,9 @@ export class Game {
     this.canvas.dataset.isBoosting = String(this.isBoosting);
     this.canvas.dataset.runTime = this.runTime.toFixed(2);
     this.canvas.dataset.bestScore = String(this.runStats.getSnapshot().bestScore);
+    this.canvas.dataset.scrap = String(this.upgrades.getSnapshot().totalScrap);
+    this.canvas.dataset.shieldCharges = String(this.shieldCharges);
+    this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);
     this.canvas.dataset.musicEnabled = String(this.audio.isMusicEnabled());
     this.canvas.dataset.sfxEnabled = String(this.audio.isSfxEnabled());
     this.canvas.dataset.objectiveComplete = String(
