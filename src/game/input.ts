@@ -13,6 +13,7 @@ export interface InputState {
   seededStartPressed: boolean;
   restartPressed: boolean;
   escapePressed: boolean;
+  tutorialSkipPressed: boolean;
   musicTogglePressed: boolean;
   sfxTogglePressed: boolean;
   upgradeTogglePressed: boolean;
@@ -35,6 +36,7 @@ export class InputController {
     seededStartPressed: false,
     restartPressed: false,
     escapePressed: false,
+    tutorialSkipPressed: false,
     musicTogglePressed: false,
     sfxTogglePressed: false,
     upgradeTogglePressed: false,
@@ -57,6 +59,7 @@ export class InputController {
     this.state.seededStartPressed = false;
     this.state.restartPressed = false;
     this.state.escapePressed = false;
+    this.state.tutorialSkipPressed = false;
     this.state.musicTogglePressed = false;
     this.state.sfxTogglePressed = false;
     this.state.upgradeTogglePressed = false;
@@ -126,6 +129,11 @@ export class InputController {
 
     if (event.code === 'Escape' && !event.repeat) {
       this.state.escapePressed = true;
+      event.preventDefault();
+    }
+
+    if (event.code === 'KeyK' && !event.repeat) {
+      this.state.tutorialSkipPressed = true;
       event.preventDefault();
     }
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { JUNK_MIN_ANGLE_SEPARATION, ORBIT_LANES } from '../constants';
 import {
+  clampLaneIndex,
   type RandomSource,
   randomAngleAvoiding,
   setOrbitPositionFromAngle,
@@ -50,6 +51,12 @@ export class Junk {
     this.angle = randomAngleAvoiding(disallowedAngles, JUNK_MIN_ANGLE_SEPARATION, rng);
     this.selectVariant(Math.floor(rng.next() * this.variants.length));
     this.setAngle(this.angle);
+  }
+
+  place(laneIndex: number, angle: number, rng: RandomSource): void {
+    this.laneIndex = clampLaneIndex(laneIndex);
+    this.selectVariant(Math.floor(rng.next() * this.variants.length));
+    this.setAngle(angle);
   }
 
   update(delta: number): void {

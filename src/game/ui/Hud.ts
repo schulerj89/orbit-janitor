@@ -23,6 +23,8 @@ export interface HudSnapshot {
   runTime: number;
   objectiveComplete: boolean;
   hazardWarning: boolean;
+  tutorialActive: boolean;
+  tutorialStepLabel: string | null;
   shieldCharges: number;
   shieldBroken: boolean;
   gameOverReason: string;
@@ -105,6 +107,8 @@ export class Hud {
           <strong>Up/W Down/S</strong>
           <span>Boost</span>
           <strong>Space</strong>
+          <span>Training</span>
+          <strong>K skip tutorial</strong>
           <span>Restart</span>
           <strong>R</strong>
           <span>Audio</span>
@@ -178,6 +182,8 @@ export class Hud {
       this.statusValue.textContent = 'SHIELD BROKEN';
     } else if (snapshot.hazardWarning) {
       this.statusValue.textContent = 'WARNING: Lane hazard incoming';
+    } else if (snapshot.tutorialActive && snapshot.tutorialStepLabel) {
+      this.statusValue.textContent = `Training: ${snapshot.tutorialStepLabel}`;
     } else if (snapshot.shieldCharges > 0) {
       this.statusValue.textContent = 'Shield ready';
     } else if (snapshot.boostEmpty) {

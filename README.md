@@ -33,6 +33,7 @@ npm run preview
 
 - Enter or Space: start the default sector
 - T: start Training Orbit from the title screen
+- K: skip the Training Orbit tutorial while it is active
 - C: open sector select from the title screen or mission complete screen
 - D: start the daily challenge from the title screen
 - S: start the visible seeded run from the title screen
@@ -54,6 +55,7 @@ npm run preview
 
 - Title screen with controls and audio toggle hints
 - Keyboard-first sector select and mission complete overlays
+- Interactive Training Orbit tutorial with guided rotate, pickup, lane switch, boost, obstacle, and hazard steps
 - Run summary after game over
 - Persistent best score in localStorage
 - Persistent sector unlocks and completions in localStorage

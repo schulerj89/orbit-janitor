@@ -16,11 +16,12 @@ import {
   RUN_OBJECTIVE_TARGET_SCORE
 } from './constants';
 import { InputController, type InputState } from './input';
-import { isAngleSafe, laneName, randomAngleAvoiding } from './math';
+import { isAngleSafe, laneName, randomAngleAvoiding, wrapAngle } from './math';
 import { createRenderer } from './renderer';
 import { AudioManager } from './audio/AudioManager';
 import { ParticleBurst } from './effects/ParticleBurst';
 import { ScreenShake } from './effects/ScreenShake';
+import { GhostMarker } from './entities/GhostMarker';
 import { Junk, type LaneAngle } from './entities/Junk';
 import { ObstacleSatellite, type ObstacleConfig } from './entities/ObstacleSatellite';
 import { OrbitLanes } from './entities/OrbitLanes';
@@ -34,17 +35,22 @@ import { RunStats, type RunStatsSnapshot } from './systems/RunStats';
 import {
   DEFAULT_SECTOR_ID,
   TRAINING_SECTOR_ID,
-  getSectorById,
-  type SectorConfig
+  getSectorById
 } from './systems/SectorConfig';
 import { SectorProgress, type SectorProgressSnapshot } from './systems/SectorProgress';
 import { SeededRandom } from './systems/SeededRandom';
+import {
+  TutorialDirector,
+  type TutorialContext,
+  type TutorialSetupAction
+} from './systems/TutorialDirector';
 import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
 import { Hud, type GameState } from './ui/Hud';
 import { MissionCompleteOverlay } from './ui/MissionCompleteOverlay';
 import { RunSummary } from './ui/RunSummary';
 import { SectorSelectOverlay } from './ui/SectorSelectOverlay';
 import { TitleOverlay } from './ui/TitleOverlay';
+import { TutorialOverlay } from './ui/TutorialOverlay';
 import { UpgradePanel } from './ui/UpgradePanel';
 
 const STARTING_OBSTACLES: ObstacleConfig[] = [
@@ -75,6 +81,9 @@ interface OrbitJanitorDebugState {
   sectorName: string;
   missionProgress: string;
   sectorProgress: SectorProgressSnapshot;
+  tutorialActive: boolean;
+  tutorialStepId: string | null;
+  tutorialSkipped: boolean;
   scrap: number;
   shieldCharges: number;
   musicEnabled: boolean;
@@ -124,6 +133,7 @@ export class Game {
   private readonly challengeMode = new ChallengeMode();
   private readonly missionDirector = new MissionDirector();
   private readonly sectorProgress = new SectorProgress();
+  private readonly tutorialDirector = new TutorialDirector();
   private readonly baseCameraPosition = new THREE.Vector3();
   private readonly shakenCameraPosition = new THREE.Vector3();
   private readonly playerPosition = new THREE.Vector3();
@@ -137,11 +147,13 @@ export class Game {
   private missionCompleteOverlay!: MissionCompleteOverlay;
   private runSummary!: RunSummary;
   private upgradePanel!: UpgradePanel;
+  private tutorialOverlay!: TutorialOverlay;
   private orbitLanes!: OrbitLanes;
   private planet!: Planet;
   private starfield!: Starfield;
   private player!: PlayerShip;
   private junk!: Junk;
+  private ghostMarker!: GhostMarker;
   private state: GameState = 'title';
   private score = 0;
   private comboCount = 0;
@@ -188,6 +200,7 @@ export class Game {
     this.missionCompleteOverlay = new MissionCompleteOverlay(hudRoot);
     this.runSummary = new RunSummary(hudRoot);
     this.upgradePanel = new UpgradePanel(hudRoot);
+    this.tutorialOverlay = new TutorialOverlay(hudRoot);
 
     this.scene.background = new THREE.Color(0x02050f);
     this.buildScene();
@@ -215,6 +228,7 @@ export class Game {
     this.starfield = new Starfield();
     this.player = new PlayerShip();
     this.junk = new Junk();
+    this.ghostMarker = new GhostMarker();
 
     this.scene.add(
       this.starfield.points,
@@ -223,6 +237,7 @@ export class Game {
       this.planet.group,
       this.orbitLanes.group,
       this.hazardDirector.group,
+      this.ghostMarker.group,
       this.player.group,
       this.junk.group,
       this.particles.group
@@ -282,6 +297,16 @@ export class Game {
       this.restart();
     }
 
+    if (
+      input.tutorialSkipPressed &&
+      this.state === 'playing' &&
+      this.tutorialDirector.getSnapshot().isActive
+    ) {
+      this.tutorialDirector.skip();
+      this.applyTutorialSetup(this.tutorialDirector.consumeSetupAction());
+      this.triggerMissionComplete();
+    }
+
     const isGameplayActive = this.state === 'playing';
     const isGameOver = this.state === 'gameover';
     const controlsLocked = !isGameplayActive || consumedStartInput;
@@ -306,6 +331,7 @@ export class Game {
     this.orbitLanes.setActiveLane(this.player.targetLaneIndex);
     this.orbitLanes.update(delta);
     this.junk.update(delta);
+    this.ghostMarker.update(delta);
     this.particles.update(delta);
     this.screenShake.update(delta);
     this.shieldBrokenTimer = Math.max(0, this.shieldBrokenTimer - delta);
@@ -316,8 +342,9 @@ export class Game {
       this.updateCombo(delta);
       this.updateObstacles(delta);
       this.syncRunStats();
+      this.updateTutorial(delta, input, isBoosting);
 
-      if (!this.tryCompleteMission()) {
+      if (this.state === 'playing' && !this.tryCompleteMission()) {
         const difficulty = this.missionDirector.getDifficulty();
         const wasHazardWarning = this.hazardWarning;
         const wasHazardActive = this.hazardActive;
@@ -347,15 +374,19 @@ export class Game {
         if (hazardResult.completed) {
           this.runStats.recordHazardSurvived();
           this.syncRunStats();
+          this.updateTutorial(0, input, isBoosting);
         }
 
         if (this.tryCompleteMission()) {
           // Mission completion takes priority over any later collision checks.
+        } else if (hazardResult.hit && this.tutorialDirector.getSnapshot().isActive) {
+          this.absorbTutorialHit();
         } else if (hazardResult.hit) {
           this.handlePlayerHit('Destroyed by lane hazard');
         } else {
           this.checkCollisions();
           this.syncRunStats();
+          this.updateTutorial(0, input, isBoosting);
           this.tryCompleteMission();
         }
       }
@@ -525,6 +556,11 @@ export class Game {
       return;
     }
 
+    if (this.tutorialDirector.getSnapshot().isActive) {
+      this.absorbTutorialHit();
+      return;
+    }
+
     if (this.shieldCharges > 0) {
       this.shieldCharges -= 1;
       this.shieldBrokenTimer = 1.2;
@@ -620,6 +656,7 @@ export class Game {
           : this.challengeMode.startNormalRun();
     this.runRng = new SeededRandom(run.seed);
     this.resetRunState();
+    this.startTutorialIfNeeded();
     this.state = 'playing';
     this.upgradePanelOpen = false;
     this.audio.playUiStart();
@@ -635,6 +672,7 @@ export class Game {
     const run = this.challengeMode.restartCurrentRun();
     this.runRng = new SeededRandom(run.seed);
     this.resetRunState();
+    this.startTutorialIfNeeded();
     this.state = 'playing';
     this.upgradePanelOpen = false;
     this.audio.playUiStart();
@@ -670,6 +708,8 @@ export class Game {
     this.gameOverReason = 'Impact detected';
     this.audio.stopAll();
     this.runStats.reset();
+    this.tutorialDirector.reset();
+    this.ghostMarker.clear();
     this.screenShake.clear();
     this.particles.clear();
     this.hazardDirector.reset();
@@ -682,11 +722,7 @@ export class Game {
   }
 
   private resetObstacles(): void {
-    for (const obstacle of this.obstacles) {
-      this.scene.remove(obstacle.group);
-    }
-
-    this.obstacles.length = 0;
+    this.clearObstacles();
     const startingObstacleCount =
       this.missionDirector.getDifficulty().startingObstacleCount;
 
@@ -695,6 +731,14 @@ export class Game {
         STARTING_OBSTACLES[index] ?? this.createSafeObstacleConfig(index)
       );
     }
+  }
+
+  private clearObstacles(): void {
+    for (const obstacle of this.obstacles) {
+      this.scene.remove(obstacle.group);
+    }
+
+    this.obstacles.length = 0;
   }
 
   private ensureObstacleCount(): void {
@@ -809,6 +853,136 @@ export class Game {
     }));
   }
 
+  private startTutorialIfNeeded(): void {
+    if (!this.missionDirector.getCurrentSector().isTutorial) {
+      return;
+    }
+
+    this.tutorialDirector.start(
+      this.createTutorialContext(createNeutralInputState(), false)
+    );
+    this.applyTutorialSetup(this.tutorialDirector.consumeSetupAction());
+  }
+
+  private updateTutorial(delta: number, input: InputState, isBoosting: boolean): void {
+    const wasFinished = this.tutorialDirector.getSnapshot().isFinished;
+    const snapshot = this.tutorialDirector.update(
+      delta,
+      this.createTutorialContext(input, isBoosting)
+    );
+
+    this.applyTutorialSetup(this.tutorialDirector.consumeSetupAction());
+
+    if (
+      !wasFinished &&
+      snapshot.isFinished &&
+      this.missionDirector.getCurrentSector().isTutorial
+    ) {
+      this.triggerMissionComplete();
+    }
+  }
+
+  private createTutorialContext(input: InputState, isBoosting: boolean): TutorialContext {
+    return {
+      input,
+      playerAngle: this.player.angle,
+      playerLaneIndex: this.player.targetLaneIndex,
+      isBoosting,
+      junkCollected: this.runStats.getSnapshot().junkCollected,
+      hazardsSurvived: this.runStats.getSnapshot().hazardsSurvived
+    };
+  }
+
+  private applyTutorialSetup(action: TutorialSetupAction | null): void {
+    if (!action) {
+      return;
+    }
+
+    if (action === 'place-collect-junk') {
+      this.placeTutorialJunk(this.player.targetLaneIndex, this.player.angle + 0.75);
+      return;
+    }
+
+    if (action === 'place-lane-switch-junk') {
+      const nextLane =
+        this.player.targetLaneIndex < ORBIT_LANES.length - 1
+          ? this.player.targetLaneIndex + 1
+          : this.player.targetLaneIndex - 1;
+
+      this.placeTutorialJunk(nextLane, this.player.angle + 0.85);
+      return;
+    }
+
+    if (action === 'place-boost-junk') {
+      this.placeTutorialJunk(this.player.targetLaneIndex, this.player.angle + 1.65);
+      return;
+    }
+
+    if (action === 'spawn-obstacle') {
+      this.spawnTutorialObstacle();
+      return;
+    }
+
+    if (action === 'spawn-hazard') {
+      this.spawnTutorialHazard();
+      return;
+    }
+
+    this.ghostMarker.clear();
+  }
+
+  private placeTutorialJunk(laneIndex: number, angle: number): void {
+    const safeAngle = wrapAngle(angle);
+
+    this.junk.place(laneIndex, safeAngle, this.runRng);
+    this.ghostMarker.show(laneIndex, safeAngle, 'goal');
+  }
+
+  private spawnTutorialObstacle(): void {
+    this.clearObstacles();
+
+    const laneIndex = this.player.targetLaneIndex;
+    const angle = wrapAngle(this.player.angle + 1.45);
+
+    this.createObstacle({
+      laneIndex,
+      angle,
+      angularSpeed: -0.22
+    });
+    this.ghostMarker.show(laneIndex, angle, 'danger', 0.44);
+  }
+
+  private spawnTutorialHazard(): void {
+    this.ghostMarker.clear();
+    this.hazardDirector.reset();
+    this.hazardDirector.forceHazard('laneArc', {
+      score: this.score,
+      runTime: this.runTime,
+      playerAngle: this.player.angle,
+      playerRadius: this.player.currentRadius,
+      junkAngle: this.junk.angle,
+      junkLaneIndex: this.junk.laneIndex,
+      rng: this.runRng,
+      hazardIntensity: 1,
+      allowedHazardTypes: ['laneArc'],
+      isGameOver: false
+    });
+
+    const hazard = this.hazardDirector.getDebugState();
+
+    if (hazard.laneIndex !== null && hazard.angle !== null) {
+      this.ghostMarker.show(hazard.laneIndex, hazard.angle, 'danger', 0.44);
+    }
+  }
+
+  private absorbTutorialHit(): void {
+    this.shieldBrokenTimer = 0.7;
+    this.shieldGraceTimer = 0.85;
+    this.particles.emit(this.player.getPosition(this.playerPosition), 0x7ee7ff, 18, true);
+    this.screenShake.add(0.06);
+    this.audio.playShieldBreak();
+  }
+
   private handleTitleInput(input: InputState): boolean {
     if (input.sectorSelectPressed) {
       this.openSectorSelect();
@@ -919,6 +1093,11 @@ export class Game {
 
   private tryCompleteMission(): boolean {
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const tutorial = this.tutorialDirector.getSnapshot();
+
+    if (this.missionDirector.getCurrentSector().isTutorial && !tutorial.isFinished) {
+      return false;
+    }
 
     if (!objective.isComplete || objective.isEndless || this.state !== 'playing') {
       return false;
@@ -948,6 +1127,7 @@ export class Game {
       input.seededStartPressed ||
       input.restartPressed ||
       input.escapePressed ||
+      input.tutorialSkipPressed ||
       input.musicTogglePressed ||
       input.sfxTogglePressed ||
       input.upgradeTogglePressed ||
@@ -977,6 +1157,7 @@ export class Game {
     const sector = this.missionDirector.getCurrentSector();
     const objective = this.missionDirector.getObjective(stats);
     const sectorProgress = this.sectorProgress.getSnapshot();
+    const tutorial = this.tutorialDirector.getSnapshot();
 
     this.hud.update({
       score: this.score,
@@ -996,6 +1177,8 @@ export class Game {
       runTime: this.runTime,
       objectiveComplete: objective.isComplete && !objective.isEndless,
       hazardWarning: this.hazardWarning,
+      tutorialActive: tutorial.isActive,
+      tutorialStepLabel: tutorial.currentStep?.id ?? null,
       shieldCharges: this.shieldCharges,
       shieldBroken: this.shieldBrokenTimer > 0,
       gameOverReason: this.gameOverReason,
@@ -1041,6 +1224,11 @@ export class Game {
         this.state === 'missionComplete',
       upgrades: this.upgrades.getSnapshot()
     });
+    this.tutorialOverlay.update({
+      state: this.state,
+      tutorial,
+      upgradePanelOpen: this.upgradePanelOpen
+    });
   }
 
   private readonly handleResize = (): void => {
@@ -1070,6 +1258,7 @@ export class Game {
     const challenge = this.challengeMode.getSnapshot();
     const sector = this.missionDirector.getCurrentSector();
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const tutorial = this.tutorialDirector.getSnapshot();
 
     return {
       sceneId: 'orbit-janitor',
@@ -1091,6 +1280,9 @@ export class Game {
       sectorName: sector.name,
       missionProgress: objective.progressText,
       sectorProgress: this.sectorProgress.getSnapshot(),
+      tutorialActive: tutorial.isActive,
+      tutorialStepId: tutorial.isActive ? (tutorial.currentStep?.id ?? null) : null,
+      tutorialSkipped: tutorial.isSkipped,
       scrap: this.upgrades.getSnapshot().totalScrap,
       shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
@@ -1120,6 +1312,7 @@ export class Game {
     const challenge = this.challengeMode.getSnapshot();
     const sector = this.missionDirector.getCurrentSector();
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const tutorial = this.tutorialDirector.getSnapshot();
 
     this.canvas.dataset.sceneId = 'orbit-janitor';
     this.canvas.dataset.phase = this.state;
@@ -1142,6 +1335,11 @@ export class Game {
     this.canvas.dataset.missionComplete = String(
       objective.isComplete && !objective.isEndless
     );
+    this.canvas.dataset.tutorialActive = String(tutorial.isActive);
+    this.canvas.dataset.tutorialStep = tutorial.isActive
+      ? (tutorial.currentStep?.id ?? '')
+      : '';
+    this.canvas.dataset.tutorialSkipped = String(tutorial.isSkipped);
     this.canvas.dataset.scrap = String(this.upgrades.getSnapshot().totalScrap);
     this.canvas.dataset.shieldCharges = String(this.shieldCharges);
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);
@@ -1183,4 +1381,28 @@ function getHudRoot(): HTMLElement {
   }
 
   return root;
+}
+
+function createNeutralInputState(): InputState {
+  return {
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    boost: false,
+    laneUpPressed: false,
+    laneDownPressed: false,
+    startPressed: false,
+    tutorialStartPressed: false,
+    sectorSelectPressed: false,
+    dailyStartPressed: false,
+    seededStartPressed: false,
+    restartPressed: false,
+    escapePressed: false,
+    tutorialSkipPressed: false,
+    musicTogglePressed: false,
+    sfxTogglePressed: false,
+    upgradeTogglePressed: false,
+    upgradeBuyPressed: null
+  };
 }

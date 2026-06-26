@@ -107,6 +107,17 @@ export class HazardDirector {
     }
   }
 
+  forceHazard(type: HazardPatternType, context: HazardDirectorContext): boolean {
+    if ((context.hazardIntensity ?? 1) <= 0 || this.getActiveHazard()) {
+      return false;
+    }
+
+    const hazard = this.getHazardByType(type);
+    hazard.start(context);
+    this.spawnTimer = this.getNextInterval(context.score, context.hazardIntensity ?? 1);
+    return true;
+  }
+
   getDebugState(): HazardDirectorDebugState {
     const hazard = this.getActiveHazard();
     const hazardDebug = hazard?.getDebugState();

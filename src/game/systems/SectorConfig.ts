@@ -73,13 +73,13 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     description: 'A quiet orbit for practicing lane switches, pickups, and boost timing.',
     objective: {
       type: 'collectJunk',
-      description: 'Collect 6 junk',
-      target: 6
+      description: 'Complete 3 training pickups',
+      target: 3
     },
     targetScore: 0,
     targetTimeSeconds: 0,
-    startingObstacleCount: 1,
-    maxObstacleCount: 2,
+    startingObstacleCount: 0,
+    maxObstacleCount: 1,
     hazardIntensity: 0,
     junkSpawnBias: {
       laneWeights: [1.15, 1, 1.15]
