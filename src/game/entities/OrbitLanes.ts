@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { ORBIT_LANES } from '../constants';
 import { clampLaneIndex } from '../math';
+import type { SectorTheme } from '../systems/SectorTheme';
 
 export class OrbitLanes {
   readonly group = new THREE.Group();
@@ -10,6 +11,8 @@ export class OrbitLanes {
   private readonly materials: THREE.MeshBasicMaterial[] = [];
   private readonly glowMaterials: THREE.MeshBasicMaterial[] = [];
   private activeLaneIndex = 1;
+  private laneColor = 0x526c7c;
+  private activeLaneColor = 0x8fe8ff;
   private pulseTime = 0;
 
   constructor() {
@@ -48,13 +51,23 @@ export class OrbitLanes {
     this.activeLaneIndex = clampLaneIndex(laneIndex);
   }
 
+  applyTheme(theme: SectorTheme): void {
+    this.laneColor = theme.laneColor;
+    this.activeLaneColor = theme.activeLaneColor;
+    this.glowMaterials.forEach((material) =>
+      material.color.setHex(theme.activeLaneColor)
+    );
+  }
+
   update(delta: number): void {
     this.pulseTime += delta;
     const pulse = 0.5 + Math.sin(this.pulseTime * 5.5) * 0.5;
 
     this.rings.forEach((ring, index) => {
       const isActive = index === this.activeLaneIndex;
-      this.materials[index].color.setHex(isActive ? 0x8fe8ff : 0x526c7c);
+      this.materials[index].color.setHex(
+        isActive ? this.activeLaneColor : this.laneColor
+      );
       this.materials[index].opacity = isActive ? 0.62 + pulse * 0.22 : 0.28;
       this.glowMaterials[index].opacity = isActive ? 0.12 + pulse * 0.18 : 0.025;
       ring.scale.setScalar(isActive ? 1.003 + pulse * 0.003 : 1);

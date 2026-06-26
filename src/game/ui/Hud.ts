@@ -12,6 +12,9 @@ export interface HudSnapshot {
   runSeed: string;
   dailyBestScore: number;
   sectorName: string;
+  sectorSubtitle: string;
+  sectorModifierHint: string;
+  showSectorHint: boolean;
   objectiveText: string;
   objectiveProgressText: string;
   comboMultiplier: number;
@@ -39,6 +42,7 @@ export class Hud {
   private readonly runValue: HTMLElement;
   private readonly seedValue: HTMLElement;
   private readonly sectorValue: HTMLElement;
+  private readonly sectorHintValue: HTMLElement;
   private readonly laneValue: HTMLElement;
   private readonly timerValue: HTMLElement;
   private readonly objectiveValue: HTMLElement;
@@ -73,6 +77,7 @@ export class Hud {
           <span class="hud-label">Sector</span>
           <span class="hud-value hud-sector-value" data-hud-sector>Low Orbit Cleanup</span>
         </div>
+        <div class="hud-sector-hint is-hidden" data-hud-sector-hint>Standard route: Baseline cleanup route</div>
         <div class="hud-row">
           <span class="hud-label">Seed</span>
           <span class="hud-value hud-seed-value" data-hud-seed>OJ-0000000</span>
@@ -127,6 +132,7 @@ export class Hud {
     this.runValue = getElement(root, '[data-hud-run]');
     this.seedValue = getElement(root, '[data-hud-seed]');
     this.sectorValue = getElement(root, '[data-hud-sector]');
+    this.sectorHintValue = getElement(root, '[data-hud-sector-hint]');
     this.laneValue = getElement(root, '[data-hud-lane]');
     this.timerValue = getElement(root, '[data-hud-timer]');
     this.objectiveValue = getElement(root, '[data-hud-objective]');
@@ -151,6 +157,8 @@ export class Hud {
     this.sectorValue.textContent =
       snapshot.state === 'title' ? 'Choose Sector' : snapshot.sectorName;
     this.sectorValue.title = snapshot.sectorName;
+    this.sectorHintValue.textContent = `${snapshot.sectorSubtitle}: ${snapshot.sectorModifierHint}`;
+    this.sectorHintValue.classList.toggle('is-hidden', !snapshot.showSectorHint);
     this.seedValue.textContent =
       snapshot.state === 'title'
         ? `Daily best ${snapshot.dailyBestScore}`

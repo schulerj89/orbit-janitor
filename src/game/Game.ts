@@ -149,6 +149,8 @@ export class Game {
   private readonly obstaclePosition = new THREE.Vector3();
 
   private renderer!: THREE.WebGPURenderer;
+  private ambientLight!: THREE.AmbientLight;
+  private directionalLight!: THREE.DirectionalLight;
   private hud!: Hud;
   private titleOverlay!: TitleOverlay;
   private sectorSelectOverlay!: SectorSelectOverlay;
@@ -192,6 +194,7 @@ export class Game {
   private runRng = new SeededRandom('title');
   private selectedSectorId = DEFAULT_SECTOR_ID;
   private newlyUnlockedSectorName: string | null = null;
+  private sectorHintTimer = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -235,9 +238,9 @@ export class Game {
   }
 
   private buildScene(): void {
-    const ambientLight = new THREE.AmbientLight(0xbdd7e8, 0.58);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 2.6);
-    directionalLight.position.set(4, 7, 5);
+    this.ambientLight = new THREE.AmbientLight(0xbdd7e8, 0.58);
+    this.directionalLight = new THREE.DirectionalLight(0xffffff, 2.6);
+    this.directionalLight.position.set(4, 7, 5);
 
     this.planet = new Planet();
     this.orbitLanes = new OrbitLanes();
@@ -248,8 +251,8 @@ export class Game {
 
     this.scene.add(
       this.starfield.points,
-      ambientLight,
-      directionalLight,
+      this.ambientLight,
+      this.directionalLight,
       this.planet.group,
       this.orbitLanes.group,
       this.hazardDirector.group,
@@ -258,6 +261,7 @@ export class Game {
       this.junk.group,
       this.particles.group
     );
+    this.applyCurrentSectorTheme(false);
   }
 
   private readonly update = (): void => {
@@ -357,6 +361,7 @@ export class Game {
     this.screenShake.update(delta);
     this.shieldBrokenTimer = Math.max(0, this.shieldBrokenTimer - delta);
     this.shieldGraceTimer = Math.max(0, this.shieldGraceTimer - delta);
+    this.sectorHintTimer = Math.max(0, this.sectorHintTimer - delta);
 
     if (isGameplayActive) {
       this.runTime += delta;
@@ -366,7 +371,9 @@ export class Game {
       this.updateTutorial(delta, input, isBoosting);
 
       if (this.state === 'playing' && !this.tryCompleteMission()) {
-        const difficulty = this.missionDirector.getDifficulty();
+        const difficulty = this.missionDirector.getDifficulty(
+          this.runStats.getSnapshot()
+        );
         const wasHazardWarning = this.hazardWarning;
         const wasHazardActive = this.hazardActive;
         const hazardResult = this.hazardDirector.update(delta, {
@@ -378,6 +385,10 @@ export class Game {
           junkLaneIndex: this.junk.laneIndex,
           rng: this.runRng,
           hazardIntensity: difficulty.hazardIntensity,
+          hazardIntervalMultiplier: difficulty.hazardIntervalMultiplier,
+          hazardTelegraphMultiplier: difficulty.hazardTelegraphMultiplier,
+          hazardActiveMultiplier: difficulty.hazardActiveMultiplier,
+          hazardSpeedMultiplier: difficulty.hazardSpeedMultiplier,
           allowedHazardTypes: difficulty.allowedHazardTypes,
           isGameOver
         });
@@ -736,6 +747,7 @@ export class Game {
 
     this.missionDirector.setSector(sectorId);
     this.selectedSectorId = sectorId;
+    this.applyCurrentSectorTheme(true);
     const run =
       mode === 'daily'
         ? this.challengeMode.startDailyChallenge()
@@ -762,6 +774,7 @@ export class Game {
     const sectorId = this.missionDirector.getCurrentSector().id;
     this.missionDirector.setSector(sectorId);
     this.selectedSectorId = sectorId;
+    this.applyCurrentSectorTheme(true);
     const run = this.challengeMode.restartCurrentRun();
     this.runRng = new SeededRandom(run.seed);
     this.resetRunState();
@@ -804,6 +817,7 @@ export class Game {
     this.musicDangerIntensity = 0;
     this.isPaused = false;
     this.helpOpen = false;
+    this.sectorHintTimer = 2.9;
     this.objectiveAnnounced = false;
     this.newlyUnlockedSectorName = null;
     this.gameOverReason = 'Impact detected';
@@ -938,12 +952,14 @@ export class Game {
   }
 
   private respawnJunk(): void {
+    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+
     this.junk.respawn(
       this.player.angle,
       this.player.targetLaneIndex,
       this.getObstacleLaneAngles(),
       this.runRng,
-      this.missionDirector.getDifficulty().junkLaneWeights
+      difficulty.junkLaneWeights
     );
   }
 
@@ -1054,6 +1070,8 @@ export class Game {
   }
 
   private spawnTutorialHazard(): void {
+    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+
     this.ghostMarker.clear();
     this.hazardDirector.reset();
     this.hazardDirector.forceHazard('laneArc', {
@@ -1065,6 +1083,10 @@ export class Game {
       junkLaneIndex: this.junk.laneIndex,
       rng: this.runRng,
       hazardIntensity: 1,
+      hazardIntervalMultiplier: difficulty.hazardIntervalMultiplier,
+      hazardTelegraphMultiplier: difficulty.hazardTelegraphMultiplier,
+      hazardActiveMultiplier: difficulty.hazardActiveMultiplier,
+      hazardSpeedMultiplier: difficulty.hazardSpeedMultiplier,
       allowedHazardTypes: ['laneArc'],
       isGameOver: false
     });
@@ -1283,6 +1305,7 @@ export class Game {
     const stats = this.runStats.getSnapshot();
     const challenge = this.challengeMode.getSnapshot();
     const sector = this.missionDirector.getCurrentSector();
+    const difficulty = this.missionDirector.getDifficulty(stats);
     const objective = this.missionDirector.getObjective(stats);
     const sectorProgress = this.sectorProgress.getSnapshot();
     const tutorial = this.tutorialDirector.getSnapshot();
@@ -1294,6 +1317,9 @@ export class Game {
       runSeed: challenge.seed,
       dailyBestScore: challenge.dailyBestScore,
       sectorName: sector.name,
+      sectorSubtitle: sector.subtitle,
+      sectorModifierHint: difficulty.modifierHint,
+      showSectorHint: this.state === 'playing' && this.sectorHintTimer > 0,
       objectiveText: objective.text,
       objectiveProgressText: objective.progressText,
       comboMultiplier: this.comboMultiplier,
@@ -1396,6 +1422,29 @@ export class Game {
       .add(this.screenShake.getOffset());
     this.camera.position.copy(this.shakenCameraPosition);
     this.camera.lookAt(0, 0, 0);
+  }
+
+  private applyCurrentSectorTheme(showHint: boolean): void {
+    const theme = this.missionDirector.getCurrentTheme();
+    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+
+    if (this.scene.background instanceof THREE.Color) {
+      this.scene.background.setHex(theme.backgroundColor);
+    } else {
+      this.scene.background = new THREE.Color(theme.backgroundColor);
+    }
+
+    this.ambientLight.color.setHex(theme.ambientLightColor);
+    this.directionalLight.color.setHex(theme.directionalLightColor);
+    this.planet.applyTheme(theme);
+    this.orbitLanes.applyTheme(theme);
+    this.starfield.applyTheme(theme);
+    this.junk.applyTheme(theme, difficulty.junkColorVariance);
+    this.hazardDirector.applyTheme(theme);
+
+    if (showHint) {
+      this.sectorHintTimer = 2.9;
+    }
   }
 
   private getDebugState(): OrbitJanitorDebugState {

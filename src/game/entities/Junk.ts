@@ -7,6 +7,7 @@ import {
   setOrbitPositionFromAngle,
   wrapAngle
 } from '../math';
+import type { SectorTheme } from '../systems/SectorTheme';
 
 export interface LaneAngle {
   angle: number;
@@ -19,6 +20,8 @@ export class Junk {
   laneIndex = 1;
 
   private readonly variants: THREE.Group[];
+  private junkPalette: readonly number[] = [0xffbf3f, 0x8f4a32, 0xd5762c, 0x3d7895];
+  private colorVariance = 0.2;
   private age = 0;
   private activeVariantIndex = 0;
 
@@ -70,6 +73,12 @@ export class Junk {
     return target.copy(this.group.position);
   }
 
+  applyTheme(theme: SectorTheme, colorVariance: number): void {
+    this.junkPalette = theme.junkPalette;
+    this.colorVariance = Math.max(0, Math.min(1, colorVariance));
+    this.applyVariantPalette(this.activeVariantIndex);
+  }
+
   private setAngle(angle: number): void {
     this.angle = wrapAngle(angle);
     setOrbitPositionFromAngle(
@@ -81,8 +90,18 @@ export class Junk {
 
   private selectVariant(variantIndex: number): void {
     this.activeVariantIndex = variantIndex;
+    this.applyVariantPalette(variantIndex);
     this.variants.forEach((variant, index) => {
       variant.visible = index === this.activeVariantIndex;
+    });
+  }
+
+  private applyVariantPalette(variantIndex: number): void {
+    const palette = this.junkPalette.length > 0 ? this.junkPalette : [0xffbf3f];
+    const offset = Math.round(variantIndex * this.colorVariance);
+
+    junkMaterialList.forEach((material, index) => {
+      material.color.setHex(palette[(index + offset) % palette.length]);
     });
   }
 }
@@ -134,6 +153,8 @@ const junkMaterials = {
     flatShading: true
   })
 };
+
+const junkMaterialList = Object.values(junkMaterials);
 
 const junkGeometries = {
   box: new THREE.BoxGeometry(0.2, 0.13, 0.16),

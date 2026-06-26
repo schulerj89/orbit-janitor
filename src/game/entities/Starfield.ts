@@ -1,8 +1,11 @@
 import * as THREE from 'three/webgpu';
 import { STAR_COUNT } from '../constants';
+import type { SectorTheme } from '../systems/SectorTheme';
 
 export class Starfield {
   readonly points: THREE.Points;
+
+  private readonly material: THREE.PointsMaterial;
 
   constructor() {
     const positions = new Float32Array(STAR_COUNT * 3);
@@ -21,12 +24,16 @@ export class Starfield {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    const material = new THREE.PointsMaterial({
+    this.material = new THREE.PointsMaterial({
       color: 0xdff7ff,
       size: 0.08,
       sizeAttenuation: true
     });
 
-    this.points = new THREE.Points(geometry, material);
+    this.points = new THREE.Points(geometry, this.material);
+  }
+
+  applyTheme(theme: SectorTheme): void {
+    this.material.color.setHex(theme.starColor);
   }
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { HAZARD_ACTIVE_DURATION, ORBIT_LANES, PLANET_RADIUS } from '../constants';
+import type { SectorTheme } from '../systems/SectorTheme';
 
 export class PlanetPulseHazard {
   readonly group = new THREE.Group();
@@ -30,6 +31,10 @@ export class PlanetPulseHazard {
     this.ring.visible = true;
     this.ring.scale.setScalar(1);
     this.material.opacity = 0.55;
+  }
+
+  applyTheme(theme: SectorTheme): void {
+    this.material.color.setHex(theme.hazardActiveColor);
   }
 
   update(delta: number): void {

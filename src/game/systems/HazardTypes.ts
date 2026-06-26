@@ -19,6 +19,7 @@ import {
   wrapAngle
 } from '../math';
 import type { SeededRandom } from './SeededRandom';
+import type { SectorTheme } from './SectorTheme';
 
 export type HazardPatternType =
   | 'laneArc'
@@ -36,6 +37,9 @@ export interface HazardPatternStartContext {
   junkAngle: number;
   junkLaneIndex: number;
   rng: SeededRandom;
+  hazardTelegraphMultiplier?: number;
+  hazardActiveMultiplier?: number;
+  hazardSpeedMultiplier?: number;
 }
 
 export interface HazardPatternDebugState {
@@ -56,6 +60,7 @@ export interface HazardPattern {
   collidesWith(playerAngle: number, playerRadius: number): boolean;
   isWarning(): boolean;
   isActive(): boolean;
+  applyTheme(theme: SectorTheme): void;
   getDebugState(): HazardPatternDebugState;
 }
 
@@ -93,7 +98,9 @@ export class LaneArcHazard implements HazardPattern {
         getDisallowedAnglesForLane(context, laneIndex),
         HAZARD_SPAWN_MIN_SEPARATION,
         context.rng
-      )
+      ),
+      telegraphDurationMultiplier: context.hazardTelegraphMultiplier,
+      activeDurationMultiplier: context.hazardActiveMultiplier
     });
   }
 
@@ -115,6 +122,10 @@ export class LaneArcHazard implements HazardPattern {
 
   clear(): void {
     this.visual.clear();
+  }
+
+  applyTheme(theme: SectorTheme): void {
+    this.visual.applyTheme(theme);
   }
 
   getDebugState(): HazardPatternDebugState {
@@ -166,7 +177,9 @@ export class DoubleLaneArcHazard implements HazardPattern {
     this.arcs.forEach((arc, index) => {
       arc.start({
         laneIndex: this.laneIndices[index],
-        angle: this.angle
+        angle: this.angle,
+        telegraphDurationMultiplier: context.hazardTelegraphMultiplier,
+        activeDurationMultiplier: context.hazardActiveMultiplier
       });
     });
   }
@@ -198,6 +211,10 @@ export class DoubleLaneArcHazard implements HazardPattern {
     this.arcs.forEach((arc) => arc.clear());
   }
 
+  applyTheme(theme: SectorTheme): void {
+    this.arcs.forEach((arc) => arc.applyTheme(theme));
+  }
+
   getDebugState(): HazardPatternDebugState {
     return {
       type: this.type,
@@ -217,12 +234,20 @@ abstract class TimedHazardPattern implements HazardPattern {
   protected debugLaneIndex: number | null = null;
   protected debugLaneIndices: number[] = [];
   protected debugAngle: number | null = null;
+  protected activeDuration: number;
+  protected telegraphDuration: number;
+  protected speedMultiplier = 1;
+  protected warningColor = WARNING_COLOR;
+  protected activeColor = ACTIVE_COLOR;
+  protected activeAltColor = ACTIVE_ALT_COLOR;
 
   protected constructor(
     readonly type: HazardPatternType,
-    private readonly activeDuration = HAZARD_ACTIVE_DURATION,
-    private readonly telegraphDuration = HAZARD_TELEGRAPH_DURATION
+    private readonly baseActiveDuration = HAZARD_ACTIVE_DURATION,
+    private readonly baseTelegraphDuration = HAZARD_TELEGRAPH_DURATION
   ) {
+    this.activeDuration = baseActiveDuration;
+    this.telegraphDuration = baseTelegraphDuration;
     this.group.visible = false;
   }
 
@@ -267,6 +292,14 @@ abstract class TimedHazardPattern implements HazardPattern {
     this.onCleared();
   }
 
+  applyTheme(theme: SectorTheme): void {
+    this.warningColor = theme.hazardWarningColor;
+    this.activeColor = theme.hazardActiveColor;
+    this.activeAltColor = lighten(theme.hazardActiveColor, 0.16);
+    this.onThemeChanged(theme);
+    this.updateVisuals(0);
+  }
+
   getDebugState(): HazardPatternDebugState {
     return {
       type: this.type,
@@ -284,9 +317,22 @@ abstract class TimedHazardPattern implements HazardPattern {
     this.updateVisuals(0);
   }
 
+  protected configureModifiers(context: HazardPatternStartContext): void {
+    this.telegraphDuration =
+      this.baseTelegraphDuration * (context.hazardTelegraphMultiplier ?? 1);
+    this.activeDuration = this.baseActiveDuration * (context.hazardActiveMultiplier ?? 1);
+    this.speedMultiplier = context.hazardSpeedMultiplier ?? 1;
+  }
+
+  protected getActiveProgress(): number {
+    return Math.min(1, this.elapsed / this.activeDuration);
+  }
+
   protected onActivated(): void {}
 
   protected onCleared(): void {}
+
+  protected onThemeChanged(_theme: SectorTheme): void {}
 
   protected abstract updateVisuals(delta: number): void;
 }
@@ -296,6 +342,8 @@ class ArcSegmentStrip {
 
   private readonly material: THREE.MeshBasicMaterial;
   private readonly segments: THREE.Mesh[] = [];
+  private warningColor = WARNING_COLOR;
+  private activeColor = ACTIVE_COLOR;
 
   constructor(segmentCount: number, geometry = new THREE.BoxGeometry(0.24, 0.035, 0.11)) {
     this.material = new THREE.MeshBasicMaterial({
@@ -309,6 +357,11 @@ class ArcSegmentStrip {
       this.segments.push(segment);
       this.group.add(segment);
     }
+  }
+
+  applyTheme(theme: SectorTheme): void {
+    this.warningColor = theme.hazardWarningColor;
+    this.activeColor = theme.hazardActiveColor;
   }
 
   layout(laneIndex: number, centerAngle: number, arcWidth: number, yOffset = 0.16): void {
@@ -327,13 +380,13 @@ class ArcSegmentStrip {
 
   applyVisuals(phase: HazardPhase, time: number, scaleMultiplier = 1): void {
     if (phase === 'active') {
-      this.material.color.setHex(ACTIVE_COLOR);
+      this.material.color.setHex(this.activeColor);
       this.material.opacity = 0.95;
       this.group.scale.setScalar(scaleMultiplier * (1.05 + Math.sin(time * 25) * 0.035));
       return;
     }
 
-    this.material.color.setHex(WARNING_COLOR);
+    this.material.color.setHex(this.warningColor);
     this.material.opacity = 0.68 + Math.sin(time * 12) * 0.17;
     this.group.scale.setScalar(scaleMultiplier * (1 + Math.sin(time * 12) * 0.1));
   }
@@ -369,6 +422,7 @@ export class SweeperHazard extends TimedHazardPattern {
   }
 
   start(context: HazardPatternStartContext): void {
+    this.configureModifiers(context);
     this.laneIndex = randomLaneIndex(context.rng);
     this.startAngle = randomAngleAvoiding(
       getDisallowedAnglesForLane(context, this.laneIndex),
@@ -397,7 +451,8 @@ export class SweeperHazard extends TimedHazardPattern {
   protected updateVisuals(): void {
     if (this.phase === 'active') {
       this.angle = wrapAngle(
-        this.startAngle + this.direction * SWEEPER_ANGULAR_SPEED * this.elapsed
+        this.startAngle +
+          this.direction * SWEEPER_ANGULAR_SPEED * this.speedMultiplier * this.elapsed
       );
     } else {
       this.angle = this.startAngle;
@@ -409,10 +464,14 @@ export class SweeperHazard extends TimedHazardPattern {
     this.layoutDirectionMarkers();
 
     this.markerMaterial.color.setHex(
-      this.phase === 'active' ? ACTIVE_ALT_COLOR : WARNING_COLOR
+      this.phase === 'active' ? this.activeAltColor : this.warningColor
     );
     this.markerMaterial.opacity =
       this.phase === 'active' ? 0.7 : 0.56 + Math.sin(this.elapsed * 12) * 0.22;
+  }
+
+  protected onThemeChanged(theme: SectorTheme): void {
+    this.strip.applyTheme(theme);
   }
 
   private layoutDirectionMarkers(): void {
@@ -459,6 +518,7 @@ export class GateHazard extends TimedHazardPattern {
   }
 
   start(context: HazardPatternStartContext): void {
+    this.configureModifiers(context);
     this.laneIndex = randomLaneIndex(context.rng);
     this.gapAngle = isNearLane(context.playerRadius, this.laneIndex, 0.8)
       ? wrapAngle(context.playerAngle + context.rng.range(-0.12, 0.12))
@@ -497,10 +557,14 @@ export class GateHazard extends TimedHazardPattern {
     this.layoutBoundaries();
 
     this.boundaryMaterial.color.setHex(
-      this.phase === 'active' ? ACTIVE_ALT_COLOR : WARNING_COLOR
+      this.phase === 'active' ? this.activeAltColor : this.warningColor
     );
     this.boundaryMaterial.opacity =
       this.phase === 'active' ? 0.9 : 0.58 + Math.sin(this.elapsed * 10) * 0.18;
+  }
+
+  protected onThemeChanged(theme: SectorTheme): void {
+    this.dangerArcs.forEach((arc) => arc.applyTheme(theme));
   }
 
   private layoutBoundaries(): void {
@@ -547,6 +611,7 @@ export class PulseMineHazard extends TimedHazardPattern {
   }
 
   start(context: HazardPatternStartContext): void {
+    this.configureModifiers(context);
     this.laneIndex = randomLaneIndex(context.rng);
     this.angle = randomAngleAvoiding(
       getDisallowedAnglesForLane(context, this.laneIndex),
@@ -580,22 +645,27 @@ export class PulseMineHazard extends TimedHazardPattern {
     const pulse = 1 + Math.sin(this.elapsed * 14) * 0.14;
 
     if (this.phase === 'active') {
-      const progress = Math.min(1, this.elapsed / PULSE_MINE_ACTIVE_DURATION);
-      this.mineMaterial.color.setHex(ACTIVE_COLOR);
+      const progress = this.getActiveProgress();
+      this.mineMaterial.color.setHex(this.activeColor);
       this.mineMaterial.opacity = 0.95;
-      this.ringMaterial.color.setHex(ACTIVE_ALT_COLOR);
+      this.ringMaterial.color.setHex(this.activeAltColor);
       this.ringMaterial.opacity = 0.76 * (1 - progress);
       this.ring.scale.setScalar(1.1 + progress * 2.3);
       this.mine.scale.setScalar(1.18 + Math.sin(this.elapsed * 28) * 0.08);
       return;
     }
 
-    this.mineMaterial.color.setHex(WARNING_COLOR);
+    this.mineMaterial.color.setHex(this.warningColor);
     this.mineMaterial.opacity = 0.72 + Math.sin(this.elapsed * 12) * 0.16;
-    this.ringMaterial.color.setHex(WARNING_COLOR);
+    this.ringMaterial.color.setHex(this.warningColor);
     this.ringMaterial.opacity = 0.3 + Math.sin(this.elapsed * 11) * 0.16;
     this.ring.scale.setScalar(pulse);
     this.mine.scale.setScalar(0.86 + pulse * 0.12);
+  }
+
+  protected onThemeChanged(): void {
+    this.mineMaterial.color.setHex(this.warningColor);
+    this.ringMaterial.color.setHex(this.warningColor);
   }
 }
 
@@ -631,6 +701,7 @@ export class DebrisShowerHazard extends TimedHazardPattern {
   }
 
   start(context: HazardPatternStartContext): void {
+    this.configureModifiers(context);
     this.laneIndex = randomLaneIndex(context.rng);
     this.centerAngle = randomAngleAvoiding(
       getDisallowedAnglesForLane(context, this.laneIndex),
@@ -671,7 +742,7 @@ export class DebrisShowerHazard extends TimedHazardPattern {
       this.warningLine.setVisible(false);
       this.layoutShards();
       this.shardMaterial.opacity = 0.92;
-      this.shardMaterial.color.setHex(ACTIVE_COLOR);
+      this.shardMaterial.color.setHex(this.activeColor);
       return;
     }
 
@@ -689,7 +760,10 @@ export class DebrisShowerHazard extends TimedHazardPattern {
   }
 
   private layoutShards(): void {
-    const progress = Math.min(1, this.elapsed / DEBRIS_SHOWER_ACTIVE_DURATION);
+    const progress = Math.min(
+      1,
+      (this.elapsed * this.speedMultiplier) / this.activeDuration
+    );
     const startOffset = this.radialDirection > 0 ? -0.88 : 0.88;
     const endOffset = -startOffset;
 
@@ -709,6 +783,11 @@ export class DebrisShowerHazard extends TimedHazardPattern {
       shard.rotation.y += 0.16 + index * 0.025;
       shard.scale.setScalar(1 + Math.sin(this.elapsed * 16 + index) * 0.08);
     });
+  }
+
+  protected onThemeChanged(theme: SectorTheme): void {
+    this.warningLine.applyTheme(theme);
+    this.shardMaterial.color.setHex(theme.hazardActiveColor);
   }
 
   private createShardAngles(rng: RandomSource): number[] {
@@ -755,4 +834,11 @@ function getDisallowedAnglesForLane(
 
 function isNearLane(playerRadius: number, laneIndex: number, tolerance: number): boolean {
   return Math.abs(playerRadius - ORBIT_LANES[laneIndex]) <= tolerance;
+}
+
+function lighten(color: number, amount: number): number {
+  const mixedColor = new THREE.Color(color);
+
+  mixedColor.lerp(new THREE.Color(0xffffff), amount);
+  return mixedColor.getHex();
 }

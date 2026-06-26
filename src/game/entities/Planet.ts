@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { PLANET_RADIUS } from '../constants';
+import type { SectorTheme } from '../systems/SectorTheme';
 
 export class Planet {
   readonly group = new THREE.Group();
@@ -20,6 +21,16 @@ export class Planet {
     addLandPatches(this.group);
     addCraters(this.group);
     this.group.add(atmosphere);
+  }
+
+  applyTheme(theme: SectorTheme): void {
+    planetMaterials.ocean.color.setHex(theme.planetBaseColor);
+    planetMaterials.deepBand.color.setHex(darken(theme.planetBaseColor, 0.58));
+    planetMaterials.shallowBand.color.setHex(lighten(theme.planetBaseColor, 0.28));
+    planetMaterials.land.color.setHex(theme.planetAccentColor);
+    planetMaterials.highland.color.setHex(lighten(theme.planetAccentColor, 0.22));
+    planetMaterials.crater.color.setHex(darken(theme.planetBaseColor, 0.48));
+    planetMaterials.atmosphere.color.setHex(theme.atmosphereColor);
   }
 }
 
@@ -149,4 +160,20 @@ function sphericalNormal(latitude: number, longitude: number): THREE.Vector3 {
     Math.sin(latitude),
     Math.sin(longitude) * cosLatitude
   ).normalize();
+}
+
+function lighten(color: number, amount: number): number {
+  return mixColor(color, 0xffffff, amount);
+}
+
+function darken(color: number, amount: number): number {
+  return mixColor(color, 0x000000, amount);
+}
+
+function mixColor(color: number, target: number, amount: number): number {
+  const sourceColor = new THREE.Color(color);
+  const targetColor = new THREE.Color(target);
+
+  sourceColor.lerp(targetColor, amount);
+  return sourceColor.getHex();
 }

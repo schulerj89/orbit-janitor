@@ -16,6 +16,7 @@ import {
   type HazardPatternType
 } from './HazardTypes';
 import type { SeededRandom } from './SeededRandom';
+import type { SectorTheme } from './SectorTheme';
 
 export interface HazardDirectorContext {
   score: number;
@@ -26,6 +27,10 @@ export interface HazardDirectorContext {
   junkLaneIndex: number;
   rng: SeededRandom;
   hazardIntensity?: number;
+  hazardIntervalMultiplier?: number;
+  hazardTelegraphMultiplier?: number;
+  hazardActiveMultiplier?: number;
+  hazardSpeedMultiplier?: number;
   allowedHazardTypes?: readonly HazardPatternType[];
   isGameOver: boolean;
 }
@@ -91,8 +96,12 @@ export class HazardDirector {
 
     if (this.spawnTimer <= 0) {
       this.spawnTimer = this.spawnHazard(context)
-        ? this.getNextInterval(context.score, context.hazardIntensity ?? 1)
-        : this.getNextInterval(context.score, 0.5);
+        ? this.getNextInterval(
+            context.score,
+            context.hazardIntensity ?? 1,
+            context.hazardIntervalMultiplier ?? 1
+          )
+        : this.getNextInterval(context.score, 0.5, context.hazardIntervalMultiplier ?? 1);
     }
 
     return this.getCurrentResult(false);
@@ -107,6 +116,11 @@ export class HazardDirector {
     }
   }
 
+  applyTheme(theme: SectorTheme): void {
+    this.hazards.forEach((hazard) => hazard.applyTheme(theme));
+    this.pulse.applyTheme(theme);
+  }
+
   forceHazard(type: HazardPatternType, context: HazardDirectorContext): boolean {
     if ((context.hazardIntensity ?? 1) <= 0 || this.getActiveHazard()) {
       return false;
@@ -114,7 +128,11 @@ export class HazardDirector {
 
     const hazard = this.getHazardByType(type);
     hazard.start(context);
-    this.spawnTimer = this.getNextInterval(context.score, context.hazardIntensity ?? 1);
+    this.spawnTimer = this.getNextInterval(
+      context.score,
+      context.hazardIntensity ?? 1,
+      context.hazardIntervalMultiplier ?? 1
+    );
     return true;
   }
 
@@ -148,9 +166,13 @@ export class HazardDirector {
     return true;
   }
 
-  private getNextInterval(score: number, hazardIntensity: number): number {
+  private getNextInterval(
+    score: number,
+    hazardIntensity: number,
+    intervalMultiplier: number
+  ): number {
     const intensity = Math.max(0.35, hazardIntensity);
-    const baseInterval = HAZARD_BASE_INTERVAL / intensity;
+    const baseInterval = (HAZARD_BASE_INTERVAL / intensity) * intervalMultiplier;
 
     return Math.max(HAZARD_MIN_INTERVAL, baseInterval - Math.min(score / 12, 3.8));
   }

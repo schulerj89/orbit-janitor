@@ -84,6 +84,8 @@ npm run preview
 - Hazard patterns include lane arcs, double lane arcs, sweepers, gate gaps, pulse mines, and debris showers
 - Objective target: reach 50 cleanup points
 - Structured sectors with score, junk, timer, hazard-survival, and endless objectives
+- Sector-specific procedural visual themes for planet, lanes, stars, junk, hazards, lighting, and background
+- Sector modifiers including forgiving training telegraphs, solar-storm hazard cadence, comet-wake hazard speed, and endless scaling
 - Run timer with sector objective and hazard status feedback
 
 ## Audio Assets
@@ -118,12 +120,13 @@ https://schulerj89.github.io/orbit-janitor/
 - UI is plain HTML/CSS/TypeScript, with no React.
 - Runtime debug state is exposed on `window.orbitJanitorDebug` for smoke tests.
 - Sector progression is stored under the `orbit-janitor.sectors` localStorage prefix.
+- Sector visual identity and modifier tuning live in `src/game/systems/SectorTheme.ts`.
 
 ## Roadmap
 
 1. Editable seeded-run entry field
-2. Sector-specific planet and lane palette application
-3. Additional title and summary polish
-4. More audio variation
-5. TSL atmosphere and shield effects
-6. Additional upgrade choices and run modifiers
+2. Additional title and summary polish
+3. More audio variation
+4. TSL atmosphere and shield effects
+5. Additional upgrade choices and run modifiers
+6. More sector-specific hazard rules

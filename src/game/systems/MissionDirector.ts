@@ -5,6 +5,11 @@ import {
   type SectorConfig,
   type SectorObjective
 } from './SectorConfig';
+import {
+  getSectorTheme,
+  type SectorMusicIntensityHint,
+  type SectorTheme
+} from './SectorTheme';
 
 export interface MissionObjectiveSnapshot {
   text: string;
@@ -18,6 +23,12 @@ export interface MissionDifficulty {
   startingObstacleCount: number;
   maxObstacleCount: number;
   hazardIntensity: number;
+  hazardIntervalMultiplier: number;
+  hazardTelegraphMultiplier: number;
+  hazardActiveMultiplier: number;
+  hazardSpeedMultiplier: number;
+  junkColorVariance: number;
+  modifierHint: string;
   junkLaneWeights: readonly [number, number, number];
   allowedHazardTypes: SectorConfig['allowedHazardTypes'];
 }
@@ -34,18 +45,40 @@ export class MissionDirector {
     return this.currentSector;
   }
 
-  getDifficulty(): MissionDifficulty {
+  getCurrentTheme(): SectorTheme {
+    return getSectorTheme(this.currentSector.themeId);
+  }
+
+  getDifficulty(stats?: RunStatsSnapshot): MissionDifficulty {
+    const theme = this.getCurrentTheme();
+    const modifiers = theme.modifiers;
+    const endlessScale = this.currentSector.isEndless
+      ? Math.min(0.65, (stats?.runTime ?? 0) / 180)
+      : 0;
+
     return {
       startingObstacleCount: this.currentSector.startingObstacleCount,
       maxObstacleCount: this.currentSector.maxObstacleCount,
-      hazardIntensity: this.currentSector.hazardIntensity,
+      hazardIntensity:
+        this.currentSector.hazardIntensity *
+        modifiers.hazardIntensityMultiplier *
+        (1 + endlessScale),
+      hazardIntervalMultiplier: Math.max(
+        0.55,
+        modifiers.hazardIntervalMultiplier * (1 - endlessScale * 0.28)
+      ),
+      hazardTelegraphMultiplier: modifiers.hazardTelegraphMultiplier,
+      hazardActiveMultiplier: modifiers.hazardActiveMultiplier,
+      hazardSpeedMultiplier: modifiers.hazardSpeedMultiplier * (1 + endlessScale * 0.25),
+      junkColorVariance: modifiers.junkColorVariance,
+      modifierHint: modifiers.hint,
       junkLaneWeights: this.currentSector.junkSpawnBias.laneWeights,
       allowedHazardTypes: this.currentSector.allowedHazardTypes
     };
   }
 
-  getMusicIntensityHint(): SectorConfig['musicIntensityHint'] {
-    return this.currentSector.musicIntensityHint;
+  getMusicIntensityHint(): SectorMusicIntensityHint {
+    return this.getCurrentTheme().musicIntensityHint;
   }
 
   getObjective(stats: RunStatsSnapshot): MissionObjectiveSnapshot {

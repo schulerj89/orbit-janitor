@@ -141,6 +141,23 @@ body {
   text-overflow: ellipsis;
 }
 
+.hud-sector-hint {
+  margin: -2px 0 6px;
+  color: #ffe06b;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: clamp(0.72rem, 1.8vw, 0.86rem);
+  line-height: 1.25;
+  opacity: 1;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.hud-sector-hint.is-hidden {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+
 .hud-objective {
   max-width: min(300px, calc(100vw - 56px));
   margin: 4px 0 8px;

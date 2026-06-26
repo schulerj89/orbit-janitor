@@ -1,4 +1,5 @@
 import type { HazardPatternType } from './HazardTypes';
+import type { SectorThemeId } from './SectorTheme';
 
 export type SectorObjective =
   | {
@@ -42,6 +43,7 @@ export interface SectorUnlockRequirement {
 
 export interface SectorConfig {
   id: string;
+  themeId: SectorThemeId;
   name: string;
   subtitle: string;
   description: string;
@@ -68,6 +70,7 @@ export const ENDLESS_SECTOR_ID = 'endless-cleanup';
 export const SECTOR_CONFIGS: readonly SectorConfig[] = [
   {
     id: TRAINING_SECTOR_ID,
+    themeId: 'training-orbit',
     name: 'Training Orbit',
     subtitle: 'Flight check',
     description: 'A quiet orbit for practicing lane switches, pickups, and boost timing.',
@@ -104,6 +107,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
   },
   {
     id: DEFAULT_SECTOR_ID,
+    themeId: 'low-orbit-cleanup',
     name: 'Low Orbit Cleanup',
     subtitle: 'Standard route',
     description: 'Clean the core lanes while basic warning arcs test your timing.',
@@ -140,6 +144,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
   },
   {
     id: 'debris-belt',
+    themeId: 'debris-belt',
     name: 'Debris Belt',
     subtitle: 'Dense salvage band',
     description: 'A busier orbit with heavier lane variation and more satellite traffic.',
@@ -176,6 +181,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
   },
   {
     id: 'solar-storm',
+    themeId: 'solar-storm',
     name: 'Solar Storm',
     subtitle: 'Charged warning lanes',
     description: 'Survive a long storm cycle as lane hazards arrive more often.',
@@ -212,6 +218,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
   },
   {
     id: 'night-side',
+    themeId: 'night-side',
     name: 'Night Side',
     subtitle: 'Low light cleanup',
     description: 'Darker orbital work with clear telegraphs and faster hazard cadence.',
@@ -248,6 +255,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
   },
   {
     id: 'comet-wake',
+    themeId: 'comet-wake',
     name: 'Comet Wake',
     subtitle: 'Volatile trail',
     description: 'Survive late-pattern telegraphs in a fast-moving comet debris wake.',
@@ -284,6 +292,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
   },
   {
     id: ENDLESS_SECTOR_ID,
+    themeId: 'endless-cleanup',
     name: 'Endless Cleanup',
     subtitle: 'Open route',
     description: 'A high-score route that keeps escalating as long as the ship survives.',

@@ -7,12 +7,15 @@ import {
   ORBIT_LANES
 } from '../constants';
 import { angularDistance, setOrbitPositionFromAngle, wrapAngle } from '../math';
+import type { SectorTheme } from '../systems/SectorTheme';
 
 export type HazardPhase = 'idle' | 'telegraph' | 'active';
 
 export interface HazardConfig {
   laneIndex: number;
   angle: number;
+  telegraphDurationMultiplier?: number;
+  activeDurationMultiplier?: number;
 }
 
 export interface HazardUpdateResult {
@@ -40,6 +43,12 @@ export class HazardTelegraph {
     transparent: true,
     opacity: 0.8
   });
+  private warningColor = 0xffb13d;
+  private warningAccentColor = 0xffd45f;
+  private activeColor = 0xff3b22;
+  private activeAccentColor = 0xff7a1f;
+  private telegraphDuration = HAZARD_TELEGRAPH_DURATION;
+  private activeDuration = HAZARD_ACTIVE_DURATION;
   private elapsed = 0;
 
   constructor() {
@@ -64,11 +73,22 @@ export class HazardTelegraph {
   start(config: HazardConfig): void {
     this.laneIndex = config.laneIndex;
     this.angle = wrapAngle(config.angle);
+    this.telegraphDuration =
+      HAZARD_TELEGRAPH_DURATION * (config.telegraphDurationMultiplier ?? 1);
+    this.activeDuration = HAZARD_ACTIVE_DURATION * (config.activeDurationMultiplier ?? 1);
     this.phase = 'telegraph';
     this.elapsed = 0;
     this.group.visible = true;
     this.layoutSegments();
     this.applyPhaseVisuals(0);
+  }
+
+  applyTheme(theme: SectorTheme): void {
+    this.warningColor = theme.hazardWarningColor;
+    this.warningAccentColor = lighten(theme.hazardWarningColor, 0.18);
+    this.activeColor = theme.hazardActiveColor;
+    this.activeAccentColor = lighten(theme.hazardActiveColor, 0.16);
+    this.applyPhaseVisuals(this.elapsed);
   }
 
   update(delta: number): HazardUpdateResult {
@@ -79,11 +99,11 @@ export class HazardTelegraph {
     this.elapsed += delta;
     let activated = false;
 
-    if (this.phase === 'telegraph' && this.elapsed >= HAZARD_TELEGRAPH_DURATION) {
+    if (this.phase === 'telegraph' && this.elapsed >= this.telegraphDuration) {
       this.phase = 'active';
       this.elapsed = 0;
       activated = true;
-    } else if (this.phase === 'active' && this.elapsed >= HAZARD_ACTIVE_DURATION) {
+    } else if (this.phase === 'active' && this.elapsed >= this.activeDuration) {
       this.clear();
       return { activated: false, completed: true };
     }
@@ -144,9 +164,9 @@ export class HazardTelegraph {
     const pulse = 1 + Math.sin(time * 13) * 0.12;
 
     if (this.phase === 'active') {
-      this.material.color.setHex(0xff3b22);
+      this.material.color.setHex(this.activeColor);
       this.material.opacity = 0.96;
-      this.capMaterial.color.setHex(0xff7a1f);
+      this.capMaterial.color.setHex(this.activeAccentColor);
       this.capMaterial.opacity = 0.98;
       this.segments.forEach((segment, index) => {
         segment.scale.set(1.12, index % 2 === 0 ? 1.35 : 1.75, 1.18);
@@ -156,12 +176,19 @@ export class HazardTelegraph {
       return;
     }
 
-    this.material.color.setHex(0xffb13d);
+    this.material.color.setHex(this.warningColor);
     this.material.opacity = 0.78 + Math.sin(time * 12) * 0.16;
-    this.capMaterial.color.setHex(0xffd45f);
+    this.capMaterial.color.setHex(this.warningAccentColor);
     this.capMaterial.opacity = 0.58 + Math.sin(time * 10) * 0.16;
     this.segments.forEach((segment) => segment.scale.set(1, 1, 1));
     this.endCaps.forEach((cap) => cap.scale.set(1, 1, 1));
     this.group.scale.setScalar(pulse);
   }
+}
+
+function lighten(color: number, amount: number): number {
+  const mixedColor = new THREE.Color(color);
+
+  mixedColor.lerp(new THREE.Color(0xffffff), amount);
+  return mixedColor.getHex();
 }
