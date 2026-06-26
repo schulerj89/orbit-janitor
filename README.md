@@ -1,6 +1,6 @@
 # Orbit Janitor
 
-Orbit Janitor is a procedural Three.js arcade game about cleaning orbital lanes without losing momentum. Pilot a tiny cleanup ship around a planet, switch between three lanes, collect junk, chain combos, manage boost fuel, read hazard telegraphs, and survive sector missions.
+Orbit Janitor is a procedural Three.js arcade game about cleaning orbital lanes without losing momentum. Pilot a tiny cleanup ship around a sector core, switch between three lanes, collect junk, chain combos, manage boost fuel, read hazard telegraphs, and survive sector missions.
 
 [Live demo](https://schulerj89.github.io/orbit-janitor/) | [Design notes](docs/design-notes.md) | [Release checklist](docs/release-checklist.md) | [Balancing notes](docs/balancing.md)
 
@@ -10,7 +10,7 @@ Demo media placeholders for the public release:
 
 - Gameplay GIF: TODO capture a 10-15 second clip showing lane switching, pickup combos, hazard telegraphs, and a mission complete moment.
 - Screenshot: TODO capture the title screen with sector/start options.
-- Screenshot: TODO capture active gameplay with the HUD, a readable hazard warning, and procedural planet/ship art.
+- Screenshot: TODO capture active gameplay with the HUD, a readable hazard warning, and procedural world-core/ship art.
 - Social preview image: not committed yet. Add only when generated or provided, and document provenance if it includes generated or external assets.
 
 ## Local Setup
@@ -55,7 +55,7 @@ Keyboard:
 - S: start the visible seeded run from the title screen. Add `?seed=YOUR-SEED` to the URL to choose that seed.
 - ArrowUp or W / ArrowDown or S: move selection in sector select.
 - Escape: return to title from sector select or mission complete, or close help, pause, and settings overlays.
-- ArrowLeft or A / ArrowRight or D: rotate around the planet.
+- ArrowLeft or A / ArrowRight or D: rotate around the sector core.
 - ArrowUp or W / ArrowDown or S: switch orbit lanes while playing.
 - Space: boost while held, limited by fuel.
 - P: pause or resume while playing.
@@ -91,7 +91,8 @@ Touch:
 - Structured sectors with score, junk collection, survival timer, hazard survival, tutorial, daily challenge, seeded run, and endless objectives.
 - Persistent sector unlocks, best score, daily best, scrap total, upgrades, audio preferences, and accessibility settings.
 - Training Orbit tutorial with guided rotate, pickup, lane switch, boost, obstacle, and hazard-reading steps.
-- Three orbit lanes with smooth lane switching, readable ship direction, procedural planet/lanes/stars/junk/satellites/hazards, and sector-specific visual themes.
+- Three orbit lanes with smooth lane switching, readable ship direction, procedural world cores/lanes/stars/junk/satellites/hazards, and sector-specific visual themes.
+- Sector-specific centerpieces: planet core, cracked planetoid, solar reactor, night planet, comet core, and orbital gate.
 - Combo scoring, boost fuel, temporary powerups, upgrade effects, one-run shield support, near-miss feedback, mission intro countdown, and screen/camera feedback.
 - Telegraph-first hazards: lane arcs, double lane arcs, sweepers, gate hazards, pulse mines, and debris showers.
 - Boss-like event waves near sector finales: Debris Storm, Satellite Net, Solar Flare, Comet Pass, and Cleanup Frenzy.

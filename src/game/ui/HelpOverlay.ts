@@ -33,7 +33,7 @@ export class HelpOverlay {
             <span>Touch</span>
             <strong>On phones, use the large edge buttons for orbit, lanes, boost, and start or restart.</strong>
             <span>Orbit lanes</span>
-            <strong>Three lanes wrap around the planet. Read lane position before switching.</strong>
+            <strong>Three lanes wrap around the sector core. Read lane position before switching.</strong>
             <span>Junk</span>
             <strong>Collect junk for score. Fast pickups extend combo and raise multiplier.</strong>
             <span>Boost fuel</span>

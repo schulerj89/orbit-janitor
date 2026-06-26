@@ -46,10 +46,11 @@ import { GhostMarker } from './entities/GhostMarker';
 import { Junk, type LaneAngle } from './entities/Junk';
 import { ObstacleSatellite, type ObstacleConfig } from './entities/ObstacleSatellite';
 import { OrbitLanes } from './entities/OrbitLanes';
-import { Planet } from './entities/Planet';
 import { PlayerShip } from './entities/PlayerShip';
 import { getPowerupColor, type PowerupType } from './entities/Powerup';
 import { Starfield } from './entities/Starfield';
+import { createWorldCore } from './entities/world-cores/createWorldCore';
+import type { WorldCore, WorldCoreType } from './entities/world-cores/WorldCore';
 import { ChallengeMode, type ChallengeRunMode } from './systems/ChallengeMode';
 import {
   EventWaveDirector,
@@ -132,6 +133,7 @@ interface OrbitJanitorDebugState {
   dailyBestScore: number;
   sectorId: string;
   sectorName: string;
+  worldCoreType: WorldCoreType;
   missionProgress: string;
   sectorProgress: SectorProgressSnapshot;
   tutorialActive: boolean;
@@ -232,7 +234,7 @@ export class Game {
   private floatingText!: FloatingText;
   private missionIntroOverlay!: MissionIntroOverlay;
   private orbitLanes!: OrbitLanes;
-  private planet!: Planet;
+  private worldCore!: WorldCore;
   private starfield!: Starfield;
   private player!: PlayerShip;
   private junk!: Junk;
@@ -266,6 +268,7 @@ export class Game {
   private gameOverReason = 'Impact detected';
   private runRng = new SeededRandom('title');
   private selectedSectorId = DEFAULT_SECTOR_ID;
+  private currentWorldCoreType: WorldCoreType | null = null;
   private newlyUnlockedSectorName: string | null = null;
   private sectorHintTimer = 0;
   private runBonusScrap = 0;
@@ -327,7 +330,10 @@ export class Game {
     this.directionalLight = new THREE.DirectionalLight(0xffffff, 2.6);
     this.directionalLight.position.set(4, 7, 5);
 
-    this.planet = new Planet();
+    this.worldCore = createWorldCore(
+      this.missionDirector.getCurrentSector().worldCoreType
+    );
+    this.currentWorldCoreType = this.missionDirector.getCurrentSector().worldCoreType;
     this.orbitLanes = new OrbitLanes();
     this.starfield = new Starfield();
     this.player = new PlayerShip();
@@ -338,7 +344,7 @@ export class Game {
       this.starfield.points,
       this.ambientLight,
       this.directionalLight,
-      this.planet.group,
+      this.worldCore.group,
       this.orbitLanes.group,
       this.eventWaveDirector.group,
       this.hazardDirector.group,
@@ -481,6 +487,9 @@ export class Game {
       this.audio.playLaneSwitch();
     }
 
+    this.worldCore.update(delta, {
+      sectorId: this.missionDirector.getCurrentSector().id
+    });
     this.orbitLanes.setActiveLane(this.player.targetLaneIndex);
     this.orbitLanes.update(delta);
     this.junk.update(delta);
@@ -1251,6 +1260,7 @@ export class Game {
     this.selectedSectorId = this.missionDirector.getCurrentSector().id;
     this.runRng = new SeededRandom(this.challengeMode.getSnapshot().titleSeed);
     this.resetRunState();
+    this.applyCurrentSectorTheme(false);
     this.state = 'title';
     this.upgradePanelOpen = false;
     this.isPaused = false;
@@ -2105,12 +2115,13 @@ export class Game {
       settings.highContrastHazards
     );
 
-    if (this.planet) {
+    if (this.worldCore) {
       this.applyCurrentSectorTheme(false);
     }
   }
 
   private applyCurrentSectorTheme(showHint: boolean): void {
+    this.ensureWorldCoreForCurrentSector();
     const theme = this.getEffectiveSectorTheme(this.missionDirector.getCurrentTheme());
     const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
 
@@ -2122,7 +2133,7 @@ export class Game {
 
     this.ambientLight.color.setHex(theme.ambientLightColor);
     this.directionalLight.color.setHex(theme.directionalLightColor);
-    this.planet.applyTheme(theme);
+    this.worldCore.applyTheme(theme);
     this.orbitLanes.applyTheme(theme);
     this.starfield.applyTheme(theme);
     this.junk.applyTheme(theme, difficulty.junkColorVariance);
@@ -2132,6 +2143,23 @@ export class Game {
     if (showHint) {
       this.sectorHintTimer = 2.9;
     }
+  }
+
+  private ensureWorldCoreForCurrentSector(): void {
+    const nextCoreType = this.missionDirector.getCurrentSector().worldCoreType;
+
+    if (this.worldCore && this.currentWorldCoreType === nextCoreType) {
+      return;
+    }
+
+    if (this.worldCore) {
+      this.scene.remove(this.worldCore.group);
+      this.worldCore.dispose?.();
+    }
+
+    this.worldCore = createWorldCore(nextCoreType);
+    this.currentWorldCoreType = nextCoreType;
+    this.scene.add(this.worldCore.group);
   }
 
   private getEffectiveSectorTheme(theme: SectorTheme): SectorTheme {
@@ -2171,6 +2199,7 @@ export class Game {
       dailyBestScore: challenge.dailyBestScore,
       sectorId: sector.id,
       sectorName: sector.name,
+      worldCoreType: sector.worldCoreType,
       missionProgress: objective.progressText,
       sectorProgress: this.sectorProgress.getSnapshot(),
       tutorialActive: tutorial.isActive,
@@ -2235,6 +2264,7 @@ export class Game {
     this.canvas.dataset.dailyBestScore = String(challenge.dailyBestScore);
     this.canvas.dataset.sectorId = sector.id;
     this.canvas.dataset.sectorName = sector.name;
+    this.canvas.dataset.worldCoreType = sector.worldCoreType;
     this.canvas.dataset.missionObjective = objective.text;
     this.canvas.dataset.missionProgress = objective.progressText;
     this.canvas.dataset.missionComplete = String(
