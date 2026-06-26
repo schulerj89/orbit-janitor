@@ -73,6 +73,10 @@ body {
   font-weight: 700;
 }
 
+.hud-audio-note.is-muted {
+  color: #ffb199;
+}
+
 .hud-control-grid {
   display: grid;
   grid-template-columns: minmax(58px, auto) 1fr;

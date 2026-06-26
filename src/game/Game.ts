@@ -19,6 +19,7 @@ import { InputController, type InputState } from './input';
 import { isAngleSafe, laneName, randomAngleAvoiding, wrapAngle } from './math';
 import { createRenderer } from './renderer';
 import { AudioManager } from './audio/AudioManager';
+import { MusicDirector } from './audio/MusicDirector';
 import { ParticleBurst } from './effects/ParticleBurst';
 import { ScreenShake } from './effects/ScreenShake';
 import { GhostMarker } from './entities/GhostMarker';
@@ -87,6 +88,7 @@ interface OrbitJanitorDebugState {
   scrap: number;
   shieldCharges: number;
   musicEnabled: boolean;
+  musicDangerIntensity: number;
   sfxEnabled: boolean;
   playerAngle: number;
   playerLaneIndex: number;
@@ -124,6 +126,7 @@ export class Game {
   private readonly clock = new THREE.Clock();
   private readonly input = new InputController();
   private readonly audio = new AudioManager();
+  private readonly music = new MusicDirector(this.audio);
   private readonly obstacles: ObstacleSatellite[] = [];
   private readonly particles = new ParticleBurst();
   private readonly screenShake = new ScreenShake();
@@ -170,6 +173,7 @@ export class Game {
   private runTime = 0;
   private hazardWarning = false;
   private hazardActive = false;
+  private musicDangerIntensity = 0;
   private shieldCharges = 0;
   private shieldBrokenTimer = 0;
   private shieldGraceTimer = 0;
@@ -249,16 +253,13 @@ export class Game {
     const input = this.input.consumeFrame();
 
     if (this.hasPlayerInput(input)) {
-      this.audio.unlock();
+      this.music.unlock();
     }
 
     if (input.musicTogglePressed) {
-      const musicEnabled = this.audio.toggleMusic();
+      const musicEnabled = !this.music.isMusicEnabled();
+      this.music.setMusicEnabled(musicEnabled);
       this.audio.playUiSelect();
-
-      if (musicEnabled && this.state === 'playing') {
-        this.audio.startMusic();
-      }
     }
 
     if (input.sfxTogglePressed) {
@@ -406,6 +407,7 @@ export class Game {
       this.hazardActive = false;
     }
 
+    this.updateMusicIntensity();
     this.syncRunStats();
     this.applyCameraShake();
     this.updateHud(this.shouldShowBoostEmpty(input));
@@ -592,7 +594,7 @@ export class Game {
     this.upgrades.awardRunScrap(this.runStats.getSnapshot());
     this.audio.playImpact();
     this.audio.playBoostLoopStop();
-    this.audio.stopMusic();
+    this.music.playGameOver();
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xcfefff, 28, true);
     this.screenShake.add(0.22);
   }
@@ -618,7 +620,7 @@ export class Game {
     this.upgrades.awardRunScrap(this.runStats.getSnapshot());
     this.audio.playObjectiveComplete();
     this.audio.playBoostLoopStop();
-    this.audio.stopMusic();
+    this.music.playMissionComplete();
     this.hazardDirector.reset();
     this.particles.emit(this.player.getPosition(this.playerPosition), 0xffe06b, 24, true);
     this.screenShake.add(0.08);
@@ -632,7 +634,7 @@ export class Game {
     this.resetRunState();
     this.state = 'title';
     this.upgradePanelOpen = false;
-    this.audio.stopMusic();
+    this.music.startTitleMusic();
     this.updateHud(false);
     this.syncDebugAttributes();
   }
@@ -660,7 +662,10 @@ export class Game {
     this.state = 'playing';
     this.upgradePanelOpen = false;
     this.audio.playUiStart();
-    this.audio.startMusic();
+    this.music.startSectorMusic(
+      this.missionDirector.getCurrentSector().id,
+      this.missionDirector.getMusicIntensityHint()
+    );
     this.updateHud(false);
     this.syncDebugAttributes();
   }
@@ -676,7 +681,10 @@ export class Game {
     this.state = 'playing';
     this.upgradePanelOpen = false;
     this.audio.playUiStart();
-    this.audio.startMusic();
+    this.music.startSectorMusic(
+      this.missionDirector.getCurrentSector().id,
+      this.missionDirector.getMusicIntensityHint()
+    );
     this.updateHud(false);
     this.syncDebugAttributes();
   }
@@ -703,6 +711,7 @@ export class Game {
     this.runTime = 0;
     this.hazardWarning = false;
     this.hazardActive = false;
+    this.musicDangerIntensity = 0;
     this.objectiveAnnounced = false;
     this.newlyUnlockedSectorName = null;
     this.gameOverReason = 'Impact detected';
@@ -1076,7 +1085,7 @@ export class Game {
       : this.sectorProgress.getDefaultSectorId();
     this.audio.playUiSelect();
     this.audio.playBoostLoopStop();
-    this.audio.stopMusic();
+    this.music.startTitleMusic();
   }
 
   private selectSector(direction: number): void {
@@ -1149,6 +1158,29 @@ export class Game {
       this.comboMultiplier,
       this.missionDirector.getObjective(this.runStats.getSnapshot()).isComplete
     );
+  }
+
+  private updateMusicIntensity(): void {
+    if (this.state !== 'playing') {
+      this.musicDangerIntensity = 0;
+      this.music.setDangerIntensity(0);
+      return;
+    }
+
+    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const objectivePressure = objective.isEndless
+      ? Math.min(0.35, this.runTime / 240)
+      : Math.max(0, objective.progress - 0.65) * 0.9;
+    const comboPressure =
+      this.comboMultiplier >= 4 ? 0.38 : this.comboMultiplier >= 2 ? 0.18 : 0;
+    const hazardPressure = this.hazardActive ? 1 : this.hazardWarning ? 0.65 : 0;
+
+    this.musicDangerIntensity = Math.max(
+      hazardPressure,
+      comboPressure,
+      Math.min(0.36, objectivePressure)
+    );
+    this.music.setDangerIntensity(this.musicDangerIntensity);
   }
 
   private updateHud(boostEmpty: boolean): void {
@@ -1286,6 +1318,7 @@ export class Game {
       scrap: this.upgrades.getSnapshot().totalScrap,
       shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
+      musicDangerIntensity: this.musicDangerIntensity,
       sfxEnabled: this.audio.isSfxEnabled(),
       playerAngle: this.player.angle,
       playerLaneIndex: this.player.targetLaneIndex,
@@ -1344,6 +1377,7 @@ export class Game {
     this.canvas.dataset.shieldCharges = String(this.shieldCharges);
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);
     this.canvas.dataset.musicEnabled = String(this.audio.isMusicEnabled());
+    this.canvas.dataset.musicDangerIntensity = this.musicDangerIntensity.toFixed(3);
     this.canvas.dataset.sfxEnabled = String(this.audio.isSfxEnabled());
     this.canvas.dataset.objectiveComplete = String(
       objective.isComplete && !objective.isEndless

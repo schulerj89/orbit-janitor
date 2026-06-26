@@ -12,7 +12,12 @@ export const AUDIO_MANIFEST = {
   objectiveComplete: { src: '/audio/sfx/objective-complete.mp3' },
   uiStart: { src: '/audio/sfx/ui-start.mp3' },
   uiSelect: { src: '/audio/sfx/ui-select.mp3' },
-  musicMain: { src: '/audio/music/orbit-janitor-main-loop.mp3', loop: true }
+  musicMain: { src: '/audio/music/orbit-janitor-main-loop.mp3', loop: true },
+  titleAmbient: { src: '/audio/music/title-ambient-loop.mp3', loop: true },
+  sectorDrive: { src: '/audio/music/sector-drive-loop.mp3', loop: true },
+  dangerLayer: { src: '/audio/music/danger-layer-loop.mp3', loop: true },
+  missionComplete: { src: '/audio/music/mission-complete-stinger.mp3' },
+  gameOver: { src: '/audio/music/game-over-stinger.mp3' }
 } as const;
 
 export type AudioAssetId = keyof typeof AUDIO_MANIFEST;

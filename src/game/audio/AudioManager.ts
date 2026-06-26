@@ -83,6 +83,34 @@ export class AudioManager {
     return this.sfxEnabled;
   }
 
+  isUnlocked(): boolean {
+    return this.started && this.context !== null;
+  }
+
+  getAudioContext(): AudioContext | null {
+    return this.getContext();
+  }
+
+  getMusicOutput(): AudioNode | null {
+    if (!this.getContext() || !this.musicGain) {
+      return null;
+    }
+
+    return this.musicGain;
+  }
+
+  getAudioBuffer(id: AudioAssetId): AudioBuffer | null {
+    return this.buffers.get(id) ?? null;
+  }
+
+  whenAssetsLoaded(): Promise<void> {
+    if (!this.context) {
+      return Promise.resolve();
+    }
+
+    return this.loadAssets();
+  }
+
   setMusicEnabled(enabled: boolean): void {
     this.musicEnabled = enabled;
     writeStoredBoolean(MUSIC_ENABLED_STORAGE_KEY, enabled);
@@ -426,6 +454,7 @@ export class AudioManager {
 
   stopAll(): void {
     this.playBoostLoopStop();
+    this.stopMusic();
   }
 
   dispose(): void {

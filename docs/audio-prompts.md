@@ -58,8 +58,30 @@ Title start confirmation sound, confident rising synth button press, 0.35 second
 
 Tiny settings toggle click, clean digital tick with slight pitch lift, 0.2 seconds, low volume, no voice.
 
-## Music Prompt
+## Music Prompts
+
+Generate these offline with ElevenLabs or another licensed source. Commit only final audio files with provenance in `public/audio/AUDIO_CREDITS.md`. Never put `ELEVENLABS_API_KEY` in browser code.
 
 ### orbit-janitor-main-loop.mp3
 
 Instrumental only, 60-second seamless sci-fi arcade loop, optimistic synthwave, light percussion, shimmering arpeggios, no vocals.
+
+### title-ambient-loop.mp3
+
+Instrumental only, 60-second seamless deep-space title ambient loop, warm analog pads, distant orbital shimmer, calm anticipation, no percussion, no vocals.
+
+### sector-drive-loop.mp3
+
+Instrumental only, 60-second seamless epic sci-fi arcade sector loop, driving but clean synth pulse, heroic low brass-like synths, light percussion, shimmering arpeggios, no vocals.
+
+### danger-layer-loop.mp3
+
+Instrumental only, 30-second seamless danger intensity layer, tense pulsing low synth, subtle alarm rhythm, designed to layer over existing music, no melody lead, no vocals.
+
+### mission-complete-stinger.mp3
+
+Short epic sci-fi mission complete stinger, bright victorious synth brass and sparkling arpeggio, 2.5 seconds, clean ending, no vocals.
+
+### game-over-stinger.mp3
+
+Short sci-fi arcade game over stinger, dramatic descending synth brass with low impact tail, 2.5 seconds, not horror, no vocals.

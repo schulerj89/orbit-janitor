@@ -169,6 +169,10 @@ export class Hud {
     this.boostValue.textContent = `${Math.round(boostPercent * 100)}%`;
     this.boostValue.classList.toggle('is-empty', snapshot.boostEmpty);
     this.audioStateValue.textContent = `Music ${snapshot.musicEnabled ? 'On' : 'Off'} | SFX ${snapshot.sfxEnabled ? 'On' : 'Off'}`;
+    this.audioStateValue.classList.toggle(
+      'is-muted',
+      !snapshot.musicEnabled || !snapshot.sfxEnabled
+    );
 
     if (snapshot.state === 'title') {
       this.statusValue.textContent = 'Awaiting launch';

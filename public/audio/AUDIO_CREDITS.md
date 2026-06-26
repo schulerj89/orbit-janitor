@@ -22,9 +22,25 @@ Expected optional paths:
 - `audio/sfx/ui-start.mp3`
 - `audio/sfx/ui-select.mp3`
 - `audio/music/orbit-janitor-main-loop.mp3`
+- `audio/music/title-ambient-loop.mp3`
+- `audio/music/sector-drive-loop.mp3`
+- `audio/music/danger-layer-loop.mp3`
+- `audio/music/mission-complete-stinger.mp3`
+- `audio/music/game-over-stinger.mp3`
 
 ElevenLabs-generated assets may be placed here after generation outside the browser runtime. Do not commit, expose, or reference any ElevenLabs API key in client code.
 
 ## Provenance Log
 
 No static audio assets are currently committed. The `.gitkeep` files only reserve the expected folders.
+
+Use this format for each committed audio asset:
+
+```text
+Asset filename:
+Generation tool:
+Prompt:
+Generation date:
+License/plan notes:
+Post-processing notes:
+```

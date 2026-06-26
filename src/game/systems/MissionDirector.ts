@@ -44,6 +44,10 @@ export class MissionDirector {
     };
   }
 
+  getMusicIntensityHint(): SectorConfig['musicIntensityHint'] {
+    return this.currentSector.musicIntensityHint;
+  }
+
   getObjective(stats: RunStatsSnapshot): MissionObjectiveSnapshot {
     return getObjectiveSnapshot(this.currentSector.objective, stats);
   }

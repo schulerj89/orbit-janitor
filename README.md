@@ -69,7 +69,8 @@ npm run preview
 - Boost fuel drain, recharge, and empty feedback
 - Procedural mesh particle bursts for pickups and impacts
 - Lightweight procedural audio with Web Audio after first input
-- Optional static SFX and music files under `public/audio`
+- Optional static SFX and layered music files under `public/audio`
+- MusicDirector support for title ambience, sector drive loops, danger layering, and mission/game-over stingers
 - Dynamic obstacle pacing as score increases
 - Timed hazard telegraphs that warn before becoming dangerous
 - Hazard patterns include lane arcs, double lane arcs, sweepers, gate gaps, pulse mines, and debris showers
@@ -79,7 +80,7 @@ npm run preview
 
 ## Audio Assets
 
-The game works with no audio files present. `AudioManager` attempts to load optional static MP3 files from `public/audio` and falls back to procedural Web Audio sounds if files are missing or fail to decode.
+The game works with no audio files present. `AudioManager` attempts to load optional static MP3 files from `public/audio`, while `MusicDirector` layers title ambience, sector drive music, danger intensity, and stingers. Missing or undecodable files fall back to procedural Web Audio.
 
 Expected optional file paths are documented in `public/audio/AUDIO_CREDITS.md`. Prompt ideas for generating those files are in `docs/audio-prompts.md`.
 
