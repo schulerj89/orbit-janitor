@@ -4,6 +4,10 @@ import { ORBIT_LANES } from './constants';
 const TAU = Math.PI * 2;
 const LANE_NAMES = ['Inner', 'Middle', 'Outer'] as const;
 
+export interface RandomSource {
+  next(): number;
+}
+
 export function wrapAngle(angle: number): number {
   return ((angle % TAU) + TAU) % TAU;
 }
@@ -27,13 +31,14 @@ export function angularDistance(a: number, b: number): number {
 
 export function randomAngleAvoiding(
   disallowedAngles: number[],
-  minSeparation: number
+  minSeparation: number,
+  rng: RandomSource = nativeRandom
 ): number {
-  let bestAngle = Math.random() * TAU;
+  let bestAngle = rng.next() * TAU;
   let bestDistance = 0;
 
   for (let attempt = 0; attempt < 64; attempt += 1) {
-    const candidate = Math.random() * TAU;
+    const candidate = rng.next() * TAU;
     const nearestDistance = getNearestAngularDistance(candidate, disallowedAngles);
 
     if (nearestDistance >= minSeparation) {
@@ -48,6 +53,10 @@ export function randomAngleAvoiding(
 
   return bestAngle;
 }
+
+const nativeRandom: RandomSource = {
+  next: () => Math.random()
+};
 
 export function isAngleSafe(
   candidateAngle: number,

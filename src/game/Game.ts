@@ -27,8 +27,10 @@ import { OrbitLanes } from './entities/OrbitLanes';
 import { Planet } from './entities/Planet';
 import { PlayerShip } from './entities/PlayerShip';
 import { Starfield } from './entities/Starfield';
+import { ChallengeMode, type ChallengeRunMode } from './systems/ChallengeMode';
 import { HazardDirector, type HazardDirectorDebugState } from './systems/HazardDirector';
 import { RunStats, type RunStatsSnapshot } from './systems/RunStats';
+import { SeededRandom } from './systems/SeededRandom';
 import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
 import { Hud, type GameState } from './ui/Hud';
 import { RunSummary } from './ui/RunSummary';
@@ -55,6 +57,10 @@ interface OrbitJanitorDebugState {
   runTime: number;
   objectiveComplete: boolean;
   bestScore: number;
+  runMode: ChallengeRunMode;
+  runLabel: string;
+  runSeed: string;
+  dailyBestScore: number;
   scrap: number;
   shieldCharges: number;
   musicEnabled: boolean;
@@ -101,6 +107,7 @@ export class Game {
   private readonly hazardDirector = new HazardDirector();
   private readonly runStats = new RunStats(RUN_OBJECTIVE_TARGET_SCORE);
   private readonly upgrades = new UpgradeSystem();
+  private readonly challengeMode = new ChallengeMode();
   private readonly baseCameraPosition = new THREE.Vector3();
   private readonly shakenCameraPosition = new THREE.Vector3();
   private readonly playerPosition = new THREE.Vector3();
@@ -139,6 +146,7 @@ export class Game {
   private upgradePanelOpen = false;
   private objectiveAnnounced = false;
   private gameOverReason = 'Impact detected';
+  private runRng = new SeededRandom('title');
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -236,9 +244,11 @@ export class Game {
       this.audio.playUiSelect();
     }
 
-    const consumedStartInput = this.state === 'title' && input.startPressed;
-    if (consumedStartInput) {
-      this.startRun();
+    const requestedStartMode = this.getRequestedStartMode(input);
+    let consumedStartInput = false;
+    if (this.state === 'title' && requestedStartMode !== null) {
+      consumedStartInput = true;
+      this.startRun(requestedStartMode);
     }
 
     if (input.restartPressed && this.state === 'gameover') {
@@ -287,6 +297,7 @@ export class Game {
         playerRadius: this.player.currentRadius,
         junkAngle: this.junk.angle,
         junkLaneIndex: this.junk.laneIndex,
+        rng: this.runRng,
         isGameOver
       });
       this.hazardWarning = hazardResult.warning;
@@ -317,6 +328,7 @@ export class Game {
         playerRadius: this.player.currentRadius,
         junkAngle: this.junk.angle,
         junkLaneIndex: this.junk.laneIndex,
+        rng: this.runRng,
         isGameOver
       });
     } else {
@@ -507,6 +519,7 @@ export class Game {
     this.gameOverReason = reason;
     this.syncRunStats();
     this.runStats.complete(reason);
+    this.challengeMode.completeRun(this.runStats.getSnapshot().finalScore);
     this.upgrades.awardRunScrap(this.runStats.getSnapshot());
     this.audio.playImpact();
     this.audio.playBoostLoopStop();
@@ -516,6 +529,8 @@ export class Game {
   }
 
   private prepareTitle(): void {
+    this.challengeMode.prepareTitle();
+    this.runRng = new SeededRandom(this.challengeMode.getSnapshot().titleSeed);
     this.resetRunState();
     this.state = 'title';
     this.upgradePanelOpen = false;
@@ -524,11 +539,18 @@ export class Game {
     this.syncDebugAttributes();
   }
 
-  private startRun(): void {
+  private startRun(mode: ChallengeRunMode): void {
     if (this.state !== 'title') {
       return;
     }
 
+    const run =
+      mode === 'daily'
+        ? this.challengeMode.startDailyChallenge()
+        : mode === 'seeded'
+          ? this.challengeMode.startSeededRun()
+          : this.challengeMode.startNormalRun();
+    this.runRng = new SeededRandom(run.seed);
     this.resetRunState();
     this.state = 'playing';
     this.upgradePanelOpen = false;
@@ -539,6 +561,8 @@ export class Game {
   }
 
   private restart(): void {
+    const run = this.challengeMode.restartCurrentRun();
+    this.runRng = new SeededRandom(run.seed);
     this.resetRunState();
     this.state = 'playing';
     this.upgradePanelOpen = false;
@@ -626,8 +650,8 @@ export class Game {
 
   private createSafeObstacleConfig(obstacleIndex: number): ObstacleConfig {
     for (let attempt = 0; attempt < 64; attempt += 1) {
-      const laneIndex = Math.floor(Math.random() * ORBIT_LANES.length);
-      const angle = Math.random() * Math.PI * 2;
+      const laneIndex = this.runRng.int(0, ORBIT_LANES.length - 1);
+      const angle = this.runRng.range(0, Math.PI * 2);
 
       if (
         isAngleSafe(
@@ -649,7 +673,8 @@ export class Game {
       laneIndex,
       angle: randomAngleAvoiding(
         this.getDisallowedAnglesForLane(laneIndex),
-        OBSTACLE_SPAWN_MIN_SEPARATION
+        OBSTACLE_SPAWN_MIN_SEPARATION,
+        this.runRng
       ),
       angularSpeed: this.getObstacleSpeed(obstacleIndex)
     };
@@ -657,7 +682,7 @@ export class Game {
 
   private getObstacleSpeed(obstacleIndex: number): number {
     const baseSpeed = OBSTACLE_SPEEDS[obstacleIndex % OBSTACLE_SPEEDS.length];
-    return baseSpeed * (0.95 + Math.random() * 0.12);
+    return baseSpeed * this.runRng.range(0.95, 1.07);
   }
 
   private getDisallowedAnglesForLane(laneIndex: number): number[] {
@@ -684,7 +709,8 @@ export class Game {
     this.junk.respawn(
       this.player.angle,
       this.player.targetLaneIndex,
-      this.getObstacleLaneAngles()
+      this.getObstacleLaneAngles(),
+      this.runRng
     );
   }
 
@@ -693,6 +719,22 @@ export class Game {
       angle: obstacle.angle,
       laneIndex: obstacle.laneIndex
     }));
+  }
+
+  private getRequestedStartMode(input: InputState): ChallengeRunMode | null {
+    if (input.dailyStartPressed) {
+      return 'daily';
+    }
+
+    if (input.seededStartPressed) {
+      return 'seeded';
+    }
+
+    if (input.startPressed) {
+      return 'normal';
+    }
+
+    return null;
   }
 
   private hasPlayerInput(input: InputState): boolean {
@@ -705,6 +747,8 @@ export class Game {
       input.laneUpPressed ||
       input.laneDownPressed ||
       input.startPressed ||
+      input.dailyStartPressed ||
+      input.seededStartPressed ||
       input.restartPressed ||
       input.musicTogglePressed ||
       input.sfxTogglePressed ||
@@ -724,10 +768,14 @@ export class Game {
 
   private updateHud(boostEmpty: boolean): void {
     const stats = this.runStats.getSnapshot();
+    const challenge = this.challengeMode.getSnapshot();
 
     this.hud.update({
       score: this.score,
       state: this.state,
+      runLabel: challenge.label,
+      runSeed: challenge.seed,
+      dailyBestScore: challenge.dailyBestScore,
       comboMultiplier: this.comboMultiplier,
       comboTimer: this.comboTimer,
       comboWindow: this.currentComboWindow,
@@ -747,12 +795,16 @@ export class Game {
     this.titleOverlay.update({
       state: this.state,
       upgradePanelOpen: this.upgradePanelOpen,
+      titleSeed: challenge.titleSeed,
+      dailySeed: challenge.dailySeed,
+      dailyBestScore: challenge.dailyBestScore,
       musicEnabled: this.audio.isMusicEnabled(),
       sfxEnabled: this.audio.isSfxEnabled()
     });
     this.runSummary.update({
       state: this.state,
       stats,
+      challenge,
       upgrades: this.upgrades.getSnapshot(),
       upgradePanelOpen: this.upgradePanelOpen
     });
@@ -787,6 +839,8 @@ export class Game {
   }
 
   private getDebugState(): OrbitJanitorDebugState {
+    const challenge = this.challengeMode.getSnapshot();
+
     return {
       sceneId: 'orbit-janitor',
       phase: this.state,
@@ -799,6 +853,10 @@ export class Game {
       runTime: this.runTime,
       objectiveComplete: this.score >= RUN_OBJECTIVE_TARGET_SCORE,
       bestScore: this.runStats.getSnapshot().bestScore,
+      runMode: challenge.mode,
+      runLabel: challenge.label,
+      runSeed: challenge.seed,
+      dailyBestScore: challenge.dailyBestScore,
       scrap: this.upgrades.getSnapshot().totalScrap,
       shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
@@ -825,6 +883,8 @@ export class Game {
   }
 
   private syncDebugAttributes(): void {
+    const challenge = this.challengeMode.getSnapshot();
+
     this.canvas.dataset.sceneId = 'orbit-janitor';
     this.canvas.dataset.phase = this.state;
     this.canvas.dataset.score = String(this.score);
@@ -835,6 +895,10 @@ export class Game {
     this.canvas.dataset.isBoosting = String(this.isBoosting);
     this.canvas.dataset.runTime = this.runTime.toFixed(2);
     this.canvas.dataset.bestScore = String(this.runStats.getSnapshot().bestScore);
+    this.canvas.dataset.runMode = challenge.mode;
+    this.canvas.dataset.runLabel = challenge.label;
+    this.canvas.dataset.runSeed = challenge.seed;
+    this.canvas.dataset.dailyBestScore = String(challenge.dailyBestScore);
     this.canvas.dataset.scrap = String(this.upgrades.getSnapshot().totalScrap);
     this.canvas.dataset.shieldCharges = String(this.shieldCharges);
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);

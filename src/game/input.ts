@@ -7,6 +7,8 @@ export interface InputState {
   laneUpPressed: boolean;
   laneDownPressed: boolean;
   startPressed: boolean;
+  dailyStartPressed: boolean;
+  seededStartPressed: boolean;
   restartPressed: boolean;
   musicTogglePressed: boolean;
   sfxTogglePressed: boolean;
@@ -24,6 +26,8 @@ export class InputController {
     laneUpPressed: false,
     laneDownPressed: false,
     startPressed: false,
+    dailyStartPressed: false,
+    seededStartPressed: false,
     restartPressed: false,
     musicTogglePressed: false,
     sfxTogglePressed: false,
@@ -41,6 +45,8 @@ export class InputController {
     this.state.laneUpPressed = false;
     this.state.laneDownPressed = false;
     this.state.startPressed = false;
+    this.state.dailyStartPressed = false;
+    this.state.seededStartPressed = false;
     this.state.restartPressed = false;
     this.state.musicTogglePressed = false;
     this.state.sfxTogglePressed = false;
@@ -57,6 +63,9 @@ export class InputController {
 
     if (event.code === 'ArrowRight' || event.code === 'KeyD') {
       this.state.right = true;
+      if (event.code === 'KeyD' && !event.repeat) {
+        this.state.dailyStartPressed = true;
+      }
       event.preventDefault();
     }
 
@@ -72,6 +81,9 @@ export class InputController {
       this.state.down = true;
       if (!event.repeat) {
         this.state.laneDownPressed = true;
+        if (event.code === 'KeyS') {
+          this.state.seededStartPressed = true;
+        }
       }
       event.preventDefault();
     }

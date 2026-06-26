@@ -125,6 +125,12 @@ body {
   white-space: nowrap;
 }
 
+.hud-seed-value {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .hud-objective {
   max-width: min(300px, calc(100vw - 56px));
   margin: 4px 0 8px;
@@ -234,6 +240,36 @@ body {
   line-height: 1.45;
 }
 
+.title-run-options {
+  display: grid;
+  grid-template-columns: minmax(62px, auto) minmax(130px, auto) 1fr;
+  gap: 6px 14px;
+  width: 100%;
+  max-width: 480px;
+  margin: 4px 0;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  text-align: left;
+}
+
+.title-run-options > span {
+  color: #ffe06b;
+  font-weight: 800;
+}
+
+.title-run-options strong {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.title-run-options small {
+  min-width: 0;
+  overflow: hidden;
+  color: #9cb5c8;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .title-controls,
 .run-summary-grid {
   display: grid;
@@ -291,6 +327,13 @@ body {
 
 .run-summary-grid .is-complete {
   color: #ffe06b;
+}
+
+.run-summary-seed {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .upgrade-panel {
@@ -445,9 +488,15 @@ body {
   }
 
   .upgrade-panel-header,
+  .title-run-options,
   .upgrade-item-title {
     display: grid;
     gap: 4px;
+  }
+
+  .title-run-options {
+    grid-template-columns: minmax(0, 1fr);
+    text-align: center;
   }
 
   .upgrade-panel-scrap {

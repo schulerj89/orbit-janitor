@@ -31,7 +31,10 @@ npm run preview
 
 ## Controls
 
-- Enter or Space: start the first run
+- Enter or Space: start a normal run
+- D: start the daily challenge from the title screen
+- S: start the visible seeded run from the title screen
+- Add `?seed=YOUR-SEED` to the URL to choose the visible seeded run seed
 - ArrowLeft or A: rotate counterclockwise
 - ArrowRight or D: rotate clockwise
 - ArrowUp or W: switch outward
@@ -48,6 +51,8 @@ npm run preview
 - Title screen with controls and audio toggle hints
 - Run summary after game over
 - Persistent best score in localStorage
+- Normal, seeded, and daily challenge run modes
+- Persistent daily best score in localStorage
 - Persistent scrap and ship upgrades in localStorage
 - Three visible orbit lanes with smooth lane switching
 - Junk and satellite hazards assigned to lanes
@@ -85,7 +90,7 @@ ElevenLabs-generated assets can be placed in `public/audio` after generation out
 
 ## Roadmap
 
-1. Daily/random challenge seeds
+1. Editable seeded-run entry field
 2. Additional title and summary polish
 3. More audio variation
 4. TSL atmosphere and shield effects

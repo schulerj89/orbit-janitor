@@ -1,6 +1,11 @@
 import * as THREE from 'three/webgpu';
 import { JUNK_MIN_ANGLE_SEPARATION, ORBIT_LANES } from '../constants';
-import { randomAngleAvoiding, setOrbitPositionFromAngle, wrapAngle } from '../math';
+import {
+  type RandomSource,
+  randomAngleAvoiding,
+  setOrbitPositionFromAngle,
+  wrapAngle
+} from '../math';
 
 export interface LaneAngle {
   angle: number;
@@ -22,8 +27,13 @@ export class Junk {
     this.selectVariant(0);
   }
 
-  respawn(playerAngle: number, playerLaneIndex: number, obstacles: LaneAngle[]): void {
-    this.laneIndex = Math.floor(Math.random() * ORBIT_LANES.length);
+  respawn(
+    playerAngle: number,
+    playerLaneIndex: number,
+    obstacles: LaneAngle[],
+    rng: RandomSource
+  ): void {
+    this.laneIndex = Math.floor(rng.next() * ORBIT_LANES.length);
     const disallowedAngles: number[] = [];
 
     if (playerLaneIndex === this.laneIndex) {
@@ -36,8 +46,8 @@ export class Junk {
       }
     });
 
-    this.angle = randomAngleAvoiding(disallowedAngles, JUNK_MIN_ANGLE_SEPARATION);
-    this.selectVariant(Math.floor(Math.random() * this.variants.length));
+    this.angle = randomAngleAvoiding(disallowedAngles, JUNK_MIN_ANGLE_SEPARATION, rng);
+    this.selectVariant(Math.floor(rng.next() * this.variants.length));
     this.setAngle(this.angle);
   }
 

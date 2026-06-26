@@ -15,6 +15,7 @@ import {
   type HazardPattern,
   type HazardPatternType
 } from './HazardTypes';
+import type { SeededRandom } from './SeededRandom';
 
 export interface HazardDirectorContext {
   score: number;
@@ -23,6 +24,7 @@ export interface HazardDirectorContext {
   playerRadius: number;
   junkAngle: number;
   junkLaneIndex: number;
+  rng: SeededRandom;
   isGameOver: boolean;
 }
 
@@ -135,9 +137,7 @@ export class HazardDirector {
 
   private pickHazard(context: HazardDirectorContext): HazardPattern {
     const availableHazards = this.getAvailableHazards(context);
-    const hazardIndex = Math.floor(Math.random() * availableHazards.length);
-
-    return availableHazards[hazardIndex];
+    return context.rng.pick(availableHazards);
   }
 
   private getAvailableHazards(context: HazardDirectorContext): HazardPattern[] {

@@ -3,6 +3,9 @@ export type GameState = 'title' | 'playing' | 'gameover';
 export interface HudSnapshot {
   score: number;
   state: GameState;
+  runLabel: string;
+  runSeed: string;
+  dailyBestScore: number;
   comboMultiplier: number;
   comboTimer: number;
   comboWindow: number;
@@ -23,6 +26,8 @@ export interface HudSnapshot {
 export class Hud {
   private readonly scoreValue: HTMLElement;
   private readonly statusValue: HTMLElement;
+  private readonly runValue: HTMLElement;
+  private readonly seedValue: HTMLElement;
   private readonly laneValue: HTMLElement;
   private readonly timerValue: HTMLElement;
   private readonly objectiveValue: HTMLElement;
@@ -49,6 +54,14 @@ export class Hud {
           <span class="hud-label">Time</span>
           <span class="hud-value" data-hud-timer>0:00</span>
         </div>
+        <div class="hud-row">
+          <span class="hud-label">Run</span>
+          <span class="hud-value" data-hud-run>Normal Run</span>
+        </div>
+        <div class="hud-row">
+          <span class="hud-label">Seed</span>
+          <span class="hud-value hud-seed-value" data-hud-seed>OJ-0000000</span>
+        </div>
         <div class="hud-objective" data-hud-objective>Objective: Reach 50 cleanup points</div>
         <div class="hud-row" data-hud-combo-row>
           <span class="hud-label">Combo</span>
@@ -74,6 +87,8 @@ export class Hud {
         <div class="hud-control-grid" aria-label="Controls">
           <span>Rotate</span>
           <strong>Left/A Right/D</strong>
+          <span>Start</span>
+          <strong>Enter/Space normal / D daily / S seed</strong>
           <span>Lanes</span>
           <strong>Up/W Down/S</strong>
           <span>Boost</span>
@@ -90,6 +105,8 @@ export class Hud {
 
     this.scoreValue = getElement(root, '[data-hud-score]');
     this.statusValue = getElement(root, '[data-hud-status]');
+    this.runValue = getElement(root, '[data-hud-run]');
+    this.seedValue = getElement(root, '[data-hud-seed]');
     this.laneValue = getElement(root, '[data-hud-lane]');
     this.timerValue = getElement(root, '[data-hud-timer]');
     this.objectiveValue = getElement(root, '[data-hud-objective]');
@@ -109,6 +126,16 @@ export class Hud {
     const boostPercent = Math.max(0, Math.min(1, snapshot.boostFuel));
 
     this.scoreValue.textContent = String(snapshot.score);
+    this.runValue.textContent =
+      snapshot.state === 'title' ? 'Choose Run' : snapshot.runLabel;
+    this.seedValue.textContent =
+      snapshot.state === 'title'
+        ? `Daily best ${snapshot.dailyBestScore}`
+        : snapshot.runSeed;
+    this.seedValue.title =
+      snapshot.state === 'title'
+        ? `Daily best score: ${snapshot.dailyBestScore}`
+        : `Seed: ${snapshot.runSeed}`;
     this.laneValue.textContent = snapshot.laneName;
     this.timerValue.textContent = formatRunTime(snapshot.runTime);
     this.objectiveValue.textContent = snapshot.objectiveComplete

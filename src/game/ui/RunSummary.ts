@@ -1,10 +1,12 @@
 import type { RunStatsSnapshot } from '../systems/RunStats';
+import type { ChallengeModeSnapshot } from '../systems/ChallengeMode';
 import type { UpgradeSnapshot } from '../systems/UpgradeSystem';
 import type { GameState } from './Hud';
 
 export interface RunSummarySnapshot {
   state: GameState;
   stats: RunStatsSnapshot;
+  challenge: ChallengeModeSnapshot;
   upgrades: UpgradeSnapshot;
   upgradePanelOpen: boolean;
 }
@@ -12,6 +14,9 @@ export interface RunSummarySnapshot {
 export class RunSummary {
   private readonly overlay: HTMLElement;
   private readonly reasonValue: HTMLElement;
+  private readonly runModeValue: HTMLElement;
+  private readonly seedValue: HTMLElement;
+  private readonly dailyBestValue: HTMLElement;
   private readonly finalScoreValue: HTMLElement;
   private readonly bestScoreValue: HTMLElement;
   private readonly timeValue: HTMLElement;
@@ -30,6 +35,12 @@ export class RunSummary {
           <h2 class="run-summary-title">Game Over</h2>
           <p class="run-summary-reason" data-summary-reason>Impact detected</p>
           <div class="run-summary-grid">
+            <span>Run</span>
+            <strong data-summary-run-mode>Normal Run</strong>
+            <span>Seed</span>
+            <strong class="run-summary-seed" data-summary-seed>OJ-0000000</strong>
+            <span>Daily best</span>
+            <strong data-summary-daily-best>0</strong>
             <span>Final score</span>
             <strong data-summary-final-score>0</strong>
             <span>Best score</span>
@@ -56,6 +67,9 @@ export class RunSummary {
 
     this.overlay = getElement(root, '[data-run-summary]');
     this.reasonValue = getElement(root, '[data-summary-reason]');
+    this.runModeValue = getElement(root, '[data-summary-run-mode]');
+    this.seedValue = getElement(root, '[data-summary-seed]');
+    this.dailyBestValue = getElement(root, '[data-summary-daily-best]');
     this.finalScoreValue = getElement(root, '[data-summary-final-score]');
     this.bestScoreValue = getElement(root, '[data-summary-best-score]');
     this.timeValue = getElement(root, '[data-summary-time]');
@@ -71,6 +85,13 @@ export class RunSummary {
     const { stats } = snapshot;
 
     this.reasonValue.textContent = stats.gameOverReason;
+    this.runModeValue.textContent = snapshot.challenge.label;
+    this.seedValue.textContent = snapshot.challenge.seed;
+    this.seedValue.title = `Seed: ${snapshot.challenge.seed}`;
+    this.dailyBestValue.textContent =
+      snapshot.challenge.mode === 'daily'
+        ? String(snapshot.challenge.dailyBestScore)
+        : `${snapshot.challenge.dailySeed}: ${snapshot.challenge.dailyBestScore}`;
     this.finalScoreValue.textContent = String(stats.finalScore);
     this.bestScoreValue.textContent = String(stats.bestScore);
     this.timeValue.textContent = formatRunTime(stats.runTime);

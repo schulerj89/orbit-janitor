@@ -12,11 +12,13 @@ import {
   type HazardUpdateResult
 } from '../entities/HazardTelegraph';
 import {
+  type RandomSource,
   angularDistance,
   randomAngleAvoiding,
   setOrbitPositionFromAngle,
   wrapAngle
 } from '../math';
+import type { SeededRandom } from './SeededRandom';
 
 export type HazardPatternType =
   | 'laneArc'
@@ -33,6 +35,7 @@ export interface HazardPatternStartContext {
   playerRadius: number;
   junkAngle: number;
   junkLaneIndex: number;
+  rng: SeededRandom;
 }
 
 export interface HazardPatternDebugState {
@@ -82,13 +85,14 @@ export class LaneArcHazard implements HazardPattern {
   }
 
   start(context: HazardPatternStartContext): void {
-    const laneIndex = randomLaneIndex();
+    const laneIndex = randomLaneIndex(context.rng);
 
     this.visual.start({
       laneIndex,
       angle: randomAngleAvoiding(
         getDisallowedAnglesForLane(context, laneIndex),
-        HAZARD_SPAWN_MIN_SEPARATION
+        HAZARD_SPAWN_MIN_SEPARATION,
+        context.rng
       )
     });
   }
@@ -149,11 +153,15 @@ export class DoubleLaneArcHazard implements HazardPattern {
   }
 
   start(context: HazardPatternStartContext): void {
-    this.laneIndices = pickLaneSet(DOUBLE_LANE_COUNT);
+    this.laneIndices = pickLaneSet(DOUBLE_LANE_COUNT, context.rng);
     const disallowedAngles = this.laneIndices.flatMap((laneIndex) =>
       getDisallowedAnglesForLane(context, laneIndex)
     );
-    this.angle = randomAngleAvoiding(disallowedAngles, HAZARD_SPAWN_MIN_SEPARATION);
+    this.angle = randomAngleAvoiding(
+      disallowedAngles,
+      HAZARD_SPAWN_MIN_SEPARATION,
+      context.rng
+    );
 
     this.arcs.forEach((arc, index) => {
       arc.start({
@@ -361,13 +369,14 @@ export class SweeperHazard extends TimedHazardPattern {
   }
 
   start(context: HazardPatternStartContext): void {
-    this.laneIndex = randomLaneIndex();
+    this.laneIndex = randomLaneIndex(context.rng);
     this.startAngle = randomAngleAvoiding(
       getDisallowedAnglesForLane(context, this.laneIndex),
-      HAZARD_SPAWN_MIN_SEPARATION
+      HAZARD_SPAWN_MIN_SEPARATION,
+      context.rng
     );
     this.angle = this.startAngle;
-    this.direction = Math.random() < 0.5 ? -1 : 1;
+    this.direction = context.rng.next() < 0.5 ? -1 : 1;
     this.debugLaneIndex = this.laneIndex;
     this.debugLaneIndices = [this.laneIndex];
     this.debugAngle = this.angle;
@@ -450,12 +459,13 @@ export class GateHazard extends TimedHazardPattern {
   }
 
   start(context: HazardPatternStartContext): void {
-    this.laneIndex = randomLaneIndex();
+    this.laneIndex = randomLaneIndex(context.rng);
     this.gapAngle = isNearLane(context.playerRadius, this.laneIndex, 0.8)
-      ? wrapAngle(context.playerAngle + (Math.random() - 0.5) * 0.24)
+      ? wrapAngle(context.playerAngle + context.rng.range(-0.12, 0.12))
       : randomAngleAvoiding(
           getDisallowedAnglesForLane(context, this.laneIndex),
-          GATE_SAFE_GAP_WIDTH
+          GATE_SAFE_GAP_WIDTH,
+          context.rng
         );
     this.debugLaneIndex = this.laneIndex;
     this.debugLaneIndices = [this.laneIndex];
@@ -537,10 +547,11 @@ export class PulseMineHazard extends TimedHazardPattern {
   }
 
   start(context: HazardPatternStartContext): void {
-    this.laneIndex = randomLaneIndex();
+    this.laneIndex = randomLaneIndex(context.rng);
     this.angle = randomAngleAvoiding(
       getDisallowedAnglesForLane(context, this.laneIndex),
-      HAZARD_SPAWN_MIN_SEPARATION
+      HAZARD_SPAWN_MIN_SEPARATION,
+      context.rng
     );
     this.debugLaneIndex = this.laneIndex;
     this.debugLaneIndices = [this.laneIndex];
@@ -620,13 +631,14 @@ export class DebrisShowerHazard extends TimedHazardPattern {
   }
 
   start(context: HazardPatternStartContext): void {
-    this.laneIndex = randomLaneIndex();
+    this.laneIndex = randomLaneIndex(context.rng);
     this.centerAngle = randomAngleAvoiding(
       getDisallowedAnglesForLane(context, this.laneIndex),
-      DEBRIS_SHOWER_ARC_WIDTH
+      DEBRIS_SHOWER_ARC_WIDTH,
+      context.rng
     );
-    this.radialDirection = Math.random() < 0.5 ? -1 : 1;
-    this.shardAngles = this.createShardAngles();
+    this.radialDirection = context.rng.next() < 0.5 ? -1 : 1;
+    this.shardAngles = this.createShardAngles(context.rng);
     this.shardRadii = new Array(DEBRIS_SHARD_COUNT).fill(ORBIT_LANES[this.laneIndex]);
     this.debugLaneIndex = this.laneIndex;
     this.debugLaneIndices = [this.laneIndex];
@@ -699,25 +711,25 @@ export class DebrisShowerHazard extends TimedHazardPattern {
     });
   }
 
-  private createShardAngles(): number[] {
+  private createShardAngles(rng: RandomSource): number[] {
     const step = DEBRIS_SHOWER_ARC_WIDTH / (DEBRIS_SHARD_COUNT + 1);
     const firstAngle = this.centerAngle - DEBRIS_SHOWER_ARC_WIDTH * 0.5 + step;
 
     return Array.from({ length: DEBRIS_SHARD_COUNT }, (_, index) =>
-      wrapAngle(firstAngle + step * index + (Math.random() - 0.5) * 0.08)
+      wrapAngle(firstAngle + step * index + (rng.next() - 0.5) * 0.08)
     );
   }
 }
 
-function randomLaneIndex(): number {
-  return Math.floor(Math.random() * ORBIT_LANES.length);
+function randomLaneIndex(rng: RandomSource): number {
+  return Math.floor(rng.next() * ORBIT_LANES.length);
 }
 
-function pickLaneSet(count: number): number[] {
+function pickLaneSet(count: number, rng: RandomSource): number[] {
   const lanes = ORBIT_LANES.map((_, index) => index);
 
   for (let index = lanes.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const swapIndex = Math.floor(rng.next() * (index + 1));
     [lanes[index], lanes[swapIndex]] = [lanes[swapIndex], lanes[index]];
   }
 
