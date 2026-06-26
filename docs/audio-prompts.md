@@ -1,87 +1,89 @@
 # Audio Prompts
 
-These prompts are for generating optional static audio files outside the game. The game must continue to run without these files because procedural Web Audio fallbacks are built in.
+These are the final prompts used to generate the committed static audio files. Generation happened offline with ElevenLabs APIs. The game never calls ElevenLabs from browser code and must continue to run without these files because procedural Web Audio fallbacks are built in.
 
-Do not call ElevenLabs or any other external audio service from browser code. Do not commit API keys. Add provenance for any committed audio file in `public/audio/AUDIO_CREDITS.md`.
+Never put `ELEVENLABS_API_KEY` in browser code, manifests, logs, or committed docs.
 
 ## SFX Prompts
 
-### collect-junk.mp3
+Generated with ElevenLabs Text to Sound Effects API, `eleven_text_to_sound_v2`.
 
-Short bright sci-fi arcade pickup chime, tiny metallic sparkle, 0.35 seconds, no voice, no music bed.
+### `public/audio/sfx/collect-junk.mp3`
 
-### combo-up.mp3
+Short bright sci-fi arcade pickup chime, tiny metallic sparkle, satisfying cleanup collection, compact game sound effect, no voice, no music bed.
 
-Rising retro-futuristic synth arpeggio for a combo multiplier increase, 0.7 seconds, bright but not loud, no voice.
+### `public/audio/sfx/combo-up.mp3`
 
-### lane-switch.mp3
+Rising retro-futuristic synth arpeggio for a combo multiplier increase, bright arcade reward, energetic but not loud, no voice.
 
-Soft spaceship lane-switch servo whoosh, clean pneumatic motion, 0.25 seconds, no harsh transient, no voice.
+### `public/audio/sfx/lane-switch.mp3`
 
-### boost-start.mp3
+Soft spaceship lane-switch servo whoosh, clean pneumatic motion, quick orbital lane change feedback, no harsh transient, no voice.
 
-Compact spacecraft boost ignition, low synth thrust rising quickly into motion, 0.45 seconds, modest volume, no explosion, no voice.
+### `public/audio/sfx/boost-start.mp3`
 
-### boost-loop.mp3
+Compact spacecraft boost ignition, low synth thrust rising quickly into motion, polished arcade spaceship sound, modest volume, no explosion, no voice.
 
-Seamless quiet spacecraft boost loop, low pulsing synthetic engine, 1 second loop, stable volume, no melody, no clicks at loop point.
+### `public/audio/sfx/boost-loop.mp3`
 
-### boost-end.mp3
+Seamless quiet spacecraft boost loop, low pulsing synthetic engine, stable volume, no melody, no clicks at loop point, no voice.
 
-Short boost power-down chirp, descending soft sci-fi synth, 0.3 seconds, clean arcade feedback, no voice.
+### `public/audio/sfx/boost-end.mp3`
 
-### hazard-warning.mp3
+Short boost power-down chirp, descending soft sci-fi synth, clean arcade feedback, no voice.
 
-Urgent sci-fi proximity warning pulse, arcade hazard telegraph, 0.8 seconds, orange-alert character, no voice.
+### `public/audio/sfx/hazard-warning.mp3`
 
-### hazard-active.mp3
+Urgent sci-fi proximity warning pulse, arcade hazard telegraph, orange-alert character, readable but not painful, no voice.
 
-Brief hazard activation zap, red alert energy burst, 0.45 seconds, sharper than warning but not painfully loud, no voice.
+### `public/audio/sfx/hazard-active.mp3`
 
-### shield-break.mp3
+Brief hazard activation zap, red alert energy burst, sharper and more dangerous than the warning pulse, not painfully loud, no voice.
 
-Crystalline energy shield shatter, airy glassy burst with small electrical snap, 0.8 seconds, protective but alarming, no voice.
+### `public/audio/sfx/shield-break.mp3`
 
-### impact.mp3
+Crystalline energy shield shatter, airy glassy burst with small electrical snap, protective but alarming arcade impact, no voice.
 
-Crunchy metallic collision with glassy energy burst and small explosion, 1.1 seconds, no long cinematic tail, no voice.
+### `public/audio/sfx/impact.mp3`
 
-### objective-complete.mp3
+Crunchy metallic collision with glassy energy burst and small explosion, arcade spaceship crash, short tail, no voice.
 
-Positive objective complete flourish, compact three-note sci-fi success chime, 0.9 seconds, bright and satisfying, no voice.
+### `public/audio/sfx/objective-complete.mp3`
 
-### ui-start.mp3
+Positive objective complete flourish, compact three-note sci-fi success chime, bright and satisfying arcade reward, no voice.
 
-Title start confirmation sound, confident rising synth button press, 0.35 seconds, polished arcade UI style, no voice.
+### `public/audio/sfx/ui-start.mp3`
 
-### ui-select.mp3
+Title start confirmation sound, confident rising synth button press, polished sci-fi arcade UI style, no voice.
 
-Tiny settings toggle click, clean digital tick with slight pitch lift, 0.2 seconds, low volume, no voice.
+### `public/audio/sfx/ui-select.mp3`
+
+Tiny settings toggle click, clean digital tick with slight pitch lift, low volume sci-fi UI sound, no voice.
 
 ## Music Prompts
 
-Generate these offline with ElevenLabs or another licensed source. Commit only final audio files with provenance in `public/audio/AUDIO_CREDITS.md`. Never put `ELEVENLABS_API_KEY` in browser code.
+Generated with ElevenLabs Music API, `music_v1`, with instrumental output.
 
-### orbit-janitor-main-loop.mp3
+### `public/audio/music/orbit-janitor-main-loop.mp3`
 
-Instrumental only, 60-second seamless sci-fi arcade loop, optimistic synthwave, light percussion, shimmering arpeggios, no vocals.
+Instrumental only, 60-second seamless sci-fi arcade loop for Orbit Janitor, a space cleanup arcade game. Epic space opera energy with heroic orchestral-synth brass, soaring string-like pads, shimmering arpeggios, steady adventurous percussion, optimistic starfighter momentum. Original melody only, no copyrighted themes, no vocals.
 
-### title-ambient-loop.mp3
+### `public/audio/music/title-ambient-loop.mp3`
 
-Instrumental only, 60-second seamless deep-space title ambient loop, warm analog pads, distant orbital shimmer, calm anticipation, no percussion, no vocals.
+Instrumental only, 60-second seamless deep-space title ambient loop for Orbit Janitor. Warm analog pads, distant orbital shimmer, calm anticipation before launch, subtle cinematic space atmosphere, no percussion, no vocals, original melody only.
 
-### sector-drive-loop.mp3
+### `public/audio/music/sector-drive-loop.mp3`
 
-Instrumental only, 60-second seamless epic sci-fi arcade sector loop, driving but clean synth pulse, heroic low brass-like synths, light percussion, shimmering arpeggios, no vocals.
+Instrumental only, 60-second seamless epic sci-fi arcade sector loop for Orbit Janitor. Heroic space opera adventure, bold orchestral-synth brass, driving but clean synth pulse, light cinematic percussion, shimmering arpeggios, starfighter chase energy. Original melody only, no copyrighted themes, no vocals.
 
-### danger-layer-loop.mp3
+### `public/audio/music/danger-layer-loop.mp3`
 
-Instrumental only, 30-second seamless danger intensity layer, tense pulsing low synth, subtle alarm rhythm, designed to layer over existing music, no melody lead, no vocals.
+Instrumental only, 30-second seamless danger intensity layer for Orbit Janitor. Tense pulsing low synth, subtle alarm rhythm, dark space hazard pressure, designed to layer under heroic sector music, minimal lead melody, no vocals.
 
-### mission-complete-stinger.mp3
+### `public/audio/music/mission-complete-stinger.mp3`
 
-Short epic sci-fi mission complete stinger, bright victorious synth brass and sparkling arpeggio, 2.5 seconds, clean ending, no vocals.
+Instrumental only, short epic sci-fi mission complete stinger for Orbit Janitor. Bright victorious synth brass, sparkling arpeggio, clean ending, optimistic arcade success, original melody only, no vocals.
 
-### game-over-stinger.mp3
+### `public/audio/music/game-over-stinger.mp3`
 
-Short sci-fi arcade game over stinger, dramatic descending synth brass with low impact tail, 2.5 seconds, not horror, no vocals.
+Instrumental only, short sci-fi arcade game over stinger for Orbit Janitor. Dramatic descending synth brass, low impact tail, tense but not horror, clean ending, original melody only, no vocals.

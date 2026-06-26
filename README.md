@@ -88,11 +88,11 @@ npm run preview
 
 ## Audio Assets
 
-The game works with no audio files present. `AudioManager` attempts to load optional static MP3 files from `public/audio`, while `MusicDirector` layers title ambience, sector drive music, danger intensity, and stingers. Missing or undecodable files fall back to procedural Web Audio.
+The game works with no audio files present. `AudioManager` attempts to load static MP3 files from `public/audio`, while `MusicDirector` layers title ambience, sector drive music, danger intensity, and stingers. Missing or undecodable files fall back to procedural Web Audio.
 
-Expected optional file paths are documented in `public/audio/AUDIO_CREDITS.md`. Prompt ideas for generating those files are in `docs/audio-prompts.md`.
+Committed audio file provenance is documented in `public/audio/AUDIO_CREDITS.md`. The final prompts used for generation are in `docs/audio-prompts.md`.
 
-ElevenLabs-generated assets can be placed in `public/audio` after generation outside the browser runtime, but they are not required. No ElevenLabs API key should be committed, referenced in browser code, or shipped to the client.
+ElevenLabs-generated assets live in `public/audio` after generation outside the browser runtime, but they are not required for the game to run. No ElevenLabs API key should be committed, referenced in browser code, or shipped to the client.
 
 ## GitHub Pages Deployment
 
