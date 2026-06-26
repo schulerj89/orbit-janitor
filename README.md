@@ -58,7 +58,8 @@ npm run preview
 - Lightweight procedural audio with Web Audio after first input
 - Optional static SFX and music files under `public/audio`
 - Dynamic obstacle pacing as score increases
-- Timed lane hazard telegraphs that warn before becoming dangerous
+- Timed hazard telegraphs that warn before becoming dangerous
+- Hazard patterns include lane arcs, double lane arcs, sweepers, gate gaps, pulse mines, and debris showers
 - Objective target: reach 50 cleanup points
 - Run timer with objective and hazard status feedback
 
@@ -85,8 +86,8 @@ ElevenLabs-generated assets can be placed in `public/audio` after generation out
 ## Roadmap
 
 1. Daily/random challenge seeds
-2. More hazard patterns
-3. Additional title and summary polish
-4. More audio variation
-5. TSL atmosphere and shield effects
-6. Additional upgrade choices and run modifiers
+2. Additional title and summary polish
+3. More audio variation
+4. TSL atmosphere and shield effects
+5. Additional upgrade choices and run modifiers
+6. Challenge-specific hazard mixes

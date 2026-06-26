@@ -1,17 +1,24 @@
 import * as THREE from 'three/webgpu';
 import {
-  HAZARD_ARC_WIDTH_RADIANS,
   HAZARD_BASE_INTERVAL,
   HAZARD_FIRST_SPAWN_TIME,
-  HAZARD_MIN_INTERVAL,
-  ORBIT_LANES
+  HAZARD_MIN_INTERVAL
 } from '../constants';
 import { PlanetPulseHazard } from '../entities/PlanetPulseHazard';
-import { HazardTelegraph } from '../entities/HazardTelegraph';
-import { randomAngleAvoiding } from '../math';
+import {
+  DebrisShowerHazard,
+  DoubleLaneArcHazard,
+  GateHazard,
+  LaneArcHazard,
+  PulseMineHazard,
+  SweeperHazard,
+  type HazardPattern,
+  type HazardPatternType
+} from './HazardTypes';
 
 export interface HazardDirectorContext {
   score: number;
+  runTime: number;
   playerAngle: number;
   playerRadius: number;
   junkAngle: number;
@@ -27,18 +34,25 @@ export interface HazardDirectorResult {
 }
 
 export interface HazardDirectorDebugState {
+  type: HazardPatternType | 'none';
   phase: string;
   laneIndex: number | null;
+  laneIndices: number[];
   angle: number | null;
   nextSpawnIn: number;
 }
 
-const HAZARD_SPAWN_MIN_SEPARATION = HAZARD_ARC_WIDTH_RADIANS + 0.45;
-
 export class HazardDirector {
   readonly group = new THREE.Group();
 
-  private readonly hazards: HazardTelegraph[] = [new HazardTelegraph()];
+  private readonly hazards: HazardPattern[] = [
+    new LaneArcHazard(),
+    new DoubleLaneArcHazard(),
+    new PulseMineHazard(),
+    new SweeperHazard(),
+    new GateHazard(),
+    new DebrisShowerHazard()
+  ];
   private readonly pulse = new PlanetPulseHazard();
   private spawnTimer = HAZARD_FIRST_SPAWN_TIME;
 
@@ -89,32 +103,21 @@ export class HazardDirector {
 
   getDebugState(): HazardDirectorDebugState {
     const hazard = this.getActiveHazard();
+    const hazardDebug = hazard?.getDebugState();
 
     return {
+      type: hazard?.type ?? 'none',
       phase: hazard?.phase ?? 'idle',
-      laneIndex: hazard ? hazard.laneIndex : null,
-      angle: hazard ? hazard.angle : null,
+      laneIndex: hazardDebug?.laneIndex ?? null,
+      laneIndices: hazardDebug?.laneIndices ?? [],
+      angle: hazardDebug?.angle ?? null,
       nextSpawnIn: this.spawnTimer
     };
   }
 
   private spawnHazard(context: HazardDirectorContext): void {
-    const hazard = this.hazards[0];
-    const laneIndex = Math.floor(Math.random() * ORBIT_LANES.length);
-    const disallowedAngles: number[] = [];
-
-    if (Math.abs(context.playerRadius - ORBIT_LANES[laneIndex]) <= 0.8) {
-      disallowedAngles.push(context.playerAngle);
-    }
-
-    if (context.junkLaneIndex === laneIndex) {
-      disallowedAngles.push(context.junkAngle);
-    }
-
-    hazard.start({
-      laneIndex,
-      angle: randomAngleAvoiding(disallowedAngles, HAZARD_SPAWN_MIN_SEPARATION)
-    });
+    const hazard = this.pickHazard(context);
+    hazard.start(context);
 
     this.spawnTimer = this.getNextInterval(context.score);
   }
@@ -126,8 +129,46 @@ export class HazardDirector {
     );
   }
 
-  private getActiveHazard(): HazardTelegraph | undefined {
+  private getActiveHazard(): HazardPattern | undefined {
     return this.hazards.find((hazard) => hazard.phase !== 'idle');
+  }
+
+  private pickHazard(context: HazardDirectorContext): HazardPattern {
+    const availableHazards = this.getAvailableHazards(context);
+    const hazardIndex = Math.floor(Math.random() * availableHazards.length);
+
+    return availableHazards[hazardIndex];
+  }
+
+  private getAvailableHazards(context: HazardDirectorContext): HazardPattern[] {
+    const hazards = [this.getHazardByType('laneArc')];
+
+    if (context.score >= 10 || context.runTime >= 30) {
+      hazards.push(
+        this.getHazardByType('doubleLaneArc'),
+        this.getHazardByType('pulseMine')
+      );
+    }
+
+    if (context.score >= 20 || context.runTime >= 55) {
+      hazards.push(this.getHazardByType('sweeper'), this.getHazardByType('gate'));
+    }
+
+    if (context.score >= 30 || context.runTime >= 75) {
+      hazards.push(this.getHazardByType('debrisShower'));
+    }
+
+    return hazards;
+  }
+
+  private getHazardByType(type: HazardPatternType): HazardPattern {
+    const hazard = this.hazards.find((candidate) => candidate.type === type);
+
+    if (!hazard) {
+      throw new Error(`Missing hazard pattern: ${type}`);
+    }
+
+    return hazard;
   }
 
   private getCurrentResult(hit: boolean, completed = false): HazardDirectorResult {

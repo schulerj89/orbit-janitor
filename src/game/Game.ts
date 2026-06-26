@@ -280,6 +280,7 @@ export class Game {
       const wasHazardActive = this.hazardActive;
       const hazardResult = this.hazardDirector.update(delta, {
         score: this.score,
+        runTime: this.runTime,
         playerAngle: this.player.angle,
         playerRadius: this.player.currentRadius,
         junkAngle: this.junk.angle,
@@ -309,6 +310,7 @@ export class Game {
     } else if (isGameOver) {
       this.hazardDirector.update(delta, {
         score: this.score,
+        runTime: this.runTime,
         playerAngle: this.player.angle,
         playerRadius: this.player.currentRadius,
         junkAngle: this.junk.angle,
@@ -848,7 +850,9 @@ export class Game {
       .map((obstacle) => `${obstacle.laneIndex}:${obstacle.angle.toFixed(4)}`)
       .join(',');
     const hazard = this.hazardDirector.getDebugState();
+    this.canvas.dataset.hazardType = hazard.type;
     this.canvas.dataset.hazardPhase = hazard.phase;
+    this.canvas.dataset.hazardLanes = hazard.laneIndices.join(',');
     this.canvas.dataset.hazardLane =
       hazard.laneIndex === null ? '' : String(hazard.laneIndex);
     this.canvas.dataset.hazardAngle =
