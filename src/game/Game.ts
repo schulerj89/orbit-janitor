@@ -29,11 +29,21 @@ import { PlayerShip } from './entities/PlayerShip';
 import { Starfield } from './entities/Starfield';
 import { ChallengeMode, type ChallengeRunMode } from './systems/ChallengeMode';
 import { HazardDirector, type HazardDirectorDebugState } from './systems/HazardDirector';
+import { MissionDirector } from './systems/MissionDirector';
 import { RunStats, type RunStatsSnapshot } from './systems/RunStats';
+import {
+  DEFAULT_SECTOR_ID,
+  TRAINING_SECTOR_ID,
+  getSectorById,
+  type SectorConfig
+} from './systems/SectorConfig';
+import { SectorProgress, type SectorProgressSnapshot } from './systems/SectorProgress';
 import { SeededRandom } from './systems/SeededRandom';
 import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
 import { Hud, type GameState } from './ui/Hud';
+import { MissionCompleteOverlay } from './ui/MissionCompleteOverlay';
 import { RunSummary } from './ui/RunSummary';
+import { SectorSelectOverlay } from './ui/SectorSelectOverlay';
 import { TitleOverlay } from './ui/TitleOverlay';
 import { UpgradePanel } from './ui/UpgradePanel';
 
@@ -61,6 +71,10 @@ interface OrbitJanitorDebugState {
   runLabel: string;
   runSeed: string;
   dailyBestScore: number;
+  sectorId: string;
+  sectorName: string;
+  missionProgress: string;
+  sectorProgress: SectorProgressSnapshot;
   scrap: number;
   shieldCharges: number;
   musicEnabled: boolean;
@@ -108,6 +122,8 @@ export class Game {
   private readonly runStats = new RunStats(RUN_OBJECTIVE_TARGET_SCORE);
   private readonly upgrades = new UpgradeSystem();
   private readonly challengeMode = new ChallengeMode();
+  private readonly missionDirector = new MissionDirector();
+  private readonly sectorProgress = new SectorProgress();
   private readonly baseCameraPosition = new THREE.Vector3();
   private readonly shakenCameraPosition = new THREE.Vector3();
   private readonly playerPosition = new THREE.Vector3();
@@ -117,6 +133,8 @@ export class Game {
   private renderer!: THREE.WebGPURenderer;
   private hud!: Hud;
   private titleOverlay!: TitleOverlay;
+  private sectorSelectOverlay!: SectorSelectOverlay;
+  private missionCompleteOverlay!: MissionCompleteOverlay;
   private runSummary!: RunSummary;
   private upgradePanel!: UpgradePanel;
   private orbitLanes!: OrbitLanes;
@@ -147,6 +165,8 @@ export class Game {
   private objectiveAnnounced = false;
   private gameOverReason = 'Impact detected';
   private runRng = new SeededRandom('title');
+  private selectedSectorId = DEFAULT_SECTOR_ID;
+  private newlyUnlockedSectorName: string | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -164,6 +184,8 @@ export class Game {
     const hudRoot = getHudRoot();
     this.hud = new Hud(hudRoot);
     this.titleOverlay = new TitleOverlay(hudRoot);
+    this.sectorSelectOverlay = new SectorSelectOverlay(hudRoot);
+    this.missionCompleteOverlay = new MissionCompleteOverlay(hudRoot);
     this.runSummary = new RunSummary(hudRoot);
     this.upgradePanel = new UpgradePanel(hudRoot);
 
@@ -229,7 +251,10 @@ export class Game {
       this.audio.playUiSelect();
     }
 
-    const canUseUpgradePanel = this.state === 'title' || this.state === 'gameover';
+    const canUseUpgradePanel =
+      this.state === 'title' ||
+      this.state === 'gameover' ||
+      this.state === 'missionComplete';
     if (input.upgradeTogglePressed && canUseUpgradePanel) {
       this.upgradePanelOpen = !this.upgradePanelOpen;
       this.audio.playUiSelect();
@@ -244,11 +269,13 @@ export class Game {
       this.audio.playUiSelect();
     }
 
-    const requestedStartMode = this.getRequestedStartMode(input);
     let consumedStartInput = false;
-    if (this.state === 'title' && requestedStartMode !== null) {
-      consumedStartInput = true;
-      this.startRun(requestedStartMode);
+    if (this.state === 'title') {
+      consumedStartInput = this.handleTitleInput(input);
+    } else if (this.state === 'sectorSelect') {
+      consumedStartInput = this.handleSectorSelectInput(input);
+    } else if (this.state === 'missionComplete') {
+      consumedStartInput = this.handleMissionCompleteInput(input);
     }
 
     if (input.restartPressed && this.state === 'gameover') {
@@ -288,37 +315,49 @@ export class Game {
       this.runTime += delta;
       this.updateCombo(delta);
       this.updateObstacles(delta);
-      const wasHazardWarning = this.hazardWarning;
-      const wasHazardActive = this.hazardActive;
-      const hazardResult = this.hazardDirector.update(delta, {
-        score: this.score,
-        runTime: this.runTime,
-        playerAngle: this.player.angle,
-        playerRadius: this.player.currentRadius,
-        junkAngle: this.junk.angle,
-        junkLaneIndex: this.junk.laneIndex,
-        rng: this.runRng,
-        isGameOver
-      });
-      this.hazardWarning = hazardResult.warning;
-      this.hazardActive = hazardResult.active;
+      this.syncRunStats();
 
-      if (hazardResult.warning && !wasHazardWarning) {
-        this.audio.playHazardWarning();
-      }
+      if (!this.tryCompleteMission()) {
+        const difficulty = this.missionDirector.getDifficulty();
+        const wasHazardWarning = this.hazardWarning;
+        const wasHazardActive = this.hazardActive;
+        const hazardResult = this.hazardDirector.update(delta, {
+          score: this.score,
+          runTime: this.runTime,
+          playerAngle: this.player.angle,
+          playerRadius: this.player.currentRadius,
+          junkAngle: this.junk.angle,
+          junkLaneIndex: this.junk.laneIndex,
+          rng: this.runRng,
+          hazardIntensity: difficulty.hazardIntensity,
+          allowedHazardTypes: difficulty.allowedHazardTypes,
+          isGameOver
+        });
+        this.hazardWarning = hazardResult.warning;
+        this.hazardActive = hazardResult.active;
 
-      if (hazardResult.active && !wasHazardActive) {
-        this.audio.playHazardActive();
-      }
+        if (hazardResult.warning && !wasHazardWarning) {
+          this.audio.playHazardWarning();
+        }
 
-      if (hazardResult.completed) {
-        this.runStats.recordHazardSurvived();
-      }
+        if (hazardResult.active && !wasHazardActive) {
+          this.audio.playHazardActive();
+        }
 
-      if (hazardResult.hit) {
-        this.handlePlayerHit('Destroyed by lane hazard');
-      } else {
-        this.checkCollisions();
+        if (hazardResult.completed) {
+          this.runStats.recordHazardSurvived();
+          this.syncRunStats();
+        }
+
+        if (this.tryCompleteMission()) {
+          // Mission completion takes priority over any later collision checks.
+        } else if (hazardResult.hit) {
+          this.handlePlayerHit('Destroyed by lane hazard');
+        } else {
+          this.checkCollisions();
+          this.syncRunStats();
+          this.tryCompleteMission();
+        }
       }
     } else if (isGameOver) {
       this.hazardDirector.update(delta, {
@@ -432,6 +471,10 @@ export class Game {
       PLAYER_COLLISION_RADIUS + this.currentJunkCollisionRadius
     ) {
       this.collectJunk();
+
+      if (this.tryCompleteMission()) {
+        return;
+      }
     }
 
     for (const obstacle of this.obstacles) {
@@ -448,7 +491,6 @@ export class Game {
   }
 
   private collectJunk(): void {
-    const previousScore = this.score;
     const previousMultiplier = this.comboMultiplier;
 
     if (this.comboTimer > 0) {
@@ -471,15 +513,6 @@ export class Game {
 
     this.runStats.recordJunkCollected();
     this.syncRunStats();
-
-    if (
-      !this.objectiveAnnounced &&
-      previousScore < RUN_OBJECTIVE_TARGET_SCORE &&
-      this.score >= RUN_OBJECTIVE_TARGET_SCORE
-    ) {
-      this.objectiveAnnounced = true;
-      this.audio.playObjectiveComplete();
-    }
 
     this.particles.emit(this.junk.getPosition(this.junkPosition), 0xffb43a, 12);
     this.screenShake.add(0.035);
@@ -528,8 +561,37 @@ export class Game {
     this.screenShake.add(0.22);
   }
 
+  private triggerMissionComplete(): void {
+    if (this.state !== 'playing') {
+      return;
+    }
+
+    this.state = 'missionComplete';
+    this.hazardWarning = false;
+    this.hazardActive = false;
+    this.syncRunStats();
+    this.runStats.complete('Mission complete');
+    this.challengeMode.completeRun(this.runStats.getSnapshot().finalScore);
+
+    const unlockedSectorId = this.sectorProgress.completeSector(
+      this.missionDirector.getCurrentSector().id
+    );
+    this.newlyUnlockedSectorName =
+      unlockedSectorId === null ? null : getSectorById(unlockedSectorId).name;
+
+    this.upgrades.awardRunScrap(this.runStats.getSnapshot());
+    this.audio.playObjectiveComplete();
+    this.audio.playBoostLoopStop();
+    this.audio.stopMusic();
+    this.hazardDirector.reset();
+    this.particles.emit(this.player.getPosition(this.playerPosition), 0xffe06b, 24, true);
+    this.screenShake.add(0.08);
+  }
+
   private prepareTitle(): void {
     this.challengeMode.prepareTitle();
+    this.missionDirector.setSector(this.sectorProgress.getDefaultSectorId());
+    this.selectedSectorId = this.missionDirector.getCurrentSector().id;
     this.runRng = new SeededRandom(this.challengeMode.getSnapshot().titleSeed);
     this.resetRunState();
     this.state = 'title';
@@ -539,11 +601,17 @@ export class Game {
     this.syncDebugAttributes();
   }
 
-  private startRun(mode: ChallengeRunMode): void {
-    if (this.state !== 'title') {
+  private startRun(mode: ChallengeRunMode, sectorId = this.selectedSectorId): void {
+    if (
+      this.state !== 'title' &&
+      this.state !== 'sectorSelect' &&
+      this.state !== 'missionComplete'
+    ) {
       return;
     }
 
+    this.missionDirector.setSector(sectorId);
+    this.selectedSectorId = sectorId;
     const run =
       mode === 'daily'
         ? this.challengeMode.startDailyChallenge()
@@ -561,6 +629,9 @@ export class Game {
   }
 
   private restart(): void {
+    const sectorId = this.missionDirector.getCurrentSector().id;
+    this.missionDirector.setSector(sectorId);
+    this.selectedSectorId = sectorId;
     const run = this.challengeMode.restartCurrentRun();
     this.runRng = new SeededRandom(run.seed);
     this.resetRunState();
@@ -595,6 +666,7 @@ export class Game {
     this.hazardWarning = false;
     this.hazardActive = false;
     this.objectiveAnnounced = false;
+    this.newlyUnlockedSectorName = null;
     this.gameOverReason = 'Impact detected';
     this.audio.stopAll();
     this.runStats.reset();
@@ -615,7 +687,14 @@ export class Game {
     }
 
     this.obstacles.length = 0;
-    STARTING_OBSTACLES.forEach((config) => this.createObstacle(config));
+    const startingObstacleCount =
+      this.missionDirector.getDifficulty().startingObstacleCount;
+
+    for (let index = 0; index < startingObstacleCount; index += 1) {
+      this.createObstacle(
+        STARTING_OBSTACLES[index] ?? this.createSafeObstacleConfig(index)
+      );
+    }
   }
 
   private ensureObstacleCount(): void {
@@ -627,15 +706,23 @@ export class Game {
   }
 
   private getDesiredObstacleCount(): number {
-    if (this.score >= 25) {
-      return 4;
-    }
+    const sector = this.missionDirector.getCurrentSector();
+    const difficulty = this.missionDirector.getDifficulty();
+    let desiredCount = difficulty.startingObstacleCount;
 
     if (this.score >= 10) {
-      return 3;
+      desiredCount += 1;
     }
 
-    return 2;
+    if (this.score >= 25) {
+      desiredCount += 1;
+    }
+
+    if (sector.isEndless && this.score >= 50) {
+      desiredCount += 1;
+    }
+
+    return Math.min(difficulty.maxObstacleCount, desiredCount);
   }
 
   private createObstacle(config: ObstacleConfig): void {
@@ -710,7 +797,8 @@ export class Game {
       this.player.angle,
       this.player.targetLaneIndex,
       this.getObstacleLaneAngles(),
-      this.runRng
+      this.runRng,
+      this.missionDirector.getDifficulty().junkLaneWeights
     );
   }
 
@@ -721,20 +809,127 @@ export class Game {
     }));
   }
 
-  private getRequestedStartMode(input: InputState): ChallengeRunMode | null {
-    if (input.dailyStartPressed) {
-      return 'daily';
+  private handleTitleInput(input: InputState): boolean {
+    if (input.sectorSelectPressed) {
+      this.openSectorSelect();
+      return true;
+    }
+
+    if (input.tutorialStartPressed) {
+      this.startRun('normal', TRAINING_SECTOR_ID);
+      return true;
     }
 
     if (input.seededStartPressed) {
-      return 'seeded';
+      this.startRun('seeded', this.sectorProgress.getDefaultSectorId());
+      return true;
+    }
+
+    if (input.dailyStartPressed) {
+      this.startRun('daily', this.sectorProgress.getDefaultSectorId());
+      return true;
     }
 
     if (input.startPressed) {
-      return 'normal';
+      this.startRun('normal', this.sectorProgress.getDefaultSectorId());
+      return true;
     }
 
-    return null;
+    return false;
+  }
+
+  private handleSectorSelectInput(input: InputState): boolean {
+    if (input.escapePressed) {
+      this.prepareTitle();
+      return true;
+    }
+
+    if (input.laneUpPressed) {
+      this.selectSector(-1);
+      return true;
+    }
+
+    if (input.laneDownPressed) {
+      this.selectSector(1);
+      return true;
+    }
+
+    if (input.startPressed) {
+      if (this.sectorProgress.isUnlocked(this.selectedSectorId)) {
+        this.startRun('normal', this.selectedSectorId);
+      } else {
+        this.audio.playUiSelect();
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  private handleMissionCompleteInput(input: InputState): boolean {
+    if (input.escapePressed) {
+      this.prepareTitle();
+      return true;
+    }
+
+    if (input.sectorSelectPressed) {
+      this.openSectorSelect();
+      return true;
+    }
+
+    if (input.restartPressed) {
+      this.restart();
+      return true;
+    }
+
+    if (input.startPressed) {
+      const nextSectorId = this.sectorProgress.getNextPlayableSectorId(
+        this.missionDirector.getCurrentSector().id
+      );
+      this.startRun('normal', nextSectorId);
+      return true;
+    }
+
+    return false;
+  }
+
+  private openSectorSelect(): void {
+    this.state = 'sectorSelect';
+    this.upgradePanelOpen = false;
+    this.selectedSectorId = this.sectorProgress.isUnlocked(this.selectedSectorId)
+      ? this.selectedSectorId
+      : this.sectorProgress.getDefaultSectorId();
+    this.audio.playUiSelect();
+    this.audio.playBoostLoopStop();
+    this.audio.stopMusic();
+  }
+
+  private selectSector(direction: number): void {
+    const sectors = this.sectorProgress.getSnapshot().sectors;
+    const currentIndex = Math.max(
+      0,
+      sectors.findIndex((sector) => sector.id === this.selectedSectorId)
+    );
+    const nextIndex = (currentIndex + direction + sectors.length) % sectors.length;
+
+    this.selectedSectorId = sectors[nextIndex].id;
+    this.audio.playUiSelect();
+  }
+
+  private tryCompleteMission(): boolean {
+    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+
+    if (!objective.isComplete || objective.isEndless || this.state !== 'playing') {
+      return false;
+    }
+
+    if (!this.objectiveAnnounced) {
+      this.objectiveAnnounced = true;
+    }
+
+    this.triggerMissionComplete();
+    return true;
   }
 
   private hasPlayerInput(input: InputState): boolean {
@@ -747,9 +942,12 @@ export class Game {
       input.laneUpPressed ||
       input.laneDownPressed ||
       input.startPressed ||
+      input.tutorialStartPressed ||
+      input.sectorSelectPressed ||
       input.dailyStartPressed ||
       input.seededStartPressed ||
       input.restartPressed ||
+      input.escapePressed ||
       input.musicTogglePressed ||
       input.sfxTogglePressed ||
       input.upgradeTogglePressed ||
@@ -764,11 +962,21 @@ export class Game {
       this.comboCount,
       this.comboMultiplier
     );
+    this.runStats.syncProgress(
+      this.score,
+      this.runTime,
+      this.comboCount,
+      this.comboMultiplier,
+      this.missionDirector.getObjective(this.runStats.getSnapshot()).isComplete
+    );
   }
 
   private updateHud(boostEmpty: boolean): void {
     const stats = this.runStats.getSnapshot();
     const challenge = this.challengeMode.getSnapshot();
+    const sector = this.missionDirector.getCurrentSector();
+    const objective = this.missionDirector.getObjective(stats);
+    const sectorProgress = this.sectorProgress.getSnapshot();
 
     this.hud.update({
       score: this.score,
@@ -776,6 +984,9 @@ export class Game {
       runLabel: challenge.label,
       runSeed: challenge.seed,
       dailyBestScore: challenge.dailyBestScore,
+      sectorName: sector.name,
+      objectiveText: objective.text,
+      objectiveProgressText: objective.progressText,
       comboMultiplier: this.comboMultiplier,
       comboTimer: this.comboTimer,
       comboWindow: this.currentComboWindow,
@@ -783,14 +994,28 @@ export class Game {
       boostFuel: this.boostFuel / this.currentBoostFuelMax,
       boostEmpty,
       runTime: this.runTime,
-      objectiveTargetScore: RUN_OBJECTIVE_TARGET_SCORE,
-      objectiveComplete: this.score >= RUN_OBJECTIVE_TARGET_SCORE,
+      objectiveComplete: objective.isComplete && !objective.isEndless,
       hazardWarning: this.hazardWarning,
       shieldCharges: this.shieldCharges,
       shieldBroken: this.shieldBrokenTimer > 0,
       gameOverReason: this.gameOverReason,
       musicEnabled: this.audio.isMusicEnabled(),
       sfxEnabled: this.audio.isSfxEnabled()
+    });
+    this.sectorSelectOverlay.update({
+      state: this.state,
+      sectors: sectorProgress.sectors,
+      selectedSectorId: this.selectedSectorId,
+      upgradePanelOpen: this.upgradePanelOpen
+    });
+    this.missionCompleteOverlay.update({
+      state: this.state,
+      sector,
+      objective,
+      stats,
+      upgrades: this.upgrades.getSnapshot(),
+      newlyUnlockedSectorName: this.newlyUnlockedSectorName,
+      upgradePanelOpen: this.upgradePanelOpen
     });
     this.titleOverlay.update({
       state: this.state,
@@ -810,7 +1035,10 @@ export class Game {
     });
     this.upgradePanel.update({
       isOpen: this.upgradePanelOpen,
-      canShow: this.state === 'title' || this.state === 'gameover',
+      canShow:
+        this.state === 'title' ||
+        this.state === 'gameover' ||
+        this.state === 'missionComplete',
       upgrades: this.upgrades.getSnapshot()
     });
   }
@@ -840,6 +1068,8 @@ export class Game {
 
   private getDebugState(): OrbitJanitorDebugState {
     const challenge = this.challengeMode.getSnapshot();
+    const sector = this.missionDirector.getCurrentSector();
+    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
 
     return {
       sceneId: 'orbit-janitor',
@@ -851,12 +1081,16 @@ export class Game {
       boostFuel: this.boostFuel,
       isBoosting: this.isBoosting,
       runTime: this.runTime,
-      objectiveComplete: this.score >= RUN_OBJECTIVE_TARGET_SCORE,
+      objectiveComplete: objective.isComplete && !objective.isEndless,
       bestScore: this.runStats.getSnapshot().bestScore,
       runMode: challenge.mode,
       runLabel: challenge.label,
       runSeed: challenge.seed,
       dailyBestScore: challenge.dailyBestScore,
+      sectorId: sector.id,
+      sectorName: sector.name,
+      missionProgress: objective.progressText,
+      sectorProgress: this.sectorProgress.getSnapshot(),
       scrap: this.upgrades.getSnapshot().totalScrap,
       shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
@@ -884,6 +1118,8 @@ export class Game {
 
   private syncDebugAttributes(): void {
     const challenge = this.challengeMode.getSnapshot();
+    const sector = this.missionDirector.getCurrentSector();
+    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
 
     this.canvas.dataset.sceneId = 'orbit-janitor';
     this.canvas.dataset.phase = this.state;
@@ -899,13 +1135,20 @@ export class Game {
     this.canvas.dataset.runLabel = challenge.label;
     this.canvas.dataset.runSeed = challenge.seed;
     this.canvas.dataset.dailyBestScore = String(challenge.dailyBestScore);
+    this.canvas.dataset.sectorId = sector.id;
+    this.canvas.dataset.sectorName = sector.name;
+    this.canvas.dataset.missionObjective = objective.text;
+    this.canvas.dataset.missionProgress = objective.progressText;
+    this.canvas.dataset.missionComplete = String(
+      objective.isComplete && !objective.isEndless
+    );
     this.canvas.dataset.scrap = String(this.upgrades.getSnapshot().totalScrap);
     this.canvas.dataset.shieldCharges = String(this.shieldCharges);
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);
     this.canvas.dataset.musicEnabled = String(this.audio.isMusicEnabled());
     this.canvas.dataset.sfxEnabled = String(this.audio.isSfxEnabled());
     this.canvas.dataset.objectiveComplete = String(
-      this.score >= RUN_OBJECTIVE_TARGET_SCORE
+      objective.isComplete && !objective.isEndless
     );
     this.canvas.dataset.playerAngle = this.player.angle.toFixed(4);
     this.canvas.dataset.playerLane = String(this.player.targetLaneIndex);

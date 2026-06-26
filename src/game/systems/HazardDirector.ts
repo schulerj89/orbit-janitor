@@ -25,6 +25,8 @@ export interface HazardDirectorContext {
   junkAngle: number;
   junkLaneIndex: number;
   rng: SeededRandom;
+  hazardIntensity?: number;
+  allowedHazardTypes?: readonly HazardPatternType[];
   isGameOver: boolean;
 }
 
@@ -88,7 +90,9 @@ export class HazardDirector {
     this.spawnTimer -= delta;
 
     if (this.spawnTimer <= 0) {
-      this.spawnHazard(context);
+      this.spawnTimer = this.spawnHazard(context)
+        ? this.getNextInterval(context.score, context.hazardIntensity ?? 1)
+        : this.getNextInterval(context.score, 0.5);
     }
 
     return this.getCurrentResult(false);
@@ -117,18 +121,27 @@ export class HazardDirector {
     };
   }
 
-  private spawnHazard(context: HazardDirectorContext): void {
+  private spawnHazard(context: HazardDirectorContext): boolean {
+    if ((context.hazardIntensity ?? 1) <= 0) {
+      return false;
+    }
+
+    const availableHazards = this.getAvailableHazards(context);
+
+    if (availableHazards.length === 0) {
+      return false;
+    }
+
     const hazard = this.pickHazard(context);
     hazard.start(context);
-
-    this.spawnTimer = this.getNextInterval(context.score);
+    return true;
   }
 
-  private getNextInterval(score: number): number {
-    return Math.max(
-      HAZARD_MIN_INTERVAL,
-      HAZARD_BASE_INTERVAL - Math.min(score / 12, 3.8)
-    );
+  private getNextInterval(score: number, hazardIntensity: number): number {
+    const intensity = Math.max(0.35, hazardIntensity);
+    const baseInterval = HAZARD_BASE_INTERVAL / intensity;
+
+    return Math.max(HAZARD_MIN_INTERVAL, baseInterval - Math.min(score / 12, 3.8));
   }
 
   private getActiveHazard(): HazardPattern | undefined {
@@ -141,6 +154,10 @@ export class HazardDirector {
   }
 
   private getAvailableHazards(context: HazardDirectorContext): HazardPattern[] {
+    if (context.allowedHazardTypes) {
+      return context.allowedHazardTypes.map((type) => this.getHazardByType(type));
+    }
+
     const hazards = [this.getHazardByType('laneArc')];
 
     if (context.score >= 10 || context.runTime >= 30) {

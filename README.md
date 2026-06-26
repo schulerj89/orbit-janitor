@@ -31,10 +31,14 @@ npm run preview
 
 ## Controls
 
-- Enter or Space: start a normal run
+- Enter or Space: start the default sector
+- T: start Training Orbit from the title screen
+- C: open sector select from the title screen or mission complete screen
 - D: start the daily challenge from the title screen
 - S: start the visible seeded run from the title screen
 - Add `?seed=YOUR-SEED` to the URL to choose the visible seeded run seed
+- ArrowUp or W / ArrowDown or S: move selection in sector select
+- Escape: return to title from sector select or mission complete
 - ArrowLeft or A: rotate counterclockwise
 - ArrowRight or D: rotate clockwise
 - ArrowUp or W: switch outward
@@ -49,8 +53,10 @@ npm run preview
 ## Current Features
 
 - Title screen with controls and audio toggle hints
+- Keyboard-first sector select and mission complete overlays
 - Run summary after game over
 - Persistent best score in localStorage
+- Persistent sector unlocks and completions in localStorage
 - Normal, seeded, and daily challenge run modes
 - Persistent daily best score in localStorage
 - Persistent scrap and ship upgrades in localStorage
@@ -66,7 +72,8 @@ npm run preview
 - Timed hazard telegraphs that warn before becoming dangerous
 - Hazard patterns include lane arcs, double lane arcs, sweepers, gate gaps, pulse mines, and debris showers
 - Objective target: reach 50 cleanup points
-- Run timer with objective and hazard status feedback
+- Structured sectors with score, junk, timer, hazard-survival, and endless objectives
+- Run timer with sector objective and hazard status feedback
 
 ## Audio Assets
 
@@ -99,12 +106,13 @@ https://schulerj89.github.io/orbit-janitor/
 - Audio uses the Web Audio API, with optional static MP3 files and procedural fallbacks.
 - UI is plain HTML/CSS/TypeScript, with no React.
 - Runtime debug state is exposed on `window.orbitJanitorDebug` for smoke tests.
+- Sector progression is stored under the `orbit-janitor.sectors` localStorage prefix.
 
 ## Roadmap
 
 1. Editable seeded-run entry field
-2. Additional title and summary polish
-3. More audio variation
-4. TSL atmosphere and shield effects
-5. Additional upgrade choices and run modifiers
-6. Challenge-specific hazard mixes
+2. Sector-specific planet and lane palette application
+3. Additional title and summary polish
+4. More audio variation
+5. TSL atmosphere and shield effects
+6. Additional upgrade choices and run modifiers

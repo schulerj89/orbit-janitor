@@ -34,3 +34,4 @@ export const HAZARD_ACTIVE_DURATION = 0.65;
 export const HAZARD_ARC_WIDTH_RADIANS = 0.65;
 export const HAZARD_COLLISION_RADIUS = 0.45;
 export const RUN_OBJECTIVE_TARGET_SCORE = 50;
+export const SECTOR_STORAGE_PREFIX = 'orbit-janitor.sectors';

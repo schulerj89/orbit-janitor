@@ -44,13 +44,14 @@ export class RunStats {
     score: number,
     runTime: number,
     comboCount: number,
-    comboMultiplier: number
+    comboMultiplier: number,
+    objectiveComplete = score >= this.objectiveTargetScore
   ): void {
     this.score = score;
     this.runTime = runTime;
     this.longestCombo = Math.max(this.longestCombo, comboCount);
     this.highestMultiplier = Math.max(this.highestMultiplier, comboMultiplier);
-    this.objectiveComplete = score >= this.objectiveTargetScore;
+    this.objectiveComplete = objectiveComplete;
   }
 
   recordJunkCollected(): void {

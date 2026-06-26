@@ -27,8 +27,14 @@ export class TitleOverlay {
           <p class="title-overlay-subtitle">Clean the lanes. Dodge the warnings. Keep the combo alive.</p>
           <div class="title-run-options" aria-label="Run modes">
             <span>Enter / Space</span>
-            <strong>Normal Run</strong>
-            <small>Fresh random seed</small>
+            <strong>Default Sector</strong>
+            <small>Fresh sector run</small>
+            <span>T</span>
+            <strong>Training Orbit</strong>
+            <small>Tutorial-friendly cleanup</small>
+            <span>C</span>
+            <strong>Sector Select</strong>
+            <small>Choose unlocked missions</small>
             <span>D</span>
             <strong>Daily Challenge</strong>
             <small><span data-title-daily-seed>0000-00-00</span> best <span data-title-daily-best>0</span></small>
@@ -48,7 +54,7 @@ export class TitleOverlay {
             <span>Upgrades</span>
             <strong>U, then 1-6 to buy</strong>
           </div>
-          <p class="title-overlay-start">Enter or Space normal | D daily | S seeded</p>
+          <p class="title-overlay-start">Enter sector | T training | C sector select | D daily</p>
           <p class="title-overlay-footer">
             Audio starts after first input | M toggles music (<span data-title-music>On</span>) | N toggles SFX (<span data-title-sfx>On</span>)
           </p>

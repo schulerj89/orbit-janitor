@@ -1,4 +1,9 @@
-export type GameState = 'title' | 'playing' | 'gameover';
+export type GameState =
+  | 'title'
+  | 'sectorSelect'
+  | 'playing'
+  | 'missionComplete'
+  | 'gameover';
 
 export interface HudSnapshot {
   score: number;
@@ -6,6 +11,9 @@ export interface HudSnapshot {
   runLabel: string;
   runSeed: string;
   dailyBestScore: number;
+  sectorName: string;
+  objectiveText: string;
+  objectiveProgressText: string;
   comboMultiplier: number;
   comboTimer: number;
   comboWindow: number;
@@ -13,7 +21,6 @@ export interface HudSnapshot {
   boostFuel: number;
   boostEmpty: boolean;
   runTime: number;
-  objectiveTargetScore: number;
   objectiveComplete: boolean;
   hazardWarning: boolean;
   shieldCharges: number;
@@ -28,6 +35,7 @@ export class Hud {
   private readonly statusValue: HTMLElement;
   private readonly runValue: HTMLElement;
   private readonly seedValue: HTMLElement;
+  private readonly sectorValue: HTMLElement;
   private readonly laneValue: HTMLElement;
   private readonly timerValue: HTMLElement;
   private readonly objectiveValue: HTMLElement;
@@ -59,6 +67,10 @@ export class Hud {
           <span class="hud-value" data-hud-run>Normal Run</span>
         </div>
         <div class="hud-row">
+          <span class="hud-label">Sector</span>
+          <span class="hud-value hud-sector-value" data-hud-sector>Low Orbit Cleanup</span>
+        </div>
+        <div class="hud-row">
           <span class="hud-label">Seed</span>
           <span class="hud-value hud-seed-value" data-hud-seed>OJ-0000000</span>
         </div>
@@ -88,7 +100,7 @@ export class Hud {
           <span>Rotate</span>
           <strong>Left/A Right/D</strong>
           <span>Start</span>
-          <strong>Enter/Space normal / D daily / S seed</strong>
+          <strong>Enter sector / T training / C select</strong>
           <span>Lanes</span>
           <strong>Up/W Down/S</strong>
           <span>Boost</span>
@@ -107,6 +119,7 @@ export class Hud {
     this.statusValue = getElement(root, '[data-hud-status]');
     this.runValue = getElement(root, '[data-hud-run]');
     this.seedValue = getElement(root, '[data-hud-seed]');
+    this.sectorValue = getElement(root, '[data-hud-sector]');
     this.laneValue = getElement(root, '[data-hud-lane]');
     this.timerValue = getElement(root, '[data-hud-timer]');
     this.objectiveValue = getElement(root, '[data-hud-objective]');
@@ -128,6 +141,9 @@ export class Hud {
     this.scoreValue.textContent = String(snapshot.score);
     this.runValue.textContent =
       snapshot.state === 'title' ? 'Choose Run' : snapshot.runLabel;
+    this.sectorValue.textContent =
+      snapshot.state === 'title' ? 'Choose Sector' : snapshot.sectorName;
+    this.sectorValue.title = snapshot.sectorName;
     this.seedValue.textContent =
       snapshot.state === 'title'
         ? `Daily best ${snapshot.dailyBestScore}`
@@ -139,8 +155,8 @@ export class Hud {
     this.laneValue.textContent = snapshot.laneName;
     this.timerValue.textContent = formatRunTime(snapshot.runTime);
     this.objectiveValue.textContent = snapshot.objectiveComplete
-      ? 'Objective Complete'
-      : `Objective: Reach ${snapshot.objectiveTargetScore} cleanup points`;
+      ? `Mission Complete: ${snapshot.objectiveProgressText}`
+      : `${snapshot.objectiveText} (${snapshot.objectiveProgressText})`;
     this.objectiveValue.classList.toggle('is-complete', snapshot.objectiveComplete);
     this.comboValue.textContent = `x${snapshot.comboMultiplier}`;
     this.comboRow.classList.toggle('is-hot', snapshot.comboMultiplier > 1);
@@ -152,6 +168,10 @@ export class Hud {
 
     if (snapshot.state === 'title') {
       this.statusValue.textContent = 'Awaiting launch';
+    } else if (snapshot.state === 'sectorSelect') {
+      this.statusValue.textContent = 'Choose sector';
+    } else if (snapshot.state === 'missionComplete') {
+      this.statusValue.textContent = 'Mission Complete';
     } else if (snapshot.state === 'gameover') {
       this.statusValue.textContent = snapshot.gameOverReason;
     } else if (snapshot.shieldBroken) {

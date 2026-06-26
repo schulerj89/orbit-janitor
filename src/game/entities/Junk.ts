@@ -31,9 +31,10 @@ export class Junk {
     playerAngle: number,
     playerLaneIndex: number,
     obstacles: LaneAngle[],
-    rng: RandomSource
+    rng: RandomSource,
+    laneWeights: readonly number[] = []
   ): void {
-    this.laneIndex = Math.floor(rng.next() * ORBIT_LANES.length);
+    this.laneIndex = pickLaneIndex(rng, laneWeights);
     const disallowedAngles: number[] = [];
 
     if (playerLaneIndex === this.laneIndex) {
@@ -77,6 +78,27 @@ export class Junk {
       variant.visible = index === this.activeVariantIndex;
     });
   }
+}
+
+function pickLaneIndex(rng: RandomSource, laneWeights: readonly number[]): number {
+  const weights = ORBIT_LANES.map((_, index) => Math.max(0, laneWeights[index] ?? 1));
+  const totalWeight = weights.reduce((total, weight) => total + weight, 0);
+
+  if (totalWeight <= 0) {
+    return Math.floor(rng.next() * ORBIT_LANES.length);
+  }
+
+  let roll = rng.next() * totalWeight;
+
+  for (let index = 0; index < weights.length; index += 1) {
+    roll -= weights[index];
+
+    if (roll <= 0) {
+      return index;
+    }
+  }
+
+  return ORBIT_LANES.length - 1;
 }
 
 const junkMaterials = {

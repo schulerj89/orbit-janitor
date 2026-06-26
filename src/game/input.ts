@@ -7,9 +7,12 @@ export interface InputState {
   laneUpPressed: boolean;
   laneDownPressed: boolean;
   startPressed: boolean;
+  tutorialStartPressed: boolean;
+  sectorSelectPressed: boolean;
   dailyStartPressed: boolean;
   seededStartPressed: boolean;
   restartPressed: boolean;
+  escapePressed: boolean;
   musicTogglePressed: boolean;
   sfxTogglePressed: boolean;
   upgradeTogglePressed: boolean;
@@ -26,9 +29,12 @@ export class InputController {
     laneUpPressed: false,
     laneDownPressed: false,
     startPressed: false,
+    tutorialStartPressed: false,
+    sectorSelectPressed: false,
     dailyStartPressed: false,
     seededStartPressed: false,
     restartPressed: false,
+    escapePressed: false,
     musicTogglePressed: false,
     sfxTogglePressed: false,
     upgradeTogglePressed: false,
@@ -45,9 +51,12 @@ export class InputController {
     this.state.laneUpPressed = false;
     this.state.laneDownPressed = false;
     this.state.startPressed = false;
+    this.state.tutorialStartPressed = false;
+    this.state.sectorSelectPressed = false;
     this.state.dailyStartPressed = false;
     this.state.seededStartPressed = false;
     this.state.restartPressed = false;
+    this.state.escapePressed = false;
     this.state.musicTogglePressed = false;
     this.state.sfxTogglePressed = false;
     this.state.upgradeTogglePressed = false;
@@ -103,6 +112,21 @@ export class InputController {
 
     if (event.code === 'KeyR' && !event.repeat) {
       this.state.restartPressed = true;
+    }
+
+    if (event.code === 'KeyT' && !event.repeat) {
+      this.state.tutorialStartPressed = true;
+      event.preventDefault();
+    }
+
+    if (event.code === 'KeyC' && !event.repeat) {
+      this.state.sectorSelectPressed = true;
+      event.preventDefault();
+    }
+
+    if (event.code === 'Escape' && !event.repeat) {
+      this.state.escapePressed = true;
+      event.preventDefault();
     }
 
     if (event.code === 'KeyM' && !event.repeat) {
