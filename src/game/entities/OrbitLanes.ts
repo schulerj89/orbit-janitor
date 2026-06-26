@@ -15,7 +15,10 @@ export class OrbitLanes {
         transparent: true,
         opacity: 0.42
       });
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.012, 8, 160), material);
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(radius, 0.012, 8, 160),
+        material
+      );
       ring.rotation.x = Math.PI / 2;
 
       this.rings.push(ring);

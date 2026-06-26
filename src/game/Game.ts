@@ -249,7 +249,11 @@ export class Game {
     this.syncDebugAttributes();
   };
 
-  private updateBoost(delta: number, input: InputState, controlsLocked: boolean): boolean {
+  private updateBoost(
+    delta: number,
+    input: InputState,
+    controlsLocked: boolean
+  ): boolean {
     this.boostEmptyFlashTimer = Math.max(0, this.boostEmptyFlashTimer - delta);
 
     if (controlsLocked) {
@@ -341,7 +345,7 @@ export class Game {
         Math.abs(this.player.currentRadius - ORBIT_LANES[obstacle.laneIndex]) <=
           OBSTACLE_COLLISION_RADIUS &&
         playerPosition.distanceTo(obstacle.getPosition(this.obstaclePosition)) <=
-        PLAYER_COLLISION_RADIUS + OBSTACLE_COLLISION_RADIUS
+          PLAYER_COLLISION_RADIUS + OBSTACLE_COLLISION_RADIUS
       ) {
         this.triggerGameOver('Impact detected');
         return;
@@ -532,7 +536,11 @@ export class Game {
   }
 
   private respawnJunk(): void {
-    this.junk.respawn(this.player.angle, this.player.targetLaneIndex, this.getObstacleLaneAngles());
+    this.junk.respawn(
+      this.player.angle,
+      this.player.targetLaneIndex,
+      this.getObstacleLaneAngles()
+    );
   }
 
   private getObstacleLaneAngles(): LaneAngle[] {
@@ -590,7 +598,9 @@ export class Game {
   }
 
   private applyCameraShake(): void {
-    this.shakenCameraPosition.copy(this.baseCameraPosition).add(this.screenShake.getOffset());
+    this.shakenCameraPosition
+      .copy(this.baseCameraPosition)
+      .add(this.screenShake.getOffset());
     this.camera.position.copy(this.shakenCameraPosition);
     this.camera.lookAt(0, 0, 0);
   }
@@ -636,7 +646,9 @@ export class Game {
     this.canvas.dataset.boostFuel = this.boostFuel.toFixed(3);
     this.canvas.dataset.isBoosting = String(this.isBoosting);
     this.canvas.dataset.runTime = this.runTime.toFixed(2);
-    this.canvas.dataset.objectiveComplete = String(this.score >= RUN_OBJECTIVE_TARGET_SCORE);
+    this.canvas.dataset.objectiveComplete = String(
+      this.score >= RUN_OBJECTIVE_TARGET_SCORE
+    );
     this.canvas.dataset.playerAngle = this.player.angle.toFixed(4);
     this.canvas.dataset.playerLane = String(this.player.targetLaneIndex);
     this.canvas.dataset.playerRadius = this.player.currentRadius.toFixed(3);
@@ -648,8 +660,10 @@ export class Game {
       .join(',');
     const hazard = this.hazardDirector.getDebugState();
     this.canvas.dataset.hazardPhase = hazard.phase;
-    this.canvas.dataset.hazardLane = hazard.laneIndex === null ? '' : String(hazard.laneIndex);
-    this.canvas.dataset.hazardAngle = hazard.angle === null ? '' : hazard.angle.toFixed(4);
+    this.canvas.dataset.hazardLane =
+      hazard.laneIndex === null ? '' : String(hazard.laneIndex);
+    this.canvas.dataset.hazardAngle =
+      hazard.angle === null ? '' : hazard.angle.toFixed(4);
     this.canvas.dataset.hazardNextSpawn = hazard.nextSpawnIn.toFixed(2);
     this.canvas.dataset.renderCalls = String(this.renderer.info.render.calls);
     this.canvas.dataset.renderTriangles = String(this.renderer.info.render.triangles);

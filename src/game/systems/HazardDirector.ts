@@ -62,7 +62,9 @@ export class HazardDirector {
         this.pulse.emit();
       }
 
-      return this.getCurrentResult(activeHazard.collidesWith(context.playerAngle, context.playerRadius));
+      return this.getCurrentResult(
+        activeHazard.collidesWith(context.playerAngle, context.playerRadius)
+      );
     }
 
     this.spawnTimer -= delta;
@@ -116,7 +118,10 @@ export class HazardDirector {
   }
 
   private getNextInterval(score: number): number {
-    return Math.max(HAZARD_MIN_INTERVAL, HAZARD_BASE_INTERVAL - Math.min(score / 12, 3.8));
+    return Math.max(
+      HAZARD_MIN_INTERVAL,
+      HAZARD_BASE_INTERVAL - Math.min(score / 12, 3.8)
+    );
   }
 
   private getActiveHazard(): HazardTelegraph | undefined {

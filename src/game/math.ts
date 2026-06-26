@@ -89,7 +89,8 @@ function getNearestAngularDistance(angle: number, disallowedAngles: number[]): n
   }
 
   return disallowedAngles.reduce(
-    (nearest, disallowedAngle) => Math.min(nearest, angularDistance(angle, disallowedAngle)),
+    (nearest, disallowedAngle) =>
+      Math.min(nearest, angularDistance(angle, disallowedAngle)),
     Infinity
   );
 }

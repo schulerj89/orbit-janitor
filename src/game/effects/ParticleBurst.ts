@@ -34,7 +34,12 @@ export class ParticleBurst {
     }
   }
 
-  emit(position: THREE.Vector3, color: THREE.ColorRepresentation, count: number, strong = false): void {
+  emit(
+    position: THREE.Vector3,
+    color: THREE.ColorRepresentation,
+    count: number,
+    strong = false
+  ): void {
     let emitted = 0;
 
     for (const particle of this.particles) {

@@ -4,14 +4,18 @@ This repo is a small, highly iterable Vite + TypeScript + Three.js arcade game. 
 
 ## Project Rules
 
+- Use TypeScript.
 - Do not change gameplay behavior unless the user explicitly asks for gameplay changes.
 - Do not add dependencies without explicit approval.
-- Do not add React, R3F, Drei, Phaser, Babylon, Cannon, Rapier, Ammo, GLTF loaders, CDNs, textures, external assets, postprocessing, custom GLSL, or a physics engine.
+- Do not introduce React, R3F, Drei, Phaser, Babylon, Cannon, Rapier, Ammo, GLTF, image textures, external asset CDNs, postprocessing, custom GLSL, or a physics engine.
 - Keep all art, effects, and audio procedural.
 - Keep using `WebGPURenderer` from `three/webgpu`.
 - Do not mix imports from `three` and `three/webgpu`; use `three/webgpu` consistently for Three.js imports.
+- Keep assets procedural unless explicitly asked.
 - Use the Web Audio API directly for sound. Do not add audio files.
-- Avoid broad formatting churn. Touch only the files needed for the task.
+- Avoid broad rewrites. Touch only the files needed for the task.
+- Prefer small, playable iterations.
+- Run `npm run typecheck` and `npm run build` before finishing.
 
 ## Commands
 
@@ -20,6 +24,8 @@ Run these from the repo root:
 ```bash
 npm install
 npm run dev
+npm run format
+npm run format:check
 npm run typecheck
 npm run build
 npm run preview
@@ -28,6 +34,7 @@ npm run preview
 Required validation before handoff:
 
 ```bash
+npm run format:check
 npm run typecheck
 npm run build
 ```

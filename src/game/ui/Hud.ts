@@ -110,9 +110,10 @@ export class Hud {
   }
 
   update(snapshot: HudSnapshot): void {
-    const comboPercent = snapshot.comboWindow > 0
-      ? Math.max(0, Math.min(1, snapshot.comboTimer / snapshot.comboWindow))
-      : 0;
+    const comboPercent =
+      snapshot.comboWindow > 0
+        ? Math.max(0, Math.min(1, snapshot.comboTimer / snapshot.comboWindow))
+        : 0;
     const boostPercent = Math.max(0, Math.min(1, snapshot.boostFuel));
 
     this.scoreValue.textContent = String(snapshot.score);
@@ -121,8 +122,7 @@ export class Hud {
     this.objectiveValue.textContent = snapshot.objectiveComplete
       ? 'Objective Complete'
       : `Objective: Reach ${snapshot.objectiveTargetScore} cleanup points`;
-    this.startObjective.textContent =
-      `Objective: Reach ${snapshot.objectiveTargetScore} cleanup points`;
+    this.startObjective.textContent = `Objective: Reach ${snapshot.objectiveTargetScore} cleanup points`;
     this.objectiveValue.classList.toggle('is-complete', snapshot.objectiveComplete);
     this.comboValue.textContent = `x${snapshot.comboMultiplier}`;
     this.comboRow.classList.toggle('is-hot', snapshot.comboMultiplier > 1);

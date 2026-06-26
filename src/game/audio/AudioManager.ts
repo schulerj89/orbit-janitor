@@ -48,12 +48,30 @@ export class AudioManager {
   }
 
   playCollect(): void {
-    this.playTone({ frequency: 520, endFrequency: 880, duration: 0.12, type: 'triangle', volume: 0.16 });
-    this.playTone({ frequency: 980, endFrequency: 1240, duration: 0.08, type: 'sine', volume: 0.08 });
+    this.playTone({
+      frequency: 520,
+      endFrequency: 880,
+      duration: 0.12,
+      type: 'triangle',
+      volume: 0.16
+    });
+    this.playTone({
+      frequency: 980,
+      endFrequency: 1240,
+      duration: 0.08,
+      type: 'sine',
+      volume: 0.08
+    });
   }
 
   playBoostStart(): void {
-    this.playTone({ frequency: 150, endFrequency: 270, duration: 0.1, type: 'sawtooth', volume: 0.08 });
+    this.playTone({
+      frequency: 150,
+      endFrequency: 270,
+      duration: 0.1,
+      type: 'sawtooth',
+      volume: 0.08
+    });
   }
 
   playBoostLoopStart(): void {
@@ -102,11 +120,23 @@ export class AudioManager {
 
   playHit(): void {
     this.playNoise(0.22, 0.14);
-    this.playTone({ frequency: 190, endFrequency: 58, duration: 0.26, type: 'sawtooth', volume: 0.14 });
+    this.playTone({
+      frequency: 190,
+      endFrequency: 58,
+      duration: 0.26,
+      type: 'sawtooth',
+      volume: 0.14
+    });
   }
 
   playLaneSwitch(): void {
-    this.playTone({ frequency: 320, endFrequency: 430, duration: 0.08, type: 'square', volume: 0.055 });
+    this.playTone({
+      frequency: 320,
+      endFrequency: 430,
+      duration: 0.08,
+      type: 'square',
+      volume: 0.055
+    });
   }
 
   playCombo(multiplier: number): void {

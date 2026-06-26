@@ -16,7 +16,11 @@ export class ObstacleSatellite {
 
   private readonly visualRoot = new THREE.Group();
 
-  constructor(laneIndex = 1, angle = Math.PI * 1.15, angularSpeed = OBSTACLE_ANGULAR_SPEED) {
+  constructor(
+    laneIndex = 1,
+    angle = Math.PI * 1.15,
+    angularSpeed = OBSTACLE_ANGULAR_SPEED
+  ) {
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(0.38, 0.28, 0.28),
       new THREE.MeshStandardMaterial({
@@ -31,7 +35,10 @@ export class ObstacleSatellite {
       roughness: 0.62,
       metalness: 0.16
     });
-    const leftPanel = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.035, 0.28), panelMaterial);
+    const leftPanel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.58, 0.035, 0.28),
+      panelMaterial
+    );
     leftPanel.position.x = -0.5;
 
     const rightPanel = leftPanel.clone();
@@ -56,21 +63,33 @@ export class ObstacleSatellite {
 
   update(delta: number, difficultyFactor = 1): void {
     this.angle = wrapAngle(this.angle + this.angularSpeed * difficultyFactor * delta);
-    setOrbitPositionFromAngle(this.group.position, this.angle, ORBIT_LANES[this.laneIndex]);
+    setOrbitPositionFromAngle(
+      this.group.position,
+      this.angle,
+      ORBIT_LANES[this.laneIndex]
+    );
     this.group.rotation.y = -this.angle;
     this.visualRoot.rotation.y += delta * 1.4;
   }
 
   setLane(laneIndex: number): void {
     this.laneIndex = clampLaneIndex(laneIndex);
-    setOrbitPositionFromAngle(this.group.position, this.angle, ORBIT_LANES[this.laneIndex]);
+    setOrbitPositionFromAngle(
+      this.group.position,
+      this.angle,
+      ORBIT_LANES[this.laneIndex]
+    );
   }
 
   reset(config: ObstacleConfig): void {
     this.laneIndex = clampLaneIndex(config.laneIndex);
     this.angle = wrapAngle(config.angle);
     this.angularSpeed = config.angularSpeed;
-    setOrbitPositionFromAngle(this.group.position, this.angle, ORBIT_LANES[this.laneIndex]);
+    setOrbitPositionFromAngle(
+      this.group.position,
+      this.angle,
+      ORBIT_LANES[this.laneIndex]
+    );
     this.group.rotation.y = -this.angle;
     this.visualRoot.rotation.set(0, 0, 0);
   }

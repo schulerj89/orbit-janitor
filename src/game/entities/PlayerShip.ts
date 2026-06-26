@@ -46,7 +46,10 @@ export class PlayerShip {
       roughness: 0.7,
       metalness: 0.2
     });
-    const leftWing = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.035, 0.16), wingMaterial);
+    const leftWing = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.035, 0.16),
+      wingMaterial
+    );
     leftWing.position.set(-0.22, -0.02, -0.08);
 
     const rightWing = leftWing.clone();
@@ -67,16 +70,25 @@ export class PlayerShip {
     this.reset();
   }
 
-  update(delta: number, input: InputState, isGameOver: boolean, isBoosting: boolean): void {
+  update(
+    delta: number,
+    input: InputState,
+    isGameOver: boolean,
+    isBoosting: boolean
+  ): void {
     const direction = Number(input.left) - Number(input.right);
 
     if (!isGameOver) {
-      this.laneSwitchCooldownRemaining = Math.max(0, this.laneSwitchCooldownRemaining - delta);
+      this.laneSwitchCooldownRemaining = Math.max(
+        0,
+        this.laneSwitchCooldownRemaining - delta
+      );
       this.handleLaneInput(input);
     }
 
     if (!isGameOver && direction !== 0) {
-      const speed = PLAYER_BASE_ANGULAR_SPEED * (isBoosting ? PLAYER_BOOST_MULTIPLIER : 1);
+      const speed =
+        PLAYER_BASE_ANGULAR_SPEED * (isBoosting ? PLAYER_BOOST_MULTIPLIER : 1);
       this.angle = wrapAngle(this.angle + direction * speed * delta);
       this.facingDirection = direction;
     }

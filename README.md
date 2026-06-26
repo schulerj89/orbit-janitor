@@ -15,12 +15,16 @@ Open the local URL printed by Vite, usually `http://localhost:5173`.
 
 ```bash
 npm run dev
+npm run format
+npm run format:check
 npm run typecheck
 npm run build
 npm run preview
 ```
 
 - `dev`: start the Vite development server
+- `format`: format supported source, config, and docs files with Prettier
+- `format:check`: verify Prettier formatting without writing files
 - `typecheck`: run TypeScript without emitting files
 - `build`: typecheck and create a production build
 - `preview`: serve the production build locally

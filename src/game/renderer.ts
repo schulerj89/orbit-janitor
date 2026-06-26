@@ -1,7 +1,9 @@
 import * as THREE from 'three/webgpu';
 import { MAX_PIXEL_RATIO } from './constants';
 
-export async function createRenderer(canvas: HTMLCanvasElement): Promise<THREE.WebGPURenderer> {
+export async function createRenderer(
+  canvas: HTMLCanvasElement
+): Promise<THREE.WebGPURenderer> {
   const renderer = new THREE.WebGPURenderer({
     canvas,
     antialias: true,

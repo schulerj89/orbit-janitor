@@ -1,10 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { JUNK_MIN_ANGLE_SEPARATION, ORBIT_LANES } from '../constants';
-import {
-  randomAngleAvoiding,
-  setOrbitPositionFromAngle,
-  wrapAngle
-} from '../math';
+import { randomAngleAvoiding, setOrbitPositionFromAngle, wrapAngle } from '../math';
 
 export interface LaneAngle {
   angle: number;
@@ -86,6 +82,10 @@ export class Junk {
 
   private setAngle(angle: number): void {
     this.angle = wrapAngle(angle);
-    setOrbitPositionFromAngle(this.group.position, this.angle, ORBIT_LANES[this.laneIndex]);
+    setOrbitPositionFromAngle(
+      this.group.position,
+      this.angle,
+      ORBIT_LANES[this.laneIndex]
+    );
   }
 }
