@@ -265,6 +265,18 @@ export class AudioManager {
     this.boostGain = null;
   }
 
+  playBoostEnd(): void {
+    this.playSfx('boostEnd', () => {
+      this.playTone({
+        frequency: 260,
+        endFrequency: 130,
+        duration: 0.1,
+        type: 'triangle',
+        volume: 0.055
+      });
+    });
+  }
+
   playHazardWarning(): void {
     this.playSfx('hazardWarning', () => {
       this.playTone({
@@ -286,6 +298,19 @@ export class AudioManager {
         duration: 0.14,
         type: 'sawtooth',
         volume: 0.09
+      });
+    });
+  }
+
+  playShieldBreak(): void {
+    this.playSfx('shieldBreak', () => {
+      this.playNoise(0.12, 0.055);
+      this.playTone({
+        frequency: 720,
+        endFrequency: 260,
+        duration: 0.22,
+        type: 'triangle',
+        volume: 0.11
       });
     });
   }
@@ -441,7 +466,17 @@ export class AudioManager {
           // Static audio files are optional; procedural fallbacks cover misses.
         }
       })
-    ).then(() => undefined);
+    ).then(() => {
+      if (
+        this.musicRequested &&
+        this.musicEnabled &&
+        this.buffers.has('musicMain') &&
+        !this.musicSource
+      ) {
+        this.stopMusic(false);
+        this.startMusic();
+      }
+    });
 
     return this.assetLoadPromise;
   }

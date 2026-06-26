@@ -7,6 +7,7 @@ export const AUDIO_MANIFEST = {
   boostEnd: { src: '/audio/sfx/boost-end.mp3' },
   hazardWarning: { src: '/audio/sfx/hazard-warning.mp3' },
   hazardActive: { src: '/audio/sfx/hazard-active.mp3' },
+  shieldBreak: { src: '/audio/sfx/shield-break.mp3' },
   impact: { src: '/audio/sfx/impact.mp3' },
   objectiveComplete: { src: '/audio/sfx/objective-complete.mp3' },
   uiStart: { src: '/audio/sfx/ui-start.mp3' },

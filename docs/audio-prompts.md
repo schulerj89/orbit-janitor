@@ -2,25 +2,25 @@
 
 These prompts are for generating optional static audio files outside the game. The game must continue to run without these files because procedural Web Audio fallbacks are built in.
 
-Do not call ElevenLabs or any other external audio service from browser code. Do not commit API keys.
+Do not call ElevenLabs or any other external audio service from browser code. Do not commit API keys. Add provenance for any committed audio file in `public/audio/AUDIO_CREDITS.md`.
 
 ## SFX Prompts
 
 ### collect-junk.mp3
 
-Short bright sci-fi pickup chime, clean metallic sparkle, 120 ms, no reverb tail, no voice, no music bed, arcade UI style.
+Short bright sci-fi arcade pickup chime, tiny metallic sparkle, 0.35 seconds, no voice, no music bed.
 
 ### combo-up.mp3
 
-Short rising two-note combo reward, energetic but not loud, 180 ms, glassy synth tone with subtle arcade sparkle, no voice, no percussion.
+Rising retro-futuristic synth arpeggio for a combo multiplier increase, 0.7 seconds, bright but not loud, no voice.
 
 ### lane-switch.mp3
 
-Quick lane-shift blip, soft square-wave sci-fi UI sound, 80 ms, centered and readable, no harsh transient, no voice.
+Soft spaceship lane-switch servo whoosh, clean pneumatic motion, 0.25 seconds, no harsh transient, no voice.
 
 ### boost-start.mp3
 
-Compact engine ignition whoosh, low synth rising into a clean thrust tone, 120 ms, modest volume, no explosion, no voice.
+Compact spacecraft boost ignition, low synth thrust rising quickly into motion, 0.45 seconds, modest volume, no explosion, no voice.
 
 ### boost-loop.mp3
 
@@ -28,34 +28,38 @@ Seamless quiet spacecraft boost loop, low pulsing synthetic engine, 1 second loo
 
 ### boost-end.mp3
 
-Short boost power-down chirp, descending soft synth, 100 ms, clean arcade feedback, no voice.
+Short boost power-down chirp, descending soft sci-fi synth, 0.3 seconds, clean arcade feedback, no voice.
 
 ### hazard-warning.mp3
 
-Readable lane hazard warning ping, orange alert tone, two quick pulses, 300 ms total, urgent but not alarming, no voice.
+Urgent sci-fi proximity warning pulse, arcade hazard telegraph, 0.8 seconds, orange-alert character, no voice.
 
 ### hazard-active.mp3
 
-Brief hazard activation zap, red alert energy sound, 180 ms, sharper than warning but not painfully loud, no voice.
+Brief hazard activation zap, red alert energy burst, 0.45 seconds, sharper than warning but not painfully loud, no voice.
+
+### shield-break.mp3
+
+Crystalline energy shield shatter, airy glassy burst with small electrical snap, 0.8 seconds, protective but alarming, no voice.
 
 ### impact.mp3
 
-Short crash impact for small spacecraft, crunchy synth noise with low thud, 300 ms, no long tail, no voice.
+Crunchy metallic collision with glassy energy burst and small explosion, 1.1 seconds, no long cinematic tail, no voice.
 
 ### objective-complete.mp3
 
-Positive objective complete flourish, compact three-note sci-fi success chime, 450 ms, bright and satisfying, no voice.
+Positive objective complete flourish, compact three-note sci-fi success chime, 0.9 seconds, bright and satisfying, no voice.
 
 ### ui-start.mp3
 
-Title start confirmation sound, confident rising synth button press, 180 ms, polished arcade UI style, no voice.
+Title start confirmation sound, confident rising synth button press, 0.35 seconds, polished arcade UI style, no voice.
 
 ### ui-select.mp3
 
-Tiny settings toggle click, clean digital tick with slight pitch lift, 80 ms, low volume, no voice.
+Tiny settings toggle click, clean digital tick with slight pitch lift, 0.2 seconds, low volume, no voice.
 
 ## Music Prompt
 
 ### orbit-janitor-main-loop.mp3
 
-Seamless 16-second dark sci-fi arcade ambient loop for an orbital cleanup game, light pulsing synth bass, sparse arpeggio, steady momentum, no drums that overpower SFX, no vocals, no cinematic swell, loop point must be clean and gapless.
+Instrumental only, 60-second seamless sci-fi arcade loop, optimistic synthwave, light percussion, shimmering arpeggios, no vocals.

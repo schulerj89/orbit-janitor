@@ -257,6 +257,7 @@ export class Game {
       this.audio.playBoostLoopStart();
     } else if (!isBoosting && wasBoosting) {
       this.audio.playBoostLoopStop();
+      this.audio.playBoostEnd();
     }
 
     this.player.update(delta, input, controlsLocked, isBoosting);
@@ -490,6 +491,7 @@ export class Game {
         true
       );
       this.screenShake.add(0.09);
+      this.audio.playShieldBreak();
       return;
     }
 

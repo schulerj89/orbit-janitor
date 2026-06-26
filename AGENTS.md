@@ -9,6 +9,7 @@ This repo is a small, highly iterable Vite + TypeScript + Three.js arcade game. 
 - Do not add dependencies without explicit approval.
 - Do not introduce React, R3F, Drei, Phaser, Babylon, Cannon, Rapier, Ammo, GLTF, image textures, external asset CDNs, postprocessing, custom GLSL, or a physics engine.
 - Keep art and effects procedural. Audio must work through procedural fallbacks.
+- Audio files are allowed only when explicitly requested, must live under `public/audio`, must have provenance/credits, and must not require runtime API keys.
 - Keep using `WebGPURenderer` from `three/webgpu`.
 - Do not mix imports from `three` and `three/webgpu`; use `three/webgpu` consistently for Three.js imports.
 - Keep assets procedural unless explicitly asked.
