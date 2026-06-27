@@ -10,6 +10,9 @@ export interface MenuPreviewSnapshot {
   dailyBestScore: number;
   titleSeed: string;
   totalScrap: number;
+  unlockedShipCount: number;
+  totalShipCount: number;
+  equippedShipName: string;
   musicEnabled: boolean;
   musicVolume: number;
   sfxEnabled: boolean;
@@ -61,10 +64,10 @@ export function getMenuPreviewContent(snapshot: MenuPreviewSnapshot): MenuPrevie
       };
     case 'shipyard':
       return {
-        eyebrow: 'Offline',
+        eyebrow: 'Hangar',
         title: 'Shipyard',
-        body: 'Docking gantry reserved for a future ship customization branch.',
-        meta: 'Coming later'
+        body: `${snapshot.unlockedShipCount} of ${snapshot.totalShipCount} ships unlocked. Equipped: ${snapshot.equippedShipName}.`,
+        meta: 'Y hotkey'
       };
     case 'upgrades':
       return {

@@ -1209,6 +1209,7 @@ body {
 .mission-complete-overlay,
 .upgrade-panel,
 .gallery-overlay,
+.shipyard-overlay,
 .settings-overlay,
 .pause-overlay,
 .help-overlay {
@@ -1240,6 +1241,7 @@ body {
 .mission-complete-overlay.is-hidden,
 .upgrade-panel.is-hidden,
 .gallery-overlay.is-hidden,
+.shipyard-overlay.is-hidden,
 .settings-overlay.is-hidden,
 .pause-overlay.is-hidden,
 .help-overlay.is-hidden {
@@ -1565,7 +1567,17 @@ body {
   text-align: left;
 }
 
-.gallery-header {
+.shipyard-overlay {
+  align-content: start;
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(690px, calc(100vh - 32px));
+  padding: clamp(18px, 4vw, 28px);
+  overflow: hidden;
+  text-align: left;
+}
+
+.gallery-header,
+.shipyard-header {
   display: flex;
   gap: 18px;
   align-items: start;
@@ -1574,19 +1586,30 @@ body {
 }
 
 .gallery-kicker,
+.shipyard-kicker,
 .gallery-badge span,
+.shipyard-badge span,
 .gallery-help,
+.shipyard-help,
 .gallery-category span,
 .gallery-item small,
+.shipyard-item span,
+.shipyard-item small,
 .gallery-detail span,
-.gallery-detail small {
+.gallery-detail small,
+.shipyard-detail span,
+.shipyard-detail small,
+.shipyard-preview-note {
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
 }
 
 .gallery-kicker,
+.shipyard-kicker,
 .gallery-badge span,
+.shipyard-badge span,
 .gallery-category span,
-.gallery-detail span {
+.gallery-detail span,
+.shipyard-detail span {
   color: #8ba7bd;
   font-size: 0.72rem;
   font-weight: 900;
@@ -1594,7 +1617,8 @@ body {
   text-transform: uppercase;
 }
 
-.gallery-title {
+.gallery-title,
+.shipyard-title {
   margin: 0;
   color: #ffffff;
   font-size: clamp(1.65rem, 5vw, 2.7rem);
@@ -1602,12 +1626,14 @@ body {
   letter-spacing: 0;
 }
 
-.gallery-badge {
+.gallery-badge,
+.shipyard-badge {
   min-width: 150px;
   text-align: right;
 }
 
-.gallery-badge strong {
+.gallery-badge strong,
+.shipyard-badge strong {
   display: block;
   color: #ffe06b;
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
@@ -1624,9 +1650,20 @@ body {
   min-height: 420px;
 }
 
+.shipyard-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(220px, 0.72fr);
+  gap: 12px;
+  width: 100%;
+  margin: 12px 0 8px;
+  min-height: 390px;
+}
+
 .gallery-categories,
 .gallery-items,
-.gallery-detail {
+.gallery-detail,
+.shipyard-list,
+.shipyard-detail {
   display: grid;
   align-content: start;
   gap: 7px;
@@ -1635,7 +1672,9 @@ body {
 
 .gallery-category,
 .gallery-item,
-.gallery-detail {
+.gallery-detail,
+.shipyard-item,
+.shipyard-detail {
   border: 1px solid rgb(143 232 255 / 16%);
   border-radius: 8px;
   background: rgb(8 18 28 / 70%);
@@ -1650,8 +1689,22 @@ body {
   padding: 8px 10px;
 }
 
+.shipyard-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shipyard-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 10px;
+}
+
 .gallery-category strong,
-.gallery-item strong {
+.gallery-item strong,
+.shipyard-item strong {
   min-width: 0;
   overflow: hidden;
   color: #ffffff;
@@ -1660,7 +1713,8 @@ body {
 }
 
 .gallery-category.is-selected,
-.gallery-item.is-selected {
+.gallery-item.is-selected,
+.shipyard-item.is-selected {
   border-color: rgb(255 224 107 / 62%);
   background: linear-gradient(90deg, rgb(255 224 107 / 18%), rgb(8 18 28 / 70%));
   box-shadow: inset 3px 0 0 #ffe06b;
@@ -1679,7 +1733,12 @@ body {
   opacity: 0.52;
 }
 
-.gallery-item.is-equipped {
+.shipyard-item.is-locked {
+  opacity: 0.5;
+}
+
+.gallery-item.is-equipped,
+.shipyard-item.is-equipped {
   border-color: rgb(159 255 238 / 34%);
 }
 
@@ -1705,7 +1764,8 @@ body {
     rgb(18 30 40 / 86%);
 }
 
-.gallery-item small {
+.gallery-item small,
+.shipyard-item small {
   display: block;
   color: #9cb5c8;
   font-size: 0.76rem;
@@ -1713,34 +1773,49 @@ body {
   text-transform: uppercase;
 }
 
-.gallery-item.is-equipped small {
+.gallery-item.is-equipped small,
+.shipyard-item.is-equipped small {
   color: #9fffee;
 }
 
-.gallery-detail {
+.gallery-detail,
+.shipyard-detail {
   gap: 8px;
   padding: 14px;
 }
 
-.gallery-detail strong {
+.gallery-detail strong,
+.shipyard-detail strong {
   color: #ffffff;
   font-size: clamp(1.1rem, 2.6vw, 1.45rem);
   line-height: 1.1;
 }
 
-.gallery-detail p {
+.gallery-detail p,
+.shipyard-detail p {
   margin: 0;
   color: #d7e8f2;
   line-height: 1.35;
 }
 
 .gallery-detail small,
-.gallery-help {
+.gallery-help,
+.shipyard-detail small,
+.shipyard-help,
+.shipyard-preview-note {
   color: #ffe06b;
   font-weight: 800;
 }
 
-.gallery-help {
+.shipyard-preview-note {
+  margin-top: 8px;
+  color: #9fffee;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.gallery-help,
+.shipyard-help {
   width: 100%;
   margin: 4px 0 0;
   font-size: clamp(0.9rem, 2.2vw, 1rem);
@@ -2039,28 +2114,42 @@ body {
     padding: 16px;
   }
 
-  .gallery-header {
+  .shipyard-overlay {
+    width: min(760px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    padding: 16px;
+  }
+
+  .gallery-header,
+  .shipyard-header {
     display: grid;
     gap: 8px;
   }
 
-  .gallery-badge {
+  .gallery-badge,
+  .shipyard-badge {
     text-align: left;
   }
 
-  .gallery-layout {
+  .gallery-layout,
+  .shipyard-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     min-height: 0;
   }
 
   .gallery-categories,
-  .gallery-items {
+  .gallery-items,
+  .shipyard-list {
     gap: 5px;
   }
 
   .gallery-categories {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shipyard-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sector-select-overlay,
@@ -2145,6 +2234,7 @@ body {
   .mission-complete-overlay,
   .upgrade-panel,
   .gallery-overlay,
+  .shipyard-overlay,
   .settings-overlay,
   .pause-overlay,
   .help-overlay {
@@ -2156,6 +2246,7 @@ body {
   .mission-complete-overlay,
   .upgrade-panel,
   .gallery-overlay,
+  .shipyard-overlay,
   .settings-overlay,
   .pause-overlay,
   .help-overlay {
@@ -2167,6 +2258,7 @@ body {
   .mission-complete-overlay.is-hidden,
   .upgrade-panel.is-hidden,
   .gallery-overlay.is-hidden,
+  .shipyard-overlay.is-hidden,
   .settings-overlay.is-hidden,
   .pause-overlay.is-hidden,
   .help-overlay.is-hidden {

@@ -30,6 +30,7 @@ export interface InputState {
   sfxTogglePressed: boolean;
   upgradeTogglePressed: boolean;
   galleryTogglePressed: boolean;
+  shipyardTogglePressed: boolean;
   settingsTogglePressed: boolean;
   debugPanelTogglePressed: boolean;
   debugCommandPressed: number | null;
@@ -72,6 +73,7 @@ export class InputController {
     this.state.sfxTogglePressed = false;
     this.state.upgradeTogglePressed = false;
     this.state.galleryTogglePressed = false;
+    this.state.shipyardTogglePressed = false;
     this.state.settingsTogglePressed = false;
     this.state.debugPanelTogglePressed = false;
     this.state.debugCommandPressed = null;
@@ -212,6 +214,11 @@ export class InputController {
       event.preventDefault();
     }
 
+    if (event.code === 'KeyY' && !event.repeat) {
+      this.state.shipyardTogglePressed = true;
+      event.preventDefault();
+    }
+
     if (event.code === 'KeyO' && !event.repeat) {
       this.state.settingsTogglePressed = true;
       event.preventDefault();
@@ -298,6 +305,7 @@ export function createNeutralInputState(): InputState {
     sfxTogglePressed: false,
     upgradeTogglePressed: false,
     galleryTogglePressed: false,
+    shipyardTogglePressed: false,
     settingsTogglePressed: false,
     debugPanelTogglePressed: false,
     debugCommandPressed: null,
@@ -340,6 +348,7 @@ export function mergeInputStates(...states: InputState[]): InputState {
     merged.sfxTogglePressed ||= state.sfxTogglePressed;
     merged.upgradeTogglePressed ||= state.upgradeTogglePressed;
     merged.galleryTogglePressed ||= state.galleryTogglePressed;
+    merged.shipyardTogglePressed ||= state.shipyardTogglePressed;
     merged.settingsTogglePressed ||= state.settingsTogglePressed;
     merged.debugPanelTogglePressed ||= state.debugPanelTogglePressed;
     merged.debugCommandPressed ??= state.debugCommandPressed;

@@ -10,41 +10,18 @@ import {
 import type { InputState } from '../input';
 import { clampLaneIndex, setOrbitPositionFromAngle, wrapAngle } from '../math';
 import type { EquippedCosmeticVisuals } from '../systems/CosmeticSystem';
+import { DEFAULT_SHIP_ID, type ShipId } from './ships/ShipDefinitions';
+import {
+  createShipModel,
+  disposeShipModel,
+  type ShipModel
+} from './ships/ShipModelFactory';
 
-type ShipVariant = 'janitor';
-
-interface ShipModel {
-  group: THREE.Group;
-  engineFlame: THREE.Mesh;
-  engineGlow: THREE.Mesh;
-  engineFlameMaterial: THREE.MeshBasicMaterial;
-  engineGlowMaterial: THREE.MeshBasicMaterial;
-}
-
-const shipBodyMaterial = new THREE.MeshStandardMaterial({
-  color: 0xf3f8fb,
-  roughness: 0.42,
-  metalness: 0.18,
-  flatShading: true
-});
-const shipNoseMaterial = new THREE.MeshStandardMaterial({
-  color: 0xffd86b,
-  roughness: 0.38,
-  metalness: 0.1,
-  flatShading: true
-});
-const shipWingMaterial = new THREE.MeshStandardMaterial({
-  color: 0x243648,
-  roughness: 0.72,
-  metalness: 0.22,
-  flatShading: true
-});
-const shipCockpitMaterial = new THREE.MeshBasicMaterial({ color: 0x54e6ff });
-const shipEngineMaterial = new THREE.MeshStandardMaterial({
-  color: 0x161f2b,
-  roughness: 0.5,
-  metalness: 0.38
-});
+const DEFAULT_BODY_PRIMARY = 0xf3f8fb;
+const DEFAULT_BODY_SECONDARY = 0x243648;
+const DEFAULT_BODY_ACCENT = 0xffd86b;
+const DEFAULT_COCKPIT = 0x54e6ff;
+const DEFAULT_ENGINE_TRAIL = 0x35f4ff;
 
 export class PlayerShip {
   readonly group = new THREE.Group();
@@ -53,7 +30,9 @@ export class PlayerShip {
   targetLaneIndex = STARTING_LANE_INDEX;
   currentRadius: number = ORBIT_LANES[STARTING_LANE_INDEX];
 
-  private readonly model: ShipModel;
+  private model: ShipModel;
+  private shipId: ShipId;
+  private currentCosmetics: EquippedCosmeticVisuals | null = null;
   private facingDirection = 1;
   private bankAngle = 0;
   private enginePulse = 0;
@@ -63,8 +42,9 @@ export class PlayerShip {
   private laneSwitchDuration = LANE_SWITCH_DURATION;
   private laneSwitchCooldownRemaining = 0;
 
-  constructor(variant: ShipVariant = 'janitor') {
-    this.model = createShipModel(variant);
+  constructor(shipId: ShipId = DEFAULT_SHIP_ID) {
+    this.shipId = shipId;
+    this.model = createShipModel(shipId);
     this.group.add(this.model.group);
     this.reset();
   }
@@ -119,13 +99,56 @@ export class PlayerShip {
     this.laneSwitchElapsed = Math.min(this.laneSwitchElapsed, this.laneSwitchDuration);
   }
 
+  getShipId(): ShipId {
+    return this.shipId;
+  }
+
+  setShipModel(shipId: ShipId): void {
+    if (this.shipId === shipId) {
+      return;
+    }
+
+    this.group.remove(this.model.group);
+    disposeShipModel(this.model);
+    this.shipId = shipId;
+    this.model = createShipModel(shipId);
+    this.group.add(this.model.group);
+
+    if (this.currentCosmetics) {
+      this.applyCosmetics(this.currentCosmetics);
+    }
+
+    this.resetModelVisualState();
+  }
+
   applyCosmetics(visuals: EquippedCosmeticVisuals): void {
-    shipBodyMaterial.color.setHex(visuals.shipBodyPrimary);
-    shipWingMaterial.color.setHex(visuals.shipBodySecondary);
-    shipNoseMaterial.color.setHex(visuals.shipBodyAccent);
-    shipCockpitMaterial.color.setHex(visuals.cockpitColor);
-    this.model.engineFlameMaterial.color.setHex(visuals.engineTrailColor);
-    this.model.engineGlowMaterial.color.setHex(visuals.engineTrailColor);
+    this.currentCosmetics = visuals;
+    const useNativeHull =
+      visuals.shipBodyPrimary === DEFAULT_BODY_PRIMARY &&
+      visuals.shipBodySecondary === DEFAULT_BODY_SECONDARY &&
+      visuals.shipBodyAccent === DEFAULT_BODY_ACCENT;
+    const cockpitColor =
+      visuals.cockpitColor === DEFAULT_COCKPIT
+        ? this.model.palette.cockpit
+        : visuals.cockpitColor;
+    const engineTrailColor =
+      visuals.engineTrailColor === DEFAULT_ENGINE_TRAIL
+        ? this.model.palette.engine
+        : visuals.engineTrailColor;
+    const bodyColor = useNativeHull ? this.model.palette.body : visuals.shipBodyPrimary;
+    const wingColor = useNativeHull ? this.model.palette.wing : visuals.shipBodySecondary;
+    const accentColor = useNativeHull
+      ? this.model.palette.accent
+      : visuals.shipBodyAccent;
+
+    this.model.bodyMaterials.forEach((material) => material.color.setHex(bodyColor));
+    this.model.wingMaterials.forEach((material) => material.color.setHex(wingColor));
+    this.model.accentMaterials.forEach((material) => material.color.setHex(accentColor));
+    this.model.cockpitMaterials.forEach((material) =>
+      material.color.setHex(cockpitColor)
+    );
+    this.model.engineFlameMaterial.color.setHex(engineTrailColor);
+    this.model.engineGlowMaterial.color.setHex(engineTrailColor);
   }
 
   reset(): void {
@@ -140,12 +163,18 @@ export class PlayerShip {
     this.enginePulse = 0;
     this.boostSquash = 0;
     this.setAngle(0);
+    this.resetModelVisualState();
+  }
+
+  private resetModelVisualState(): void {
     this.model.group.position.set(0, 0, 0);
     this.model.group.scale.set(1, 1, 1);
     this.model.engineFlame.visible = false;
     this.model.engineGlow.visible = false;
     this.model.engineFlame.scale.setScalar(1);
     this.model.engineGlow.scale.setScalar(1);
+    this.model.engineFlameMaterial.opacity = 0;
+    this.model.engineGlowMaterial.opacity = 0;
   }
 
   private handleLaneInput(input: InputState): void {
@@ -211,108 +240,4 @@ export class PlayerShip {
     this.model.engineFlameMaterial.opacity = engineVisible ? 0.82 : 0;
     this.model.engineGlowMaterial.opacity = engineVisible ? 0.54 : 0;
   }
-}
-
-function createShipModel(variant: ShipVariant): ShipModel {
-  if (variant !== 'janitor') {
-    throw new Error(`Unsupported ship variant: ${variant}`);
-  }
-
-  const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.58), shipBodyMaterial);
-  body.position.z = 0.02;
-
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.32, 4), shipNoseMaterial);
-  nose.rotation.x = Math.PI / 2;
-  nose.position.z = 0.44;
-
-  const noseBeacon = new THREE.Mesh(
-    new THREE.BoxGeometry(0.045, 0.045, 0.16),
-    new THREE.MeshBasicMaterial({ color: 0xfff2a8 })
-  );
-  noseBeacon.position.set(0, 0.035, 0.66);
-
-  const cockpit = new THREE.Mesh(
-    new THREE.SphereGeometry(0.105, 16, 10),
-    shipCockpitMaterial
-  );
-  cockpit.scale.set(0.92, 0.58, 1.16);
-  cockpit.position.set(0, 0.105, 0.08);
-
-  const leftWing = new THREE.Mesh(
-    new THREE.BoxGeometry(0.48, 0.035, 0.24),
-    shipWingMaterial
-  );
-  leftWing.position.set(-0.32, -0.025, -0.05);
-  leftWing.rotation.z = 0.08;
-
-  const rightWing = leftWing.clone();
-  rightWing.position.x = 0.32;
-  rightWing.rotation.z = -0.08;
-
-  const leftFin = new THREE.Mesh(
-    new THREE.BoxGeometry(0.07, 0.18, 0.16),
-    shipWingMaterial
-  );
-  leftFin.position.set(-0.13, 0.085, -0.24);
-  leftFin.rotation.z = -0.22;
-
-  const rightFin = leftFin.clone();
-  rightFin.position.x = 0.13;
-  rightFin.rotation.z = 0.22;
-
-  const engine = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.11, 0.09, 0.18, 12),
-    shipEngineMaterial
-  );
-  engine.rotation.x = Math.PI / 2;
-  engine.position.z = -0.36;
-
-  const engineFlameMaterial = new THREE.MeshBasicMaterial({
-    color: 0x35f4ff,
-    transparent: true,
-    opacity: 0
-  });
-  const engineFlame = new THREE.Mesh(
-    new THREE.ConeGeometry(0.085, 0.34, 12),
-    engineFlameMaterial
-  );
-  engineFlame.rotation.x = -Math.PI / 2;
-  engineFlame.position.z = -0.58;
-  engineFlame.visible = false;
-
-  const engineGlowMaterial = new THREE.MeshBasicMaterial({
-    color: 0x2ce7ff,
-    transparent: true,
-    opacity: 0,
-    depthWrite: false
-  });
-  const engineGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(0.09, 14, 8),
-    engineGlowMaterial
-  );
-  engineGlow.position.z = -0.43;
-  engineGlow.visible = false;
-
-  group.add(
-    body,
-    nose,
-    noseBeacon,
-    cockpit,
-    leftWing,
-    rightWing,
-    leftFin,
-    rightFin,
-    engine,
-    engineGlow,
-    engineFlame
-  );
-
-  return {
-    group,
-    engineFlame,
-    engineGlow,
-    engineFlameMaterial,
-    engineGlowMaterial
-  };
 }

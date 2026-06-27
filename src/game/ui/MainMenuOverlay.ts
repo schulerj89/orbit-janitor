@@ -44,8 +44,7 @@ export const MAIN_MENU_OPTIONS: readonly MainMenuOption[] = [
   {
     id: 'shipyard',
     label: 'Shipyard',
-    shortcut: '--',
-    disabled: true
+    shortcut: 'Y'
   },
   {
     id: 'upgrades',

@@ -22,6 +22,7 @@ export interface TitleOverlaySnapshot extends Omit<
   menuInteracted: boolean;
   upgradePanelOpen: boolean;
   galleryOpen: boolean;
+  shipyardOpen: boolean;
   settingsOpen: boolean;
   helpOpen: boolean;
   bestScore: number;
@@ -91,7 +92,7 @@ export class TitleOverlay {
             </div>
           </div>
           <p class="title-overlay-footer">
-            Arrows/W/S select | Enter/Space activate | H help | G gallery | M/N audio | T/C/D/S/U/O shortcuts
+            Arrows/W/S select | Enter/Space activate | H help | Y shipyard | G gallery | M/N audio | T/C/D/S/U/O shortcuts
           </p>
         </section>
       `
@@ -146,6 +147,7 @@ export class TitleOverlay {
       snapshot.state === 'title' &&
         !snapshot.upgradePanelOpen &&
         !snapshot.galleryOpen &&
+        !snapshot.shipyardOpen &&
         !snapshot.settingsOpen &&
         !snapshot.helpOpen
     );

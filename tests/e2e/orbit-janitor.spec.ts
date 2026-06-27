@@ -11,6 +11,17 @@ type DebugState = {
   isPaused: boolean;
   helpOpen: boolean;
   settingsOpen: boolean;
+  shipyardOpen: boolean;
+  equippedShipId: string;
+  ships: {
+    ships: Array<{
+      id: string;
+      isUnlocked: boolean;
+      isEquipped: boolean;
+    }>;
+    unlockedIds: string[];
+    equippedId: string;
+  };
   debugPanelOpen: boolean;
   debugInvincible: boolean;
   missionIntroActive: boolean;
@@ -20,6 +31,7 @@ type DebugState = {
   musicEnabled: boolean;
   sfxEnabled: boolean;
   settings: {
+    reducedMotion: boolean;
     screenShakeIntensity: string;
     touchControlsMode: string;
   };
@@ -109,16 +121,42 @@ test('opens settings and exposes persisted accessibility controls', async ({ pag
     .poll(() => getDebugState(page).then((state) => state.settingsOpen))
     .toBe(true);
 
-  const initialShake = (await getDebugState(page)).settings.screenShakeIntensity;
-  await page.keyboard.press('ArrowDown');
+  const initialReducedMotion = (await getDebugState(page)).settings.reducedMotion;
   await page.keyboard.press('Enter');
   await expect
-    .poll(() => getDebugState(page).then((state) => state.settings.screenShakeIntensity))
-    .not.toBe(initialShake);
+    .poll(() => getDebugState(page).then((state) => state.settings.reducedMotion))
+    .toBe(!initialReducedMotion);
 
   await page.keyboard.press('Escape');
   await expect
     .poll(() => getDebugState(page).then((state) => state.settingsOpen))
+    .toBe(false);
+});
+
+test('opens shipyard from title and keeps equipped ship stable', async ({ page }) => {
+  await page.goto('/');
+  await waitForGameReady(page);
+  await skipCinematic(page);
+
+  const initial = await getDebugState(page);
+
+  await page.keyboard.press('Y');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.shipyardOpen))
+    .toBe(true);
+
+  const shipyardState = await getDebugState(page);
+  expect(shipyardState.ships.ships.length).toBeGreaterThanOrEqual(8);
+  expect(shipyardState.ships.unlockedIds).toContain('scrapper');
+
+  await page.keyboard.press('Enter');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.equippedShipId))
+    .toBe(initial.equippedShipId);
+
+  await page.keyboard.press('Escape');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.shipyardOpen))
     .toBe(false);
 });
 

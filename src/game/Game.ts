@@ -93,6 +93,7 @@ import {
   type ScreenShakeIntensity,
   type SettingsSnapshot
 } from './systems/SettingsSystem';
+import { ShipUnlockSystem, type ShipUnlockSnapshot } from './systems/ShipUnlockSystem';
 import {
   TutorialDirector,
   type TutorialContext,
@@ -118,6 +119,7 @@ import { RadioOverlay } from './ui/RadioOverlay';
 import { RunSummary } from './ui/RunSummary';
 import { SectorSelectOverlay } from './ui/SectorSelectOverlay';
 import { SettingsOverlay } from './ui/SettingsOverlay';
+import { ShipyardOverlay } from './ui/ShipyardOverlay';
 import { TitleOverlay } from './ui/TitleOverlay';
 import { TutorialOverlay } from './ui/TutorialOverlay';
 import { UpgradePanel } from './ui/UpgradePanel';
@@ -172,6 +174,9 @@ interface OrbitJanitorDebugState {
   settings: SettingsSnapshot;
   cosmetics: CosmeticSnapshot;
   galleryOpen: boolean;
+  shipyardOpen: boolean;
+  ships: ShipUnlockSnapshot;
+  equippedShipId: string;
   debugPanelOpen: boolean;
   debugInvincible: boolean;
   scrap: number;
@@ -237,6 +242,7 @@ export class Game {
   private readonly runStats = new RunStats(RUN_OBJECTIVE_TARGET_SCORE);
   private readonly upgrades = new UpgradeSystem();
   private readonly cosmetics = new CosmeticSystem();
+  private readonly ships = new ShipUnlockSystem();
   private readonly challengeMode = new ChallengeMode();
   private readonly missionDirector = new MissionDirector();
   private readonly sectorProgress = new SectorProgress();
@@ -273,6 +279,7 @@ export class Game {
   private radioOverlay!: RadioOverlay;
   private settingsOverlay!: SettingsOverlay;
   private galleryOverlay!: GalleryOverlay;
+  private shipyardOverlay!: ShipyardOverlay;
   private touchControls!: TouchControls;
   private impactFlash!: ImpactFlash;
   private floatingText!: FloatingText;
@@ -306,8 +313,10 @@ export class Game {
   private shieldGraceTimer = 0;
   private upgradePanelOpen = false;
   private galleryOpen = false;
+  private shipyardOpen = false;
   private galleryCategoryIndex = 0;
   private galleryItemIndex = 0;
+  private selectedShipIndex = 0;
   private isPaused = false;
   private helpOpen = false;
   private settingsOpen = false;
@@ -362,6 +371,7 @@ export class Game {
     this.radioOverlay = new RadioOverlay(hudRoot);
     this.settingsOverlay = new SettingsOverlay(hudRoot);
     this.galleryOverlay = new GalleryOverlay(hudRoot);
+    this.shipyardOverlay = new ShipyardOverlay(hudRoot);
     this.touchControls = new TouchControls(hudRoot);
     this.impactFlash = new ImpactFlash(hudRoot);
     this.floatingText = new FloatingText(hudRoot);
@@ -380,6 +390,7 @@ export class Game {
     this.cosmetics.syncCompletedSectors(
       this.sectorProgress.getSnapshot().completedSectorIds
     );
+    this.ships.syncCompletedSectors(this.sectorProgress.getSnapshot().completedSectorIds);
 
     this.scene.background = new THREE.Color(0x02050f);
     this.buildScene();
@@ -410,7 +421,7 @@ export class Game {
     this.currentWorldCoreType = this.missionDirector.getCurrentSector().worldCoreType;
     this.orbitLanes = new OrbitLanes();
     this.starfield = new Starfield();
-    this.player = new PlayerShip();
+    this.player = new PlayerShip(this.ships.getEquippedShipId());
     this.junk = new Junk();
     this.ghostMarker = new GhostMarker();
 
@@ -507,12 +518,14 @@ export class Game {
       !this.isPaused &&
       !this.settingsOpen &&
       !this.galleryOpen &&
+      !this.shipyardOpen &&
       (this.state === 'title' ||
         this.state === 'gameover' ||
         this.state === 'missionComplete');
     if (input.upgradeTogglePressed && canUseUpgradePanel) {
       this.upgradePanelOpen = !this.upgradePanelOpen;
       this.galleryOpen = false;
+      this.shipyardOpen = false;
       this.audio.playUiSelect();
     }
 
@@ -1133,11 +1146,33 @@ export class Game {
   }
 
   private handleOverlayInput(input: InputState): boolean {
+    if (input.shipyardTogglePressed && this.canToggleShipyard()) {
+      if (this.shipyardOpen) {
+        this.closeShipyard(true);
+      } else {
+        this.openShipyard();
+      }
+
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (input.escapePressed && this.shipyardOpen) {
+      this.closeShipyard(true);
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (this.shipyardOpen) {
+      return this.handleShipyardInput(input);
+    }
+
     if (input.galleryTogglePressed && this.canToggleGallery()) {
       this.galleryOpen = !this.galleryOpen;
       this.helpOpen = false;
       this.settingsOpen = false;
       this.upgradePanelOpen = false;
+      this.shipyardOpen = false;
       this.clampGallerySelection();
       this.audio.playUiSelect();
       return true;
@@ -1158,6 +1193,7 @@ export class Game {
       this.helpOpen = false;
       this.upgradePanelOpen = false;
       this.galleryOpen = false;
+      this.shipyardOpen = false;
       this.audio.playUiSelect();
 
       if (this.settingsOpen && this.state === 'playing') {
@@ -1182,6 +1218,7 @@ export class Game {
       this.upgradePanelOpen = false;
       this.settingsOpen = false;
       this.galleryOpen = false;
+      this.shipyardOpen = false;
       this.audio.playUiSelect();
 
       if (this.helpOpen && this.state === 'playing') {
@@ -1208,6 +1245,89 @@ export class Game {
     }
 
     return false;
+  }
+
+  private handleShipyardInput(input: InputState): boolean {
+    if (input.leftPressed || input.laneUpPressed) {
+      this.moveShipyardSelection(-1);
+      return true;
+    }
+
+    if (input.rightPressed || input.laneDownPressed) {
+      this.moveShipyardSelection(1);
+      return true;
+    }
+
+    if (input.startPressed || input.menuSelectPressed) {
+      this.equipSelectedShip();
+      return true;
+    }
+
+    return true;
+  }
+
+  private openShipyard(): void {
+    this.shipyardOpen = true;
+    this.galleryOpen = false;
+    this.helpOpen = false;
+    this.settingsOpen = false;
+    this.upgradePanelOpen = false;
+    this.selectedShipIndex = this.getEquippedShipIndex();
+    this.previewSelectedShip();
+  }
+
+  private closeShipyard(restoreEquipped: boolean): void {
+    this.shipyardOpen = false;
+
+    if (restoreEquipped) {
+      this.player.setShipModel(this.ships.getEquippedShipId());
+      this.applyCosmetics();
+    }
+  }
+
+  private moveShipyardSelection(direction: number): void {
+    const ships = this.ships.getSnapshot().ships;
+
+    if (ships.length === 0) {
+      return;
+    }
+
+    this.selectedShipIndex =
+      (this.selectedShipIndex + direction + ships.length) % ships.length;
+    this.previewSelectedShip();
+    this.audio.playUiSelect();
+  }
+
+  private equipSelectedShip(): void {
+    const ship = this.ships.getSnapshot().ships[this.selectedShipIndex];
+
+    if (!ship) {
+      return;
+    }
+
+    if (this.ships.equip(ship.id)) {
+      this.player.setShipModel(ship.id);
+      this.applyCosmetics();
+      this.floatingText.show('SHIP EQUIPPED', 'bonus');
+      this.queueRadio(
+        'CLEANUP OPS',
+        `${ship.name} equipped. Cosmetic only; same pilot, same risk.`,
+        `ship-equipped-${ship.id}`,
+        3.8
+      );
+      this.audio.playUiSelect();
+      return;
+    }
+
+    this.queueRadio('DISPATCH', ship.unlockHint, `ship-locked-${ship.id}`, 3.8);
+    this.audio.playUiSelect();
+  }
+
+  private previewSelectedShip(): void {
+    const ship = this.ships.getSnapshot().ships[this.selectedShipIndex];
+
+    this.player.setShipModel(ship?.id ?? this.ships.getEquippedShipId());
+    this.applyCosmetics();
   }
 
   private handleGalleryInput(input: InputState): boolean {
@@ -1357,6 +1477,17 @@ export class Game {
 
   private canToggleGallery(): boolean {
     return this.state === 'title' || this.galleryOpen;
+  }
+
+  private canToggleShipyard(): boolean {
+    return this.state === 'title' || this.shipyardOpen;
+  }
+
+  private getEquippedShipIndex(): number {
+    const ships = this.ships.getSnapshot().ships;
+    const equippedIndex = ships.findIndex((ship) => ship.isEquipped);
+
+    return Math.max(0, equippedIndex);
   }
 
   private setPaused(isPaused: boolean): void {
@@ -1778,6 +1909,7 @@ export class Game {
     this.helpOpen = false;
     this.settingsOpen = false;
     this.galleryOpen = false;
+    this.shipyardOpen = false;
     this.missionIntroActive = false;
     this.missionIntroTimer = 0;
     this.hazardNearMissArmed = false;
@@ -1822,6 +1954,7 @@ export class Game {
     this.helpOpen = false;
     this.settingsOpen = false;
     this.galleryOpen = false;
+    this.shipyardOpen = false;
     this.missionIntroActive = false;
     this.missionIntroTimer = 0;
     this.hazardWarning = false;
@@ -1839,6 +1972,12 @@ export class Game {
     );
     this.announceCosmeticUnlocks(
       this.cosmetics.completeSector(this.missionDirector.getCurrentSector().id)
+    );
+    this.announceShipUnlocks(
+      this.ships.completeSector(
+        this.missionDirector.getCurrentSector().id,
+        this.sectorProgress.getSnapshot().completedSectorIds
+      )
     );
     this.newlyUnlockedSectorName =
       unlockedSectorId === null ? null : getSectorById(unlockedSectorId).name;
@@ -1890,6 +2029,7 @@ export class Game {
     this.state = 'title';
     this.upgradePanelOpen = false;
     this.galleryOpen = false;
+    this.shipyardOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
@@ -1933,6 +2073,7 @@ export class Game {
     this.playCinematic('sectorIntro');
     this.upgradePanelOpen = false;
     this.galleryOpen = false;
+    this.shipyardOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
@@ -1961,6 +2102,7 @@ export class Game {
     this.playCinematic('sectorIntro');
     this.upgradePanelOpen = false;
     this.galleryOpen = false;
+    this.shipyardOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
@@ -2047,6 +2189,7 @@ export class Game {
     }
 
     this.announceCosmeticUnlocks(this.cosmetics.recordEndlessScore(score));
+    this.announceShipUnlocks(this.ships.recordEndlessScore(score));
   }
 
   private announceCosmeticUnlocks(unlockedNames: string[]): void {
@@ -2061,6 +2204,22 @@ export class Game {
         ? `Cosmetic unlocked: ${unlockedNames[0]}. Open Gallery with G on the title screen.`
         : `${unlockedNames.length} cosmetics unlocked. Open Gallery with G on the title screen.`,
       `cosmetic-unlock-${this.radioRunId}-${unlockedNames.join('-')}`,
+      4.4
+    );
+  }
+
+  private announceShipUnlocks(unlockedNames: string[]): void {
+    if (unlockedNames.length === 0) {
+      return;
+    }
+
+    this.floatingText.show('SHIP UNLOCKED', 'bonus');
+    this.queueRadio(
+      'CLEANUP OPS',
+      unlockedNames.length === 1
+        ? `Ship unlocked: ${unlockedNames[0]}. Open Shipyard with Y on the title screen.`
+        : `${unlockedNames.length} ships unlocked. Open Shipyard with Y on the title screen.`,
+      `ship-unlock-${this.radioRunId}-${unlockedNames.join('-')}`,
       4.4
     );
   }
@@ -2623,11 +2782,18 @@ export class Game {
       return;
     }
 
+    if (option.id === 'shipyard') {
+      this.openShipyard();
+      this.audio.playUiSelect();
+      return;
+    }
+
     if (option.id === 'upgrades') {
       this.upgradePanelOpen = true;
       this.helpOpen = false;
       this.settingsOpen = false;
       this.galleryOpen = false;
+      this.shipyardOpen = false;
       this.audio.playUiSelect();
       return;
     }
@@ -2637,6 +2803,7 @@ export class Game {
       this.helpOpen = false;
       this.upgradePanelOpen = false;
       this.galleryOpen = false;
+      this.shipyardOpen = false;
       this.audio.playUiSelect();
     }
   }
@@ -2701,6 +2868,7 @@ export class Game {
     this.state = 'sectorSelect';
     this.upgradePanelOpen = false;
     this.galleryOpen = false;
+    this.shipyardOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
@@ -2773,6 +2941,7 @@ export class Game {
       input.sfxTogglePressed ||
       input.upgradeTogglePressed ||
       input.galleryTogglePressed ||
+      input.shipyardTogglePressed ||
       input.settingsTogglePressed ||
       input.upgradeBuyPressed !== null
     );
@@ -2833,6 +3002,9 @@ export class Game {
     const cinematic = this.cinematicDirector.getSnapshot();
     const defaultSector = getSectorById(this.sectorProgress.getDefaultSectorId());
     const cosmeticSnapshot = this.cosmetics.getSnapshot();
+    const shipSnapshot = this.ships.getSnapshot();
+    const equippedShip =
+      shipSnapshot.ships.find((ship) => ship.isEquipped) ?? shipSnapshot.ships[0];
     const unlockedSectors = sectorProgress.sectors.filter(
       (candidate) => candidate.isUnlocked
     );
@@ -2912,6 +3084,7 @@ export class Game {
       state: this.state,
       upgradePanelOpen: this.upgradePanelOpen,
       galleryOpen: this.galleryOpen,
+      shipyardOpen: this.shipyardOpen,
       settingsOpen: this.settingsOpen,
       helpOpen: this.helpOpen,
       selectedMenuIndex: this.titleMenuSelectedIndex,
@@ -2925,6 +3098,9 @@ export class Game {
       unlockedSectorCount: unlockedSectors.length,
       totalSectorCount: sectorProgress.sectors.length,
       totalScrap: upgradeSnapshot.totalScrap,
+      unlockedShipCount: shipSnapshot.unlockedIds.length,
+      totalShipCount: shipSnapshot.ships.length,
+      equippedShipName: equippedShip?.name ?? 'Scrapper',
       titleBadgeLabel: cosmeticSnapshot.visuals.titleBadgeLabel,
       lastUnlockedSectorName: lastUnlockedSector.name,
       musicEnabled: this.audio.isMusicEnabled(),
@@ -2954,6 +3130,12 @@ export class Game {
       cosmetics: cosmeticSnapshot,
       selectedCategoryIndex: this.galleryCategoryIndex,
       selectedItemIndex: this.galleryItemIndex
+    });
+    this.shipyardOverlay.update({
+      isOpen: this.shipyardOpen,
+      canShow: this.state === 'title',
+      ships: shipSnapshot,
+      selectedShipIndex: this.selectedShipIndex
     });
     this.tutorialOverlay.update({
       state: this.state,
@@ -3003,6 +3185,7 @@ export class Game {
         this.settingsOpen ||
         this.upgradePanelOpen ||
         this.galleryOpen ||
+        this.shipyardOpen ||
         (this.isPaused && this.state === 'playing') ||
         cinematic.isActive ||
         this.missionIntroActive
@@ -3142,6 +3325,7 @@ export class Game {
     const settings = this.settings.getSnapshot();
     const cinematic = this.cinematicDirector.getSnapshot();
     const cosmetics = this.cosmetics.getSnapshot();
+    const ships = this.ships.getSnapshot();
 
     return {
       sceneId: 'orbit-janitor',
@@ -3180,6 +3364,9 @@ export class Game {
       settings,
       cosmetics,
       galleryOpen: this.galleryOpen,
+      shipyardOpen: this.shipyardOpen,
+      ships,
+      equippedShipId: ships.equippedId,
       debugPanelOpen: import.meta.env.DEV ? this.debugPanelOpen : false,
       debugInvincible: import.meta.env.DEV ? this.debugInvincible : false,
       scrap: this.upgrades.getSnapshot().totalScrap,
@@ -3221,6 +3408,7 @@ export class Game {
     const settings = this.settings.getSnapshot();
     const cinematic = this.cinematicDirector.getSnapshot();
     const cosmetics = this.cosmetics.getSnapshot();
+    const ships = this.ships.getSnapshot();
 
     this.canvas.dataset.sceneId = 'orbit-janitor';
     this.canvas.dataset.phase = this.state;
@@ -3253,6 +3441,7 @@ export class Game {
     this.canvas.dataset.helpOpen = String(this.helpOpen);
     this.canvas.dataset.settingsOpen = String(this.settingsOpen);
     this.canvas.dataset.galleryOpen = String(this.galleryOpen);
+    this.canvas.dataset.shipyardOpen = String(this.shipyardOpen);
     this.canvas.dataset.debugPanelOpen = String(
       import.meta.env.DEV ? this.debugPanelOpen : false
     );
@@ -3276,6 +3465,9 @@ export class Game {
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);
     this.canvas.dataset.cosmeticBadge = cosmetics.visuals.titleBadgeLabel;
     this.canvas.dataset.cosmeticEquipped = Object.values(cosmetics.equipped).join(',');
+    this.canvas.dataset.equippedShip = ships.equippedId;
+    this.canvas.dataset.previewShip = this.player.getShipId();
+    this.canvas.dataset.unlockedShips = ships.unlockedIds.join(',');
     this.canvas.dataset.musicEnabled = String(this.audio.isMusicEnabled());
     this.canvas.dataset.musicVolume = this.music.getMusicVolume().toFixed(2);
     this.canvas.dataset.musicDangerIntensity = this.musicDangerIntensity.toFixed(3);

@@ -154,7 +154,7 @@ export class Hud {
           <span>Upgrades</span>
           <strong>U on title / game over</strong>
           <span>Gallery</span>
-          <strong>G on title</strong>
+          <strong>Y shipyard / G gallery</strong>
         </div>
       </section>
     `;
