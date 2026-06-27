@@ -1442,7 +1442,10 @@ body {
   display: grid;
   gap: 7px;
   width: 100%;
+  max-height: min(470px, calc(100vh - 250px));
   margin: 6px 0;
+  padding-right: 4px;
+  overflow-y: auto;
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
   text-align: left;
 }

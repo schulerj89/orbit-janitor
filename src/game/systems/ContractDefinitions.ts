@@ -1,5 +1,6 @@
 import type { ShipId } from '../entities/ships/ShipDefinitions';
 import type { ChallengeRunMode } from './ChallengeMode';
+import type { EventWaveType } from './EventWaveTypes';
 import type { RunStatsSnapshot } from './RunStats';
 
 export type ContractId =
@@ -14,7 +15,13 @@ export type ContractId =
   | 'solar-janitor'
   | 'endless-apprentice'
   | 'endless-master'
-  | 'scrap-miser';
+  | 'scrap-miser'
+  | 'graveyard-net-runner'
+  | 'neon-streak'
+  | 'relay-technician'
+  | 'reactor-flare-reader'
+  | 'junk-moon-hauler'
+  | 'long-haul';
 
 export interface ContractReward {
   scrap?: number;
@@ -205,6 +212,93 @@ export const CONTRACT_DEFINITIONS: readonly ContractDefinition[] = [
             ? 'Complete'
             : 'Finish a sector'
       )
+  },
+  {
+    id: 'graveyard-net-runner',
+    name: 'Graveyard Net Runner',
+    description: 'Survive 6 Satellite Net waves in one Graveyard Ring run.',
+    reward: {
+      scrap: 28,
+      shipIds: ['night-runner']
+    },
+    getProgress: (context) =>
+      context.sectorId === 'graveyard-ring'
+        ? eventWaveProgress(context.stats, 'satelliteNet', 6)
+        : numericProgress(0, 6)
+  },
+  {
+    id: 'neon-streak',
+    name: 'Neon Streak',
+    description: 'Complete Neon Belt with the 5x combo objective.',
+    reward: {
+      scrap: 30,
+      shipIds: ['manta']
+    },
+    getProgress: (context) =>
+      booleanProgress(
+        context.sectorId === 'neon-belt' && context.stats.sectorCompleted,
+        context.sectorId === 'neon-belt'
+          ? context.stats.sectorCompleted
+            ? 'Complete'
+            : `Score ${Math.min(context.stats.score, 90)} / 90 + x${Math.min(context.stats.highestComboMultiplier, 5)} / x5`
+          : 'Neon Belt only'
+      )
+  },
+  {
+    id: 'relay-technician',
+    name: 'Relay Technician',
+    description: 'Collect 5 powerups in one Frozen Relay run.',
+    reward: {
+      scrap: 26,
+      shipIds: ['comet-skiff']
+    },
+    getProgress: (context) =>
+      context.sectorId === 'frozen-relay'
+        ? numericProgress(context.stats.powerupsCollected, 5)
+        : numericProgress(0, 5)
+  },
+  {
+    id: 'reactor-flare-reader',
+    name: 'Reactor Flare Reader',
+    description: 'Survive 4 Solar Flare waves in Reactor Grave.',
+    reward: {
+      scrap: 34,
+      shipIds: ['solar-dart']
+    },
+    getProgress: (context) =>
+      context.sectorId === 'reactor-grave'
+        ? eventWaveProgress(context.stats, 'solarFlare', 4)
+        : numericProgress(0, 4)
+  },
+  {
+    id: 'junk-moon-hauler',
+    name: 'Junk Moon Hauler',
+    description: 'Collect 40 junk in one Junk Moon run.',
+    reward: {
+      scrap: 32,
+      shipIds: ['tugboat']
+    },
+    getProgress: (context) =>
+      context.sectorId === 'junk-moon'
+        ? numericProgress(context.stats.junkCollected, 40)
+        : numericProgress(0, 40)
+  },
+  {
+    id: 'long-haul',
+    name: 'Long Haul',
+    description: 'Complete Long Orbit.',
+    reward: {
+      scrap: 45,
+      shipIds: ['golden-janitor'],
+      cosmeticIds: ['badge-endless-master']
+    },
+    getProgress: (context) =>
+      booleanProgress(
+        context.sectorId === 'long-orbit' && context.stats.sectorCompleted,
+        context.sectorId === 'long-orbit'
+          ? `${Math.min(Math.floor(context.stats.runTime), 180)} / 180s`
+          : 'Long Orbit only'
+      )
   }
 ];
 
@@ -244,4 +338,12 @@ function booleanProgress(isComplete: boolean, text: string): ContractProgress {
     isComplete,
     text
   };
+}
+
+function eventWaveProgress(
+  stats: RunStatsSnapshot,
+  eventType: EventWaveType,
+  target: number
+): ContractProgress {
+  return numericProgress(stats.eventWavesSurvived[eventType] ?? 0, target);
 }

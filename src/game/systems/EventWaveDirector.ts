@@ -71,6 +71,7 @@ export interface EventWaveDirectorResult {
   started: boolean;
   activated: boolean;
   completed: boolean;
+  completedEventType: EventWaveType | null;
   forcedHazardType: HazardPatternType | null;
 }
 
@@ -88,6 +89,8 @@ export class EventWaveDirector {
   private hazardStep = 0;
   private hasTriggeredRunEvent = false;
   private nextEndlessEventAt = ENDLESS_EVENT_MIN_INTERVAL;
+  private nextSectorEventAt = NON_TUTORIAL_EVENT_MIN_TIME;
+  private usesSectorEventCadence = false;
   private lastRunTime = 0;
   private safeLaneIndex: number | null = null;
   private startAngle = 0;
@@ -109,6 +112,8 @@ export class EventWaveDirector {
     this.nextEndlessEventAt = rng
       ? rng.range(ENDLESS_EVENT_MIN_INTERVAL, ENDLESS_EVENT_MAX_INTERVAL)
       : ENDLESS_EVENT_MIN_INTERVAL;
+    this.nextSectorEventAt = NON_TUTORIAL_EVENT_MIN_TIME;
+    this.usesSectorEventCadence = false;
     this.safeLaneIndex = null;
     this.startAngle = 0;
     this.telegraph.clear();
@@ -119,6 +124,7 @@ export class EventWaveDirector {
     this.telegraph.update(delta);
     this.comet.update(delta);
     this.lastRunTime = context.stats.runTime;
+    this.usesSectorEventCadence = Boolean(context.sector.eventWaveCadenceSeconds);
 
     if (this.phase === 'warning') {
       return this.updateWarning(delta);
@@ -134,6 +140,7 @@ export class EventWaveDirector {
         started: true,
         activated: false,
         completed: false,
+        completedEventType: null,
         forcedHazardType: null
       };
     }
@@ -142,6 +149,7 @@ export class EventWaveDirector {
       started: false,
       activated: false,
       completed: false,
+      completedEventType: null,
       forcedHazardType: null
     };
   }
@@ -270,6 +278,7 @@ export class EventWaveDirector {
         started: false,
         activated: false,
         completed: false,
+        completedEventType: null,
         forcedHazardType: null
       };
     }
@@ -289,6 +298,7 @@ export class EventWaveDirector {
       started: false,
       activated: true,
       completed: false,
+      completedEventType: null,
       forcedHazardType: null
     };
   }
@@ -302,11 +312,13 @@ export class EventWaveDirector {
     this.hazardActionTimer = Math.max(0, this.hazardActionTimer - delta);
 
     if (this.activeRemaining <= 0) {
+      const completedEventType = this.activeType;
       this.completeEvent(context);
       return {
         started: false,
         activated: false,
         completed: true,
+        completedEventType,
         forcedHazardType: null
       };
     }
@@ -315,6 +327,7 @@ export class EventWaveDirector {
       started: false,
       activated: false,
       completed: false,
+      completedEventType: null,
       forcedHazardType: this.getForcedHazardType(context)
     };
   }
@@ -332,6 +345,13 @@ export class EventWaveDirector {
       return context.stats.runTime >= this.nextEndlessEventAt;
     }
 
+    if (context.sector.eventWaveCadenceSeconds) {
+      return (
+        context.stats.runTime >= NON_TUTORIAL_EVENT_MIN_TIME &&
+        context.stats.runTime >= this.nextSectorEventAt
+      );
+    }
+
     return (
       !this.hasTriggeredRunEvent &&
       context.stats.runTime >= NON_TUTORIAL_EVENT_MIN_TIME &&
@@ -347,7 +367,8 @@ export class EventWaveDirector {
     this.activeElapsed = 0;
     this.hazardActionTimer = 0;
     this.hazardStep = 0;
-    this.hasTriggeredRunEvent = !context.sector.isEndless;
+    this.hasTriggeredRunEvent =
+      !context.sector.isEndless && !context.sector.eventWaveCadenceSeconds;
     this.safeLaneIndex =
       type === 'satelliteNet' || type === 'cleanupFrenzy'
         ? getNearestLaneIndex(context.playerRadius)
@@ -364,6 +385,10 @@ export class EventWaveDirector {
       this.nextEndlessEventAt =
         context.stats.runTime +
         context.rng.range(ENDLESS_EVENT_MIN_INTERVAL, ENDLESS_EVENT_MAX_INTERVAL);
+    } else if (context.sector.eventWaveCadenceSeconds) {
+      this.nextSectorEventAt =
+        context.stats.runTime +
+        context.sector.eventWaveCadenceSeconds * context.rng.range(0.88, 1.14);
     }
 
     this.phase = 'idle';
@@ -426,7 +451,11 @@ export class EventWaveDirector {
       return 0;
     }
 
-    return Math.max(0, this.nextEndlessEventAt - this.lastRunTime);
+    const nextEventAt = this.usesSectorEventCadence
+      ? this.nextSectorEventAt
+      : this.nextEndlessEventAt;
+
+    return Math.max(0, nextEventAt - this.lastRunTime);
   }
 }
 

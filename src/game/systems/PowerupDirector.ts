@@ -30,6 +30,7 @@ export interface PowerupDirectorContext {
   hazard: HazardDirectorDebugState;
   rng: SeededRandom;
   canSpawn: boolean;
+  spawnIntervalMultiplier?: number;
 }
 
 export interface ActivePowerupSnapshot {
@@ -89,13 +90,19 @@ export class PowerupDirector {
         this.activate(collected);
         this.powerup.clear();
         this.collectibleLifetime = 0;
-        this.spawnTimer = this.getNextSpawnTime(context.rng);
+        this.spawnTimer = this.getNextSpawnTime(
+          context.rng,
+          context.spawnIntervalMultiplier
+        );
         return { collected };
       }
 
       if (this.collectibleLifetime <= 0) {
         this.powerup.clear();
-        this.spawnTimer = this.getNextSpawnTime(context.rng);
+        this.spawnTimer = this.getNextSpawnTime(
+          context.rng,
+          context.spawnIntervalMultiplier
+        );
       }
 
       return { collected: null };
@@ -105,7 +112,10 @@ export class PowerupDirector {
       return { collected: null };
     }
 
-    this.spawnTimer = Math.max(0, this.spawnTimer - delta);
+    this.spawnTimer = Math.max(
+      0,
+      this.spawnTimer - delta / Math.max(0.35, context.spawnIntervalMultiplier ?? 1)
+    );
 
     if (this.spawnTimer <= 0) {
       this.spawn(context);
@@ -227,10 +237,13 @@ export class PowerupDirector {
     );
   }
 
-  private getNextSpawnTime(rng: RandomSource): number {
+  private getNextSpawnTime(rng: RandomSource, multiplier = 1): number {
+    const safeMultiplier = Math.max(0.35, multiplier);
+
     return (
-      POWERUP_SPAWN_MIN_SECONDS +
-      rng.next() * (POWERUP_SPAWN_MAX_SECONDS - POWERUP_SPAWN_MIN_SECONDS)
+      (POWERUP_SPAWN_MIN_SECONDS +
+        rng.next() * (POWERUP_SPAWN_MAX_SECONDS - POWERUP_SPAWN_MIN_SECONDS)) *
+      safeMultiplier
     );
   }
 }

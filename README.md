@@ -94,6 +94,7 @@ Touch:
 - Official title screen with keyboard/gamepad main menu, sector select, mission complete, pause, help, settings, upgrade, cosmetic gallery, game over, and run summary overlays.
 - Skippable real-time micro-cinematics for title fly-in, sector intro, event warnings, mission complete, game over, and sector unlock reveals.
 - Structured sectors with score, junk collection, survival timer, hazard survival, tutorial, daily challenge, seeded run, and endless objectives.
+- Second sector pack with Graveyard Ring, Neon Belt, Frozen Relay, Reactor Grave, Junk Moon, and Long Orbit.
 - Persistent sector unlocks, best score, daily best, scrap total, upgrades, cosmetic unlocks/equips, audio preferences, and accessibility settings.
 - Training Orbit tutorial with guided rotate, pickup, lane switch, boost, obstacle, and hazard-reading steps.
 - Three orbit lanes with smooth lane switching, readable ship direction, procedural world cores/lanes/stars/junk/satellites/hazards, and sector-specific visual themes.
@@ -109,6 +110,27 @@ Touch:
 - Accessibility settings for reduced motion, screen shake intensity, high-contrast hazards, and audio volumes.
 - Web Audio procedural fallback plus optional committed MP3 SFX/music under `public/audio`.
 - Playwright smoke tests using `window.orbitJanitorDebug`.
+
+## Sector Packs
+
+Core route:
+
+- Training Orbit: guided tutorial pickups.
+- Low Orbit Cleanup: reach 50 cleanup points.
+- Debris Belt: collect 25 junk.
+- Solar Storm: survive 90 seconds.
+- Night Side: reach 80 cleanup points.
+- Comet Wake: survive 8 hazards.
+- Endless Cleanup: open high-score route.
+
+Second pack:
+
+- Graveyard Ring: survive 6 Satellite Net waves or 100 seconds.
+- Neon Belt: reach 5x combo and 90 score.
+- Frozen Relay: collect 5 powerups and reach 70 score.
+- Reactor Grave: survive 4 Solar Flare waves or 120 seconds.
+- Junk Moon: collect 40 junk.
+- Long Orbit: survive 180 seconds with slow endurance scaling.
 
 ## Audio Asset Policy
 

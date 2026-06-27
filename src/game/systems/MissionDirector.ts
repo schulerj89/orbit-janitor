@@ -28,6 +28,7 @@ export interface MissionDifficulty {
   hazardActiveMultiplier: number;
   hazardSpeedMultiplier: number;
   junkColorVariance: number;
+  powerupSpawnIntervalMultiplier: number;
   modifierHint: string;
   junkLaneWeights: readonly [number, number, number];
   allowedHazardTypes: SectorConfig['allowedHazardTypes'];
@@ -56,6 +57,11 @@ export class MissionDirector {
     const endlessScale = this.currentSector.isEndless
       ? Math.min(0.65, (stats?.runTime ?? 0) / 180)
       : 0;
+    const sectorTimeScale = Math.min(
+      0.55,
+      ((stats?.runTime ?? 0) / 60) * modifiers.difficultyScalePerMinute
+    );
+    const totalScale = endlessScale + sectorTimeScale;
 
     return {
       startingObstacleCount: this.currentSector.startingObstacleCount,
@@ -63,15 +69,16 @@ export class MissionDirector {
       hazardIntensity:
         this.currentSector.hazardIntensity *
         modifiers.hazardIntensityMultiplier *
-        (1 + endlessScale),
+        (1 + totalScale),
       hazardIntervalMultiplier: Math.max(
         0.55,
-        modifiers.hazardIntervalMultiplier * (1 - endlessScale * 0.28)
+        modifiers.hazardIntervalMultiplier * (1 - totalScale * 0.28)
       ),
       hazardTelegraphMultiplier: modifiers.hazardTelegraphMultiplier,
       hazardActiveMultiplier: modifiers.hazardActiveMultiplier,
-      hazardSpeedMultiplier: modifiers.hazardSpeedMultiplier * (1 + endlessScale * 0.25),
+      hazardSpeedMultiplier: modifiers.hazardSpeedMultiplier * (1 + totalScale * 0.25),
       junkColorVariance: modifiers.junkColorVariance,
+      powerupSpawnIntervalMultiplier: modifiers.powerupSpawnIntervalMultiplier,
       modifierHint: modifiers.hint,
       junkLaneWeights: this.currentSector.junkSpawnBias.laneWeights,
       allowedHazardTypes: this.currentSector.allowedHazardTypes,
@@ -99,6 +106,65 @@ function getObjectiveSnapshot(
       progress: 0,
       isComplete: false,
       isEndless: true
+    };
+  }
+
+  if (objective.type === 'comboAndScore') {
+    const scoreProgress = Math.min(stats.score, objective.targetScore);
+    const multiplierProgress = Math.min(
+      stats.highestComboMultiplier,
+      objective.targetMultiplier
+    );
+    const scoreRatio = scoreProgress / objective.targetScore;
+    const comboRatio = multiplierProgress / objective.targetMultiplier;
+    const isComplete =
+      stats.score >= objective.targetScore &&
+      stats.highestComboMultiplier >= objective.targetMultiplier;
+
+    return {
+      text: `Objective: ${objective.description}`,
+      progressText: `${scoreProgress} / ${objective.targetScore} score + x${multiplierProgress} / x${objective.targetMultiplier}`,
+      progress: Math.max(0, Math.min(1, Math.min(scoreRatio, comboRatio))),
+      isComplete,
+      isEndless: false
+    };
+  }
+
+  if (objective.type === 'powerupsAndScore') {
+    const scoreProgress = Math.min(stats.score, objective.targetScore);
+    const powerupProgress = Math.min(stats.powerupsCollected, objective.targetPowerups);
+    const scoreRatio = scoreProgress / objective.targetScore;
+    const powerupRatio = powerupProgress / objective.targetPowerups;
+    const isComplete =
+      stats.score >= objective.targetScore &&
+      stats.powerupsCollected >= objective.targetPowerups;
+
+    return {
+      text: `Objective: ${objective.description}`,
+      progressText: `${powerupProgress} / ${objective.targetPowerups} powerups + ${scoreProgress} / ${objective.targetScore} score`,
+      progress: Math.max(0, Math.min(1, Math.min(scoreRatio, powerupRatio))),
+      isComplete,
+      isEndless: false
+    };
+  }
+
+  if (objective.type === 'eventWavesOrTime') {
+    const eventProgress = Math.min(
+      stats.eventWavesSurvived[objective.eventType] ?? 0,
+      objective.eventTarget
+    );
+    const timeProgress = Math.min(Math.floor(stats.runTime), objective.timeTarget);
+    const eventRatio = eventProgress / objective.eventTarget;
+    const timeRatio = timeProgress / objective.timeTarget;
+    const isComplete =
+      eventProgress >= objective.eventTarget || timeProgress >= objective.timeTarget;
+
+    return {
+      text: `Objective: ${objective.description}`,
+      progressText: `${eventProgress} / ${objective.eventTarget} waves or ${timeProgress} / ${objective.timeTarget}s`,
+      progress: Math.max(0, Math.min(1, Math.max(eventRatio, timeRatio))),
+      isComplete,
+      isEndless: false
     };
   }
 

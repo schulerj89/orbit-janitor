@@ -1665,6 +1665,11 @@ export class Game {
     }
 
     if (result.completed) {
+      if (result.completedEventType) {
+        this.runStats.recordEventWaveSurvived(result.completedEventType);
+        this.syncRunStats();
+      }
+
       this.hazardDirector.delayNextSpawn(1.4);
     }
   }
@@ -1700,6 +1705,7 @@ export class Game {
 
   private updatePowerups(delta: number): void {
     const tutorial = this.tutorialDirector.getSnapshot();
+    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
     const result = this.powerupDirector.update(delta, {
       playerAngle: this.player.angle,
       playerRadius: this.player.currentRadius,
@@ -1708,7 +1714,8 @@ export class Game {
       obstacles: this.getObstacleLaneAngles(),
       hazard: this.hazardDirector.getDebugState(),
       rng: this.runRng,
-      canSpawn: !tutorial.isActive
+      canSpawn: !tutorial.isActive,
+      spawnIntervalMultiplier: difficulty.powerupSpawnIntervalMultiplier
     });
 
     if (result.collected) {

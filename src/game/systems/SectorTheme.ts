@@ -5,6 +5,12 @@ export type SectorThemeId =
   | 'solar-storm'
   | 'night-side'
   | 'comet-wake'
+  | 'graveyard-ring'
+  | 'neon-belt'
+  | 'frozen-relay'
+  | 'reactor-grave'
+  | 'junk-moon'
+  | 'long-orbit'
   | 'endless-cleanup';
 
 export type SectorMusicIntensityHint = 'calm' | 'steady' | 'tense' | 'endless';
@@ -17,6 +23,8 @@ export interface SectorGameplayModifiers {
   hazardActiveMultiplier: number;
   hazardSpeedMultiplier: number;
   junkColorVariance: number;
+  powerupSpawnIntervalMultiplier: number;
+  difficultyScalePerMinute: number;
 }
 
 export interface SectorTheme {
@@ -44,7 +52,9 @@ const baselineModifiers: SectorGameplayModifiers = {
   hazardTelegraphMultiplier: 1,
   hazardActiveMultiplier: 1,
   hazardSpeedMultiplier: 1,
-  junkColorVariance: 0.2
+  junkColorVariance: 0.2,
+  powerupSpawnIntervalMultiplier: 1,
+  difficultyScalePerMinute: 0
 };
 
 export const SECTOR_THEMES: Record<SectorThemeId, SectorTheme> = {
@@ -178,6 +188,153 @@ export const SECTOR_THEMES: Record<SectorThemeId, SectorTheme> = {
       hazardSpeedMultiplier: 1.35,
       hazardActiveMultiplier: 1.05,
       junkColorVariance: 0.55
+    }
+  },
+  'graveyard-ring': {
+    id: 'graveyard-ring',
+    planetBaseColor: 0x2d3a45,
+    planetAccentColor: 0x8fe8ff,
+    atmosphereColor: 0x9dbbd2,
+    laneColor: 0x34414d,
+    activeLaneColor: 0x8fb5d2,
+    starColor: 0xdcecff,
+    junkPalette: [0x7d8fa1, 0x9dbbd2, 0x5d7286, 0xffd45f, 0xcfefff],
+    hazardWarningColor: 0xffd45f,
+    hazardActiveColor: 0xff3b22,
+    ambientLightColor: 0x9db5c8,
+    directionalLightColor: 0xe8f4ff,
+    backgroundColor: 0x020714,
+    musicIntensityHint: 'tense',
+    modifiers: {
+      ...baselineModifiers,
+      hint: 'Satellite net endurance route',
+      hazardIntensityMultiplier: 1.05,
+      hazardIntervalMultiplier: 0.92,
+      hazardTelegraphMultiplier: 1.12,
+      hazardSpeedMultiplier: 1.05,
+      junkColorVariance: 0.5
+    }
+  },
+  'neon-belt': {
+    id: 'neon-belt',
+    planetBaseColor: 0x16324c,
+    planetAccentColor: 0xff4fd8,
+    atmosphereColor: 0x00e5ff,
+    laneColor: 0x49245c,
+    activeLaneColor: 0x00e5ff,
+    starColor: 0xf1e8ff,
+    junkPalette: [0x00e5ff, 0xff4fd8, 0xffe06b, 0x9fffee, 0xd36bff],
+    hazardWarningColor: 0xffe06b,
+    hazardActiveColor: 0xff2f6d,
+    ambientLightColor: 0xa5d8ff,
+    directionalLightColor: 0xffd6fb,
+    backgroundColor: 0x070019,
+    musicIntensityHint: 'tense',
+    modifiers: {
+      ...baselineModifiers,
+      hint: 'Combo route with paired arcs',
+      hazardIntensityMultiplier: 1.08,
+      hazardIntervalMultiplier: 0.9,
+      hazardSpeedMultiplier: 1.12,
+      junkColorVariance: 0.8
+    }
+  },
+  'frozen-relay': {
+    id: 'frozen-relay',
+    planetBaseColor: 0x1d4054,
+    planetAccentColor: 0xffffff,
+    atmosphereColor: 0xcfefff,
+    laneColor: 0x35566d,
+    activeLaneColor: 0xcfefff,
+    starColor: 0xf1fbff,
+    junkPalette: [0xcfefff, 0xffffff, 0x9fffee, 0x7aa9ff, 0xffc857],
+    hazardWarningColor: 0xffd45f,
+    hazardActiveColor: 0xff5538,
+    ambientLightColor: 0xbdefff,
+    directionalLightColor: 0xffffff,
+    backgroundColor: 0x020817,
+    musicIntensityHint: 'steady',
+    modifiers: {
+      ...baselineModifiers,
+      hint: 'Powerups spawn more often',
+      hazardIntensityMultiplier: 0.96,
+      hazardTelegraphMultiplier: 1.12,
+      junkColorVariance: 0.62,
+      powerupSpawnIntervalMultiplier: 0.72
+    }
+  },
+  'reactor-grave': {
+    id: 'reactor-grave',
+    planetBaseColor: 0x3b1010,
+    planetAccentColor: 0xff6a1f,
+    atmosphereColor: 0xff8e4f,
+    laneColor: 0x4a1e16,
+    activeLaneColor: 0xff8e4f,
+    starColor: 0xffd0a0,
+    junkPalette: [0xff8e4f, 0xffc857, 0x8a2f20, 0xcfefff],
+    hazardWarningColor: 0xffe06b,
+    hazardActiveColor: 0xff2c18,
+    ambientLightColor: 0xff9a72,
+    directionalLightColor: 0xffc98f,
+    backgroundColor: 0x090006,
+    musicIntensityHint: 'tense',
+    modifiers: {
+      ...baselineModifiers,
+      hint: 'Short active hazards, higher cadence',
+      hazardIntensityMultiplier: 1.15,
+      hazardIntervalMultiplier: 0.72,
+      hazardTelegraphMultiplier: 1.08,
+      hazardActiveMultiplier: 0.72,
+      hazardSpeedMultiplier: 1.08,
+      junkColorVariance: 0.38
+    }
+  },
+  'junk-moon': {
+    id: 'junk-moon',
+    planetBaseColor: 0x4f3320,
+    planetAccentColor: 0xffc857,
+    atmosphereColor: 0xd89b56,
+    laneColor: 0x5a4330,
+    activeLaneColor: 0xffc857,
+    starColor: 0xffe2a8,
+    junkPalette: [0xffc857, 0xd5762c, 0x8f4a32, 0x6d6f7e, 0x9fffee, 0x5f4520],
+    hazardWarningColor: 0xffd45f,
+    hazardActiveColor: 0xff4b2f,
+    ambientLightColor: 0xffc98f,
+    directionalLightColor: 0xffe2a8,
+    backgroundColor: 0x120904,
+    musicIntensityHint: 'steady',
+    modifiers: {
+      ...baselineModifiers,
+      hint: 'More junk variation and debris',
+      hazardIntensityMultiplier: 1.06,
+      hazardIntervalMultiplier: 0.88,
+      hazardSpeedMultiplier: 1.05,
+      junkColorVariance: 1
+    }
+  },
+  'long-orbit': {
+    id: 'long-orbit',
+    planetBaseColor: 0x101829,
+    planetAccentColor: 0x8fe8ff,
+    atmosphereColor: 0x526c7c,
+    laneColor: 0x27364b,
+    activeLaneColor: 0x8fe8ff,
+    starColor: 0xe8fbff,
+    junkPalette: [0x8fe8ff, 0xcfefff, 0xffd45f, 0x7d8fa1, 0x9fffee],
+    hazardWarningColor: 0xffd45f,
+    hazardActiveColor: 0xff3b22,
+    ambientLightColor: 0x7994bb,
+    directionalLightColor: 0xdff7ff,
+    backgroundColor: 0x01030b,
+    musicIntensityHint: 'endless',
+    modifiers: {
+      ...baselineModifiers,
+      hint: 'Slow steady endurance scaling',
+      hazardIntervalMultiplier: 1.08,
+      hazardSpeedMultiplier: 0.95,
+      junkColorVariance: 0.55,
+      difficultyScalePerMinute: 0.08
     }
   },
   'endless-cleanup': {

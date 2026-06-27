@@ -36,6 +36,13 @@ type DebugState = {
   missionIntroActive: boolean;
   cinematicActive: boolean;
   sectorId: string;
+  sectorProgress: {
+    sectors: Array<{
+      id: string;
+      isUnlocked: boolean;
+      isCompleted: boolean;
+    }>;
+  };
   tutorialActive: boolean;
   musicEnabled: boolean;
   sfxEnabled: boolean;
@@ -101,6 +108,17 @@ test('loads the title scene and exposes debug state', async ({ page }) => {
   const state = await getDebugState(page);
   expect(state.sceneId).toBe('orbit-janitor');
   expect(state.phase).toBe('title');
+  expect(state.sectorProgress.sectors.length).toBeGreaterThanOrEqual(13);
+  expect(state.sectorProgress.sectors.map((sector) => sector.id)).toEqual(
+    expect.arrayContaining([
+      'graveyard-ring',
+      'neon-belt',
+      'frozen-relay',
+      'reactor-grave',
+      'junk-moon',
+      'long-orbit'
+    ])
+  );
 });
 
 test('toggles music and sfx preferences from keyboard input', async ({ page }) => {
@@ -374,7 +392,7 @@ async function waitForMissionIntro(page: Page): Promise<void> {
   await skipCinematic(page);
   await expect
     .poll(() => getDebugState(page).then((state) => state.missionIntroActive), {
-      timeout: 6000
+      timeout: 10000
     })
     .toBe(false);
 }

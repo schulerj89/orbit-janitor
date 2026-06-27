@@ -1,3 +1,5 @@
+import type { EventWaveType } from './EventWaveTypes';
+
 export interface RunStatsSnapshot {
   score: number;
   finalScore: number;
@@ -8,6 +10,8 @@ export interface RunStatsSnapshot {
   highestMultiplier: number;
   highestComboMultiplier: number;
   hazardsSurvived: number;
+  eventWavesSurvived: Partial<Record<EventWaveType, number>>;
+  totalEventWavesSurvived: number;
   boostUsed: boolean;
   shieldBroken: boolean;
   nearMisses: number;
@@ -29,6 +33,7 @@ export class RunStats {
   private longestCombo = 0;
   private highestMultiplier = 1;
   private hazardsSurvived = 0;
+  private readonly eventWavesSurvived = new Map<EventWaveType, number>();
   private boostUsed = false;
   private shieldBroken = false;
   private nearMisses = 0;
@@ -49,6 +54,7 @@ export class RunStats {
     this.longestCombo = 0;
     this.highestMultiplier = 1;
     this.hazardsSurvived = 0;
+    this.eventWavesSurvived.clear();
     this.boostUsed = false;
     this.shieldBroken = false;
     this.nearMisses = 0;
@@ -79,6 +85,10 @@ export class RunStats {
 
   recordHazardSurvived(): void {
     this.hazardsSurvived += 1;
+  }
+
+  recordEventWaveSurvived(type: EventWaveType): void {
+    this.eventWavesSurvived.set(type, (this.eventWavesSurvived.get(type) ?? 0) + 1);
   }
 
   recordBoostUsed(): void {
@@ -126,6 +136,11 @@ export class RunStats {
       highestMultiplier: this.highestMultiplier,
       highestComboMultiplier: this.highestMultiplier,
       hazardsSurvived: this.hazardsSurvived,
+      eventWavesSurvived: Object.fromEntries(this.eventWavesSurvived),
+      totalEventWavesSurvived: [...this.eventWavesSurvived.values()].reduce(
+        (total, count) => total + count,
+        0
+      ),
       boostUsed: this.boostUsed,
       shieldBroken: this.shieldBroken,
       nearMisses: this.nearMisses,

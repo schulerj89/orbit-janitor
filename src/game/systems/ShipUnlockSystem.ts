@@ -5,7 +5,6 @@ import {
   isShipId,
   type ShipId
 } from '../entities/ships/ShipDefinitions';
-import { SECTOR_CONFIGS } from './SectorConfig';
 
 export interface ShipSnapshotItem {
   id: ShipId;
@@ -38,12 +37,23 @@ const SECTOR_SHIP_UNLOCKS: Record<string, readonly ShipId[]> = {
   'debris-belt': ['tugboat'],
   'solar-storm': ['solar-dart'],
   'night-side': ['night-runner'],
-  'comet-wake': ['comet-skiff']
+  'comet-wake': ['comet-skiff'],
+  'graveyard-ring': ['night-runner'],
+  'neon-belt': ['manta'],
+  'frozen-relay': ['comet-skiff'],
+  'reactor-grave': ['solar-dart'],
+  'junk-moon': ['tugboat'],
+  'long-orbit': ['golden-janitor']
 };
 const ENDLESS_GOLD_SCORE = 150;
-const ALL_NON_ENDLESS_SECTOR_IDS = SECTOR_CONFIGS.filter(
-  (sector) => !sector.isEndless
-).map((sector) => sector.id);
+const MANTA_SECTOR_IDS = [
+  'training-orbit',
+  'low-orbit-cleanup',
+  'debris-belt',
+  'solar-storm',
+  'night-side',
+  'comet-wake'
+] as const;
 
 export class ShipUnlockSystem {
   private readonly unlockedIds: Set<ShipId>;
@@ -118,7 +128,7 @@ export class ShipUnlockSystem {
       (SECTOR_SHIP_UNLOCKS[sectorId] ?? []).forEach((shipId) => shipIds.add(shipId));
     }
 
-    if (ALL_NON_ENDLESS_SECTOR_IDS.every((sectorId) => sectorIdSet.has(sectorId))) {
+    if (MANTA_SECTOR_IDS.every((sectorId) => sectorIdSet.has(sectorId))) {
       shipIds.add('manta');
     }
 

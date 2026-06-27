@@ -57,7 +57,7 @@ export const SHIP_DEFINITIONS: readonly ShipDefinition[] = [
     id: 'tugboat',
     name: 'Tugboat',
     description: 'Chunky hauler frame built for salvage-lane grit.',
-    unlockHint: 'Complete Debris Belt.',
+    unlockHint: 'Complete Debris Belt or Junk Moon.',
     palette: {
       body: 0xffcf7a,
       wing: 0x3d2e24,
@@ -70,7 +70,7 @@ export const SHIP_DEFINITIONS: readonly ShipDefinition[] = [
     id: 'manta',
     name: 'Manta',
     description: 'Wide winged cleanup craft with a clear gliding profile.',
-    unlockHint: 'Complete all non-endless sectors.',
+    unlockHint: 'Complete the original campaign or Neon Belt.',
     palette: {
       body: 0xcfefff,
       wing: 0x172b3c,
@@ -83,7 +83,7 @@ export const SHIP_DEFINITIONS: readonly ShipDefinition[] = [
     id: 'comet-skiff',
     name: 'Comet Skiff',
     description: 'Icy skiff with shard fins and a cold trail style.',
-    unlockHint: 'Complete Comet Wake.',
+    unlockHint: 'Complete Comet Wake or Frozen Relay.',
     palette: {
       body: 0xcfefff,
       wing: 0x1d4054,
@@ -96,7 +96,7 @@ export const SHIP_DEFINITIONS: readonly ShipDefinition[] = [
     id: 'solar-dart',
     name: 'Solar Dart',
     description: 'Orange flare craft with hot fins and a fast dart profile.',
-    unlockHint: 'Complete Solar Storm.',
+    unlockHint: 'Complete Solar Storm or Reactor Grave.',
     palette: {
       body: 0xffa15c,
       wing: 0x4a1e16,
@@ -109,7 +109,7 @@ export const SHIP_DEFINITIONS: readonly ShipDefinition[] = [
     id: 'night-runner',
     name: 'Night Runner',
     description: 'Dark violet low-light ship with quiet angular wings.',
-    unlockHint: 'Complete Night Side.',
+    unlockHint: 'Complete Night Side or Graveyard Ring.',
     palette: {
       body: 0x9b8cff,
       wing: 0x171a32,
@@ -122,7 +122,7 @@ export const SHIP_DEFINITIONS: readonly ShipDefinition[] = [
     id: 'golden-janitor',
     name: 'Golden Janitor',
     description: 'Trophy-grade cleanup craft for elite endless routes.',
-    unlockHint: 'Reach 150 score in Endless Cleanup.',
+    unlockHint: 'Reach 150 score in Endless Cleanup or complete Long Orbit.',
     palette: {
       body: 0xffe06b,
       wing: 0x5f4520,

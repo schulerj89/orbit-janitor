@@ -38,6 +38,7 @@ export class SectorProgress {
 
   constructor() {
     this.ensureStartingUnlocks();
+    this.ensureUnlocksFromCompletedSectors();
   }
 
   completeSector(sectorId: string): string | null {
@@ -50,12 +51,21 @@ export class SectorProgress {
     const completedBefore = this.completedSectorIds.has(sectorId);
     this.completedSectorIds.add(sectorId);
 
-    const nextSectorId = getNextSectorId(sectorId);
     let newlyUnlockedSectorId: string | null = null;
+    const unlockCandidates = [
+      getNextSectorId(sectorId),
+      ...SECTOR_CONFIGS.filter(
+        (candidate) => candidate.unlockRequirement.completedSectorId === sectorId
+      ).map((candidate) => candidate.id)
+    ].filter((candidate): candidate is string => candidate !== null);
 
-    if (nextSectorId && !this.unlockedSectorIds.has(nextSectorId)) {
-      this.unlockedSectorIds.add(nextSectorId);
-      newlyUnlockedSectorId = nextSectorId;
+    for (const candidateId of new Set(unlockCandidates)) {
+      if (this.unlockedSectorIds.has(candidateId)) {
+        continue;
+      }
+
+      this.unlockedSectorIds.add(candidateId);
+      newlyUnlockedSectorId ??= candidateId;
     }
 
     if (!completedBefore || newlyUnlockedSectorId !== null) {
@@ -118,6 +128,33 @@ export class SectorProgress {
       if (!this.unlockedSectorIds.has(sectorId)) {
         this.unlockedSectorIds.add(sectorId);
         changed = true;
+      }
+    }
+
+    if (changed) {
+      this.persist();
+    }
+  }
+
+  private ensureUnlocksFromCompletedSectors(): void {
+    let changed = false;
+    let unlockedSectorThisPass = true;
+
+    while (unlockedSectorThisPass) {
+      unlockedSectorThisPass = false;
+
+      for (const sector of SECTOR_CONFIGS) {
+        if (this.unlockedSectorIds.has(sector.id)) {
+          continue;
+        }
+
+        const requiredSectorId = sector.unlockRequirement.completedSectorId;
+
+        if (requiredSectorId === null || this.completedSectorIds.has(requiredSectorId)) {
+          this.unlockedSectorIds.add(sector.id);
+          unlockedSectorThisPass = true;
+          changed = true;
+        }
       }
     }
 
