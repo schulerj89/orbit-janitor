@@ -1,4 +1,4 @@
-import type { EventWaveType } from './EventWaveDirector';
+import type { EventWaveType } from './EventWaveTypes';
 import type { HazardPatternType } from './HazardTypes';
 import type { SectorThemeId } from './SectorTheme';
 import type { WorldCoreType } from '../entities/world-cores/WorldCore';

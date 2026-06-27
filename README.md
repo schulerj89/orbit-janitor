@@ -97,7 +97,7 @@ Touch:
 - Sector-specific centerpieces: planet core, cracked planetoid, solar reactor, night planet, comet core, and orbital gate.
 - Combo scoring, boost fuel, temporary powerups, upgrade effects, one-run shield support, near-miss feedback, mission intro countdown, and screen/camera feedback.
 - Telegraph-first hazards: lane arcs, double lane arcs, sweepers, gate hazards, pulse mines, and debris showers.
-- Boss-like event waves near sector finales: Debris Storm, Satellite Net, Solar Flare, Comet Pass, and Cleanup Frenzy.
+- Sector-specific event waves near finales and in endless mode: Debris Storm debris crossings, Satellite Net safe-lane formations, Solar Flare lane pulses, Comet Pass background fly-bys, and Cleanup Frenzy reward phases.
 - Keyboard, gamepad, and touch controls.
 - Accessibility settings for reduced motion, screen shake intensity, high-contrast hazards, and audio volumes.
 - Web Audio procedural fallback plus optional committed MP3 SFX/music under `public/audio`.

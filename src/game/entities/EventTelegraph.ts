@@ -1,6 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { ORBIT_LANES } from '../constants';
-import type { EventWaveType } from '../systems/EventWaveDirector';
+import type { EventWaveType } from '../systems/EventWaveTypes';
 import type { SectorTheme } from '../systems/SectorTheme';
 
 type EventTelegraphPhase = 'warning' | 'active';

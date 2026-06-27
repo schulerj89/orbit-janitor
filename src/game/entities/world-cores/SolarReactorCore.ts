@@ -1,7 +1,13 @@
 import * as THREE from 'three/webgpu';
 import { PLANET_RADIUS } from '../../constants';
 import type { SectorTheme } from '../../systems/SectorTheme';
-import { disposeWorldCoreGroup, lighten, mixColor, type WorldCore } from './WorldCore';
+import {
+  disposeWorldCoreGroup,
+  lighten,
+  mixColor,
+  type WorldCore,
+  type WorldCoreUpdateContext
+} from './WorldCore';
 
 export class SolarReactorCore implements WorldCore {
   readonly group = new THREE.Group();
@@ -37,6 +43,7 @@ export class SolarReactorCore implements WorldCore {
   private readonly rotatingRings = new THREE.Group();
   private readonly energyBands = new THREE.Group();
   private readonly pointLight = new THREE.PointLight(0xffb13d, 0.45, 9);
+  private elapsedTime = 0;
 
   constructor() {
     const core = new THREE.Mesh(
@@ -66,11 +73,22 @@ export class SolarReactorCore implements WorldCore {
     this.pointLight.color.setHex(theme.hazardWarningColor);
   }
 
-  update(delta: number): void {
+  update(delta: number, context?: WorldCoreUpdateContext): void {
+    this.elapsedTime += delta;
     this.group.rotation.y += delta * 0.04;
     this.rotatingRings.rotation.y += delta * 0.42;
     this.rotatingRings.rotation.x -= delta * 0.18;
     this.energyBands.rotation.z -= delta * 0.5;
+
+    const eventPulse = Math.max(0, Math.min(1, context?.eventPulseIntensity ?? 0));
+    const wave = context?.reducedMotion
+      ? 0.5
+      : 0.5 + Math.sin(this.elapsedTime * 7.2) * 0.5;
+
+    this.coreMaterial.emissiveIntensity = 0.85 + eventPulse * (0.35 + wave * 0.3);
+    this.glowMaterial.opacity = 0.2 + eventPulse * (0.12 + wave * 0.08);
+    this.ringMaterial.opacity = 0.7 + eventPulse * (0.1 + wave * 0.08);
+    this.pointLight.intensity = 0.45 + eventPulse * (0.48 + wave * 0.24);
   }
 
   dispose(): void {

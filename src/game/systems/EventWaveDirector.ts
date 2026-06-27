@@ -9,15 +9,19 @@ import type { RunStatsSnapshot } from './RunStats';
 import type { SectorConfig } from './SectorConfig';
 import type { SectorTheme } from './SectorTheme';
 import type { SeededRandom } from './SeededRandom';
+import {
+  ENDLESS_EVENT_MAX_INTERVAL,
+  ENDLESS_EVENT_MIN_INTERVAL,
+  EVENT_WAVE_WARNING_SECONDS,
+  NON_TUTORIAL_EVENT_MIN_TIME,
+  NON_TUTORIAL_EVENT_PROGRESS,
+  getEventWaveCallout,
+  getEventWaveDefinition,
+  type EventWavePhase,
+  type EventWaveType
+} from './EventWaveTypes';
 
-export type EventWaveType =
-  | 'debrisStorm'
-  | 'satelliteNet'
-  | 'solarFlare'
-  | 'cometPass'
-  | 'cleanupFrenzy';
-
-export type EventWavePhase = 'idle' | 'warning' | 'active';
+export type { EventWavePhase, EventWaveType } from './EventWaveTypes';
 
 export interface SatelliteNetEffect {
   safeLaneIndex: number;
@@ -34,6 +38,7 @@ export interface EventWaveEffects {
   cleanupFrenzy: boolean;
   satelliteNet: SatelliteNetEffect | null;
   dangerIntensity: number;
+  worldCorePulseIntensity: number;
 }
 
 export interface EventWaveSnapshot {
@@ -41,6 +46,7 @@ export interface EventWaveSnapshot {
   phase: EventWavePhase;
   name: string;
   callout: string;
+  instruction: string;
   countdown: number;
   timeRemaining: number;
 }
@@ -67,36 +73,6 @@ export interface EventWaveDirectorResult {
   completed: boolean;
   forcedHazardType: HazardPatternType | null;
 }
-
-const EVENT_WARNING_SECONDS = 2;
-const ENDLESS_EVENT_MIN_INTERVAL = 120;
-const ENDLESS_EVENT_MAX_INTERVAL = 180;
-const NON_TUTORIAL_EVENT_PROGRESS = 0.68;
-const NON_TUTORIAL_EVENT_MIN_TIME = 12;
-
-const EVENT_DURATIONS: Record<EventWaveType, number> = {
-  debrisStorm: 14,
-  satelliteNet: 13,
-  solarFlare: 13,
-  cometPass: 15,
-  cleanupFrenzy: 14
-};
-
-const EVENT_NAMES: Record<EventWaveType, string> = {
-  debrisStorm: 'Debris Storm',
-  satelliteNet: 'Satellite Net',
-  solarFlare: 'Solar Flare',
-  cometPass: 'Comet Pass',
-  cleanupFrenzy: 'Cleanup Frenzy'
-};
-
-const EVENT_CALLOUTS: Record<EventWaveType, string> = {
-  debrisStorm: 'DEBRIS STORM',
-  satelliteNet: 'SATELLITE NET',
-  solarFlare: 'SOLAR FLARE INCOMING',
-  cometPass: 'COMET WAKE',
-  cleanupFrenzy: 'CLEANUP FRENZY'
-};
 
 export class EventWaveDirector {
   readonly group = new THREE.Group();
@@ -181,7 +157,8 @@ export class EventWaveDirector {
         regularHazardIntensityMultiplier: 0,
         hazardIntervalMultiplier: 1.35,
         hazardTelegraphMultiplier: 1.35,
-        dangerIntensity: 0.55
+        dangerIntensity: 0.55,
+        worldCorePulseIntensity: this.activeType === 'solarFlare' ? 0.32 : 0.08
       };
     }
 
@@ -193,7 +170,8 @@ export class EventWaveDirector {
         hazardTelegraphMultiplier: 1.2,
         comboWindowBonus: 1.6,
         cleanupFrenzy: true,
-        dangerIntensity: 0.25
+        dangerIntensity: 0.25,
+        worldCorePulseIntensity: 0.12
       };
     }
 
@@ -209,7 +187,8 @@ export class EventWaveDirector {
                 safeLaneIndex: this.safeLaneIndex,
                 centerAngle: this.getFormationCenterAngle()
               },
-        dangerIntensity: 0.72
+        dangerIntensity: 0.72,
+        worldCorePulseIntensity: 0.16
       };
     }
 
@@ -219,7 +198,8 @@ export class EventWaveDirector {
         regularHazardIntensityMultiplier: 0,
         hazardTelegraphMultiplier: 1.55,
         hazardActiveMultiplier: 0.95,
-        dangerIntensity: 0.86
+        dangerIntensity: 0.86,
+        worldCorePulseIntensity: 1
       };
     }
 
@@ -228,7 +208,8 @@ export class EventWaveDirector {
       regularHazardIntensityMultiplier: 0,
       hazardTelegraphMultiplier: 1.3,
       hazardSpeedMultiplier: this.activeType === 'cometPass' ? 1.12 : 1,
-      dangerIntensity: this.activeType === 'cometPass' ? 0.9 : 0.78
+      dangerIntensity: this.activeType === 'cometPass' ? 0.9 : 0.78,
+      worldCorePulseIntensity: this.activeType === 'cometPass' ? 0.22 : 0.14
     };
   }
 
@@ -239,16 +220,20 @@ export class EventWaveDirector {
         phase: 'idle',
         name: '',
         callout: '',
+        instruction: '',
         countdown: 0,
         timeRemaining: 0
       };
     }
 
+    const definition = getEventWaveDefinition(this.activeType);
+
     return {
       type: this.activeType,
       phase: this.phase,
-      name: EVENT_NAMES[this.activeType],
-      callout: getCallout(this.activeType, this.phase),
+      name: definition.name,
+      callout: getEventWaveCallout(this.activeType, this.phase),
+      instruction: definition.instruction,
       countdown: this.phase === 'warning' ? this.warningRemaining : 0,
       timeRemaining:
         this.phase === 'active' ? this.activeRemaining : this.warningRemaining
@@ -281,7 +266,7 @@ export class EventWaveDirector {
     }
 
     this.phase = 'active';
-    this.activeRemaining = EVENT_DURATIONS[this.activeType];
+    this.activeRemaining = getEventWaveDefinition(this.activeType).durationSeconds;
     this.activeElapsed = 0;
     this.hazardActionTimer = 0;
     this.hazardStep = 0;
@@ -348,7 +333,7 @@ export class EventWaveDirector {
   private startEvent(type: EventWaveType, context: EventWaveDirectorContext): void {
     this.phase = 'warning';
     this.activeType = type;
-    this.warningRemaining = EVENT_WARNING_SECONDS;
+    this.warningRemaining = EVENT_WAVE_WARNING_SECONDS;
     this.activeRemaining = 0;
     this.activeElapsed = 0;
     this.hazardActionTimer = 0;
@@ -446,24 +431,9 @@ function createDefaultEffects(): EventWaveEffects {
     comboWindowBonus: 0,
     cleanupFrenzy: false,
     satelliteNet: null,
-    dangerIntensity: 0
+    dangerIntensity: 0,
+    worldCorePulseIntensity: 0
   };
-}
-
-function getCallout(type: EventWaveType, phase: EventWavePhase): string {
-  if (phase === 'warning') {
-    return EVENT_CALLOUTS[type];
-  }
-
-  if (type === 'solarFlare') {
-    return 'SOLAR FLARE';
-  }
-
-  if (type === 'cometPass') {
-    return 'COMET WAKE';
-  }
-
-  return EVENT_CALLOUTS[type];
 }
 
 function getNearestLaneIndex(radius: number): number {

@@ -525,8 +525,16 @@ export class Game {
       this.audio.playLaneSwitch();
     }
 
+    const eventWaveVisual = this.eventWaveDirector.getSnapshot();
+    const eventWaveVisualEffects = this.eventWaveDirector.getEffects();
+
     this.worldCore.update(delta, {
-      sectorId: this.missionDirector.getCurrentSector().id
+      sectorId: this.missionDirector.getCurrentSector().id,
+      eventWaveType: eventWaveVisual.type,
+      eventWavePhase: eventWaveVisual.phase,
+      eventPulseIntensity: eventWaveVisualEffects.worldCorePulseIntensity,
+      runTime: this.runTime,
+      reducedMotion: this.reducedMotion
     });
     this.orbitLanes.setActiveLane(this.player.targetLaneIndex);
     this.orbitLanes.update(delta);
@@ -2083,6 +2091,7 @@ export class Game {
       hazardActive: this.hazardActive,
       eventName: eventWave.name,
       eventCallout: eventWave.callout,
+      eventInstruction: eventWave.instruction,
       eventCountdown: eventWave.countdown,
       eventTimeRemaining: eventWave.timeRemaining,
       eventPhase: eventWave.phase,
@@ -2450,6 +2459,7 @@ export class Game {
     this.canvas.dataset.eventWaveType = eventWave.type;
     this.canvas.dataset.eventWavePhase = eventWave.phase;
     this.canvas.dataset.eventWaveCallout = eventWave.callout;
+    this.canvas.dataset.eventWaveInstruction = eventWave.instruction;
     this.canvas.dataset.eventWaveCountdown = eventWave.countdown.toFixed(2);
     this.canvas.dataset.eventWaveRemaining = eventWave.timeRemaining.toFixed(2);
     this.canvas.dataset.eventWaveSafeLane =

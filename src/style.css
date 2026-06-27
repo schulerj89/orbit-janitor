@@ -187,11 +187,11 @@ body {
 }
 
 .hud-event {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
   align-items: center;
-  justify-content: space-between;
-  min-height: 28px;
+  min-height: 42px;
   margin: 2px 0 8px;
   padding: 5px 8px;
   border: 1px solid rgb(255 177 61 / 42%);
@@ -220,7 +220,8 @@ body {
 }
 
 .hud-event span,
-.hud-event strong {
+.hud-event strong,
+.hud-event small {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -235,6 +236,14 @@ body {
 .hud-event strong {
   color: #ffffff;
   font-size: 0.82rem;
+}
+
+.hud-event small {
+  grid-column: 1 / -1;
+  color: rgb(255 255 255 / 76%);
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .hud-row.is-hot .hud-value {

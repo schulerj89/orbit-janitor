@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import type { SectorTheme } from '../../systems/SectorTheme';
+import type { EventWavePhase, EventWaveType } from '../../systems/EventWaveTypes';
 
 export type WorldCoreType =
   | 'planet'
@@ -11,6 +12,11 @@ export type WorldCoreType =
 
 export interface WorldCoreUpdateContext {
   sectorId?: string;
+  eventWaveType?: EventWaveType | 'none';
+  eventWavePhase?: EventWavePhase;
+  eventPulseIntensity?: number;
+  runTime?: number;
+  reducedMotion?: boolean;
 }
 
 export interface WorldCore {

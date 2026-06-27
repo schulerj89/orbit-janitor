@@ -1,5 +1,5 @@
 import type { ActivePowerupSnapshot } from '../systems/PowerupDirector';
-import type { EventWavePhase } from '../systems/EventWaveDirector';
+import type { EventWavePhase } from '../systems/EventWaveTypes';
 import type { CinematicPresetKey } from '../cinematics/CinematicShot';
 
 export type GameState =
@@ -33,6 +33,7 @@ export interface HudSnapshot {
   hazardActive: boolean;
   eventName: string;
   eventCallout: string;
+  eventInstruction: string;
   eventCountdown: number;
   eventTimeRemaining: number;
   eventPhase: EventWavePhase;
@@ -108,6 +109,7 @@ export class Hud {
         <div class="hud-event is-hidden" data-hud-event>
           <span data-hud-event-callout>DEBRIS STORM</span>
           <strong data-hud-event-countdown>2s</strong>
+          <small data-hud-event-instruction>Debris crossing</small>
         </div>
         <div class="hud-row" data-hud-combo-row>
           <span class="hud-label">Combo</span>
@@ -246,7 +248,7 @@ export class Hud {
       this.statusValue.textContent =
         snapshot.eventPhase === 'warning'
           ? `${snapshot.eventCallout} in ${Math.ceil(snapshot.eventCountdown)}`
-          : snapshot.eventCallout;
+          : snapshot.eventInstruction || snapshot.eventCallout;
     } else if (snapshot.tutorialActive && snapshot.tutorialStepLabel) {
       this.statusValue.textContent = `Training: ${snapshot.tutorialStepLabel}`;
     } else if (snapshot.shieldCharges > 0) {
@@ -269,9 +271,13 @@ export class Hud {
   private updateEvent(snapshot: HudSnapshot): void {
     const isVisible = snapshot.eventCallout.length > 0;
     const callout = getElement(this.eventValue, '[data-hud-event-callout]');
+    const instruction = getElement(this.eventValue, '[data-hud-event-instruction]');
 
     callout.textContent = snapshot.eventCallout;
-    this.eventValue.title = snapshot.eventName;
+    instruction.textContent = snapshot.eventInstruction;
+    this.eventValue.title = snapshot.eventInstruction
+      ? `${snapshot.eventName}: ${snapshot.eventInstruction}`
+      : snapshot.eventName;
     this.eventCountdownValue.textContent =
       snapshot.eventPhase === 'warning'
         ? `${Math.ceil(snapshot.eventCountdown)}s`
