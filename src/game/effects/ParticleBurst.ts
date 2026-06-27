@@ -11,6 +11,7 @@ export class ParticleBurst {
   readonly group = new THREE.Group();
 
   private readonly particles: Particle[] = [];
+  private pickupBurstColor: THREE.ColorRepresentation = 0xffb43a;
 
   constructor(poolSize = 40) {
     const geometry = new THREE.TetrahedronGeometry(0.08, 0);
@@ -79,6 +80,14 @@ export class ParticleBurst {
         return;
       }
     }
+  }
+
+  setPickupBurstColor(color: THREE.ColorRepresentation): void {
+    this.pickupBurstColor = color;
+  }
+
+  emitPickup(position: THREE.Vector3, count: number): void {
+    this.emit(position, this.pickupBurstColor, count);
   }
 
   update(delta: number): void {

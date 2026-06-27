@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { ORBIT_LANES } from '../constants';
 import { clampLaneIndex } from '../math';
+import type { EquippedCosmeticVisuals } from '../systems/CosmeticSystem';
 import type { SectorTheme } from '../systems/SectorTheme';
 
 export class OrbitLanes {
@@ -13,6 +14,7 @@ export class OrbitLanes {
   private activeLaneIndex = 1;
   private laneColor = 0x526c7c;
   private activeLaneColor = 0x8fe8ff;
+  private cosmeticLaneAccentColor: number | null = null;
   private pulseTime = 0;
 
   constructor() {
@@ -54,24 +56,36 @@ export class OrbitLanes {
   applyTheme(theme: SectorTheme): void {
     this.laneColor = theme.laneColor;
     this.activeLaneColor = theme.activeLaneColor;
-    this.glowMaterials.forEach((material) =>
-      material.color.setHex(theme.activeLaneColor)
-    );
+    this.updateGlowColors();
+  }
+
+  applyCosmetics(visuals: EquippedCosmeticVisuals): void {
+    this.cosmeticLaneAccentColor = visuals.laneAccentColor;
+    this.updateGlowColors();
   }
 
   update(delta: number): void {
     this.pulseTime += delta;
     const pulse = 0.5 + Math.sin(this.pulseTime * 5.5) * 0.5;
+    const activeColor = this.getActiveLaneColor();
 
     this.rings.forEach((ring, index) => {
       const isActive = index === this.activeLaneIndex;
-      this.materials[index].color.setHex(
-        isActive ? this.activeLaneColor : this.laneColor
-      );
+      this.materials[index].color.setHex(isActive ? activeColor : this.laneColor);
       this.materials[index].opacity = isActive ? 0.62 + pulse * 0.22 : 0.28;
       this.glowMaterials[index].opacity = isActive ? 0.12 + pulse * 0.18 : 0.025;
       ring.scale.setScalar(isActive ? 1.003 + pulse * 0.003 : 1);
       this.glows[index].scale.setScalar(isActive ? 1.006 + pulse * 0.005 : 1);
     });
+  }
+
+  private getActiveLaneColor(): number {
+    return this.cosmeticLaneAccentColor ?? this.activeLaneColor;
+  }
+
+  private updateGlowColors(): void {
+    const activeColor = this.getActiveLaneColor();
+
+    this.glowMaterials.forEach((material) => material.color.setHex(activeColor));
   }
 }

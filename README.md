@@ -62,6 +62,7 @@ Keyboard:
 - P: pause or resume while playing.
 - H: open or close help/instructions.
 - O: open or close settings.
+- G: open the cosmetic gallery from the title screen; arrow keys navigate and Enter equips unlocked cosmetics.
 - K: skip the Training Orbit tutorial while it is active.
 - R: restart after game over.
 - U: open upgrades from the title screen or game over.
@@ -88,15 +89,16 @@ Touch:
 
 ## Feature List
 
-- Official title screen with keyboard/gamepad main menu, sector select, mission complete, pause, help, settings, upgrade, game over, and run summary overlays.
+- Official title screen with keyboard/gamepad main menu, sector select, mission complete, pause, help, settings, upgrade, cosmetic gallery, game over, and run summary overlays.
 - Skippable real-time micro-cinematics for title fly-in, sector intro, event warnings, mission complete, game over, and sector unlock reveals.
 - Structured sectors with score, junk collection, survival timer, hazard survival, tutorial, daily challenge, seeded run, and endless objectives.
-- Persistent sector unlocks, best score, daily best, scrap total, upgrades, audio preferences, and accessibility settings.
+- Persistent sector unlocks, best score, daily best, scrap total, upgrades, cosmetic unlocks/equips, audio preferences, and accessibility settings.
 - Training Orbit tutorial with guided rotate, pickup, lane switch, boost, obstacle, and hazard-reading steps.
 - Three orbit lanes with smooth lane switching, readable ship direction, procedural world cores/lanes/stars/junk/satellites/hazards, and sector-specific visual themes.
 - Sector-specific centerpieces: planet core, cracked planetoid, solar reactor, night planet, comet core, and orbital gate.
 - Text-only radio comms for title onboarding, sector intros, tutorial steps, hazards, powerups, objective progress, event waves, mission completion, crashes, and sector unlocks.
 - Combo scoring, boost fuel, temporary powerups, upgrade effects, one-run shield support, near-miss feedback, mission intro countdown, and screen/camera feedback.
+- Cosmetic gallery with procedural ship palettes, cockpit colors, engine trails, lane accents, pickup burst colors, and title badges.
 - Telegraph-first hazards: lane arcs, double lane arcs, sweepers, gate hazards, pulse mines, and debris showers.
 - Sector-specific event waves near finales and in endless mode: Debris Storm debris crossings, Satellite Net safe-lane formations, Solar Flare lane pulses, Comet Pass background fly-bys, and Cleanup Frenzy reward phases.
 - Keyboard, gamepad, and touch controls.
@@ -143,5 +145,5 @@ Before a public release, confirm the deployed URL loads the canvas, starts from 
 2. Add an editable seeded-run entry field instead of relying on URL query strings.
 3. Continue the audio mix pass so static music sits clearly above SFX while preserving procedural fallback.
 4. Add more sector-specific hazard/event rules and powerup tuning.
-5. Expand upgrades with more distinct late-run choices.
+5. Expand upgrades and cosmetics with more distinct late-run choices.
 6. Add broader browser/device smoke coverage for gamepad, touch, reduced motion, and WebGPU fallback behavior.

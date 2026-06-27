@@ -51,6 +51,7 @@ export interface HudSnapshot {
   sfxVolume: number;
   sfxEnabled: boolean;
   settingsOpen: boolean;
+  cosmeticBadgeLabel: string;
   highContrastHazards: boolean;
 }
 
@@ -152,6 +153,8 @@ export class Hud {
           <strong>M music / - = music / [ ] SFX / N mute</strong>
           <span>Upgrades</span>
           <strong>U on title / game over</strong>
+          <span>Gallery</span>
+          <strong>G on title</strong>
         </div>
       </section>
     `;
@@ -218,7 +221,7 @@ export class Hud {
     this.boostValue.textContent = `${Math.round(boostPercent * 100)}%`;
     this.boostValue.classList.toggle('is-empty', snapshot.boostEmpty);
     this.updatePowerups(snapshot.activePowerups);
-    this.audioStateValue.textContent = `Music ${snapshot.musicEnabled ? `${Math.round(snapshot.musicVolume * 100)}%` : 'Off'} | SFX ${snapshot.sfxEnabled ? `${Math.round(snapshot.sfxVolume * 100)}%` : 'Off'}${snapshot.highContrastHazards ? ' | HC Hazards' : ''}`;
+    this.audioStateValue.textContent = `Music ${snapshot.musicEnabled ? `${Math.round(snapshot.musicVolume * 100)}%` : 'Off'} | SFX ${snapshot.sfxEnabled ? `${Math.round(snapshot.sfxVolume * 100)}%` : 'Off'}${snapshot.cosmeticBadgeLabel !== 'None' ? ` | Badge ${snapshot.cosmeticBadgeLabel}` : ''}${snapshot.highContrastHazards ? ' | HC Hazards' : ''}`;
     this.audioStateValue.classList.toggle(
       'is-muted',
       !snapshot.musicEnabled || !snapshot.sfxEnabled

@@ -54,6 +54,7 @@ import { Starfield } from './entities/Starfield';
 import { createWorldCore } from './entities/world-cores/createWorldCore';
 import type { WorldCore, WorldCoreType } from './entities/world-cores/WorldCore';
 import { ChallengeMode, type ChallengeRunMode } from './systems/ChallengeMode';
+import { CosmeticSystem, type CosmeticSnapshot } from './systems/CosmeticSystem';
 import {
   EventWaveDirector,
   type EventWaveDebugState,
@@ -98,6 +99,7 @@ import {
 import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
 import { FloatingText } from './ui/FloatingText';
 import { CinematicLetterbox } from './ui/CinematicLetterbox';
+import { GalleryOverlay } from './ui/GalleryOverlay';
 import { HelpOverlay } from './ui/HelpOverlay';
 import { Hud, type GameState } from './ui/Hud';
 import {
@@ -165,6 +167,8 @@ interface OrbitJanitorDebugState {
   cinematicTitle: string;
   reducedMotion: boolean;
   settings: SettingsSnapshot;
+  cosmetics: CosmeticSnapshot;
+  galleryOpen: boolean;
   scrap: number;
   shieldCharges: number;
   musicEnabled: boolean;
@@ -227,6 +231,7 @@ export class Game {
   private readonly radioComms = new RadioComms();
   private readonly runStats = new RunStats(RUN_OBJECTIVE_TARGET_SCORE);
   private readonly upgrades = new UpgradeSystem();
+  private readonly cosmetics = new CosmeticSystem();
   private readonly challengeMode = new ChallengeMode();
   private readonly missionDirector = new MissionDirector();
   private readonly sectorProgress = new SectorProgress();
@@ -254,6 +259,7 @@ export class Game {
   private powerupToast!: PowerupToast;
   private radioOverlay!: RadioOverlay;
   private settingsOverlay!: SettingsOverlay;
+  private galleryOverlay!: GalleryOverlay;
   private touchControls!: TouchControls;
   private impactFlash!: ImpactFlash;
   private floatingText!: FloatingText;
@@ -286,6 +292,9 @@ export class Game {
   private shieldBrokenTimer = 0;
   private shieldGraceTimer = 0;
   private upgradePanelOpen = false;
+  private galleryOpen = false;
+  private galleryCategoryIndex = 0;
+  private galleryItemIndex = 0;
   private isPaused = false;
   private helpOpen = false;
   private settingsOpen = false;
@@ -339,12 +348,16 @@ export class Game {
     this.powerupToast = new PowerupToast(hudRoot);
     this.radioOverlay = new RadioOverlay(hudRoot);
     this.settingsOverlay = new SettingsOverlay(hudRoot);
+    this.galleryOverlay = new GalleryOverlay(hudRoot);
     this.touchControls = new TouchControls(hudRoot);
     this.impactFlash = new ImpactFlash(hudRoot);
     this.floatingText = new FloatingText(hudRoot);
     this.cinematicLetterbox = new CinematicLetterbox(hudRoot);
     this.missionIntroOverlay = new MissionIntroOverlay(hudRoot);
     this.applySettings();
+    this.cosmetics.syncCompletedSectors(
+      this.sectorProgress.getSnapshot().completedSectorIds
+    );
 
     this.scene.background = new THREE.Color(0x02050f);
     this.buildScene();
@@ -466,11 +479,13 @@ export class Game {
       !this.helpOpen &&
       !this.isPaused &&
       !this.settingsOpen &&
+      !this.galleryOpen &&
       (this.state === 'title' ||
         this.state === 'gameover' ||
         this.state === 'missionComplete');
     if (input.upgradeTogglePressed && canUseUpgradePanel) {
       this.upgradePanelOpen = !this.upgradePanelOpen;
+      this.galleryOpen = false;
       this.audio.playUiSelect();
     }
 
@@ -800,10 +815,31 @@ export class Game {
   }
 
   private handleOverlayInput(input: InputState): boolean {
+    if (input.galleryTogglePressed && this.canToggleGallery()) {
+      this.galleryOpen = !this.galleryOpen;
+      this.helpOpen = false;
+      this.settingsOpen = false;
+      this.upgradePanelOpen = false;
+      this.clampGallerySelection();
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (input.escapePressed && this.galleryOpen) {
+      this.galleryOpen = false;
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (this.galleryOpen) {
+      return this.handleGalleryInput(input);
+    }
+
     if (input.settingsTogglePressed && this.canToggleSettings()) {
       this.settingsOpen = !this.settingsOpen;
       this.helpOpen = false;
       this.upgradePanelOpen = false;
+      this.galleryOpen = false;
       this.audio.playUiSelect();
 
       if (this.settingsOpen && this.state === 'playing') {
@@ -827,6 +863,7 @@ export class Game {
       this.helpOpen = !this.helpOpen;
       this.upgradePanelOpen = false;
       this.settingsOpen = false;
+      this.galleryOpen = false;
       this.audio.playUiSelect();
 
       if (this.helpOpen && this.state === 'playing') {
@@ -853,6 +890,92 @@ export class Game {
     }
 
     return false;
+  }
+
+  private handleGalleryInput(input: InputState): boolean {
+    if (input.leftPressed) {
+      this.moveGalleryCategory(-1);
+      return true;
+    }
+
+    if (input.rightPressed) {
+      this.moveGalleryCategory(1);
+      return true;
+    }
+
+    if (input.laneUpPressed) {
+      this.moveGalleryItem(-1);
+      return true;
+    }
+
+    if (input.laneDownPressed) {
+      this.moveGalleryItem(1);
+      return true;
+    }
+
+    if (input.startPressed || input.menuSelectPressed) {
+      this.equipSelectedGalleryItem();
+      return true;
+    }
+
+    return true;
+  }
+
+  private moveGalleryCategory(direction: number): void {
+    const categories = this.cosmetics.getSnapshot().categories;
+
+    if (categories.length === 0) {
+      return;
+    }
+
+    this.galleryCategoryIndex =
+      (this.galleryCategoryIndex + direction + categories.length) % categories.length;
+    this.galleryItemIndex = 0;
+    this.audio.playUiSelect();
+  }
+
+  private moveGalleryItem(direction: number): void {
+    const category = this.cosmetics.getSnapshot().categories[this.galleryCategoryIndex];
+
+    if (!category || category.items.length === 0) {
+      return;
+    }
+
+    this.galleryItemIndex =
+      (this.galleryItemIndex + direction + category.items.length) % category.items.length;
+    this.audio.playUiSelect();
+  }
+
+  private equipSelectedGalleryItem(): void {
+    const category = this.cosmetics.getSnapshot().categories[this.galleryCategoryIndex];
+    const item = category?.items[this.galleryItemIndex];
+
+    if (!item) {
+      return;
+    }
+
+    if (this.cosmetics.equip(item.id)) {
+      this.applyCosmetics();
+      this.audio.playUiSelect();
+      return;
+    }
+
+    this.audio.playUiSelect();
+  }
+
+  private clampGallerySelection(): void {
+    const categories = this.cosmetics.getSnapshot().categories;
+
+    this.galleryCategoryIndex = Math.max(
+      0,
+      Math.min(this.galleryCategoryIndex, categories.length - 1)
+    );
+
+    const itemCount = categories[this.galleryCategoryIndex]?.items.length ?? 0;
+    this.galleryItemIndex = Math.max(
+      0,
+      Math.min(this.galleryItemIndex, Math.max(0, itemCount - 1))
+    );
   }
 
   private handleSettingsInput(input: InputState): boolean {
@@ -912,6 +1035,10 @@ export class Game {
 
   private canToggleSettings(): boolean {
     return this.canToggleHelp();
+  }
+
+  private canToggleGallery(): boolean {
+    return this.state === 'title' || this.galleryOpen;
   }
 
   private setPaused(isPaused: boolean): void {
@@ -1241,6 +1368,7 @@ export class Game {
 
     this.nearMissCooldown = NEAR_MISS_COOLDOWN;
     this.score += 1;
+    this.unlockEndlessCosmeticIfEligible(this.score);
     this.syncRunStats();
     this.floatingText.show('NEAR MISS +1', 'bonus');
     this.impactFlash.flash('nearMiss');
@@ -1263,6 +1391,7 @@ export class Game {
       1 + Math.floor(this.comboCount / 3)
     );
     this.score += this.comboMultiplier;
+    this.unlockEndlessCosmeticIfEligible(this.score);
     this.comboTimer =
       this.currentComboWindow + this.eventWaveDirector.getEffects().comboWindowBonus;
 
@@ -1279,7 +1408,7 @@ export class Game {
     this.runStats.recordJunkCollected();
     this.syncRunStats();
 
-    this.particles.emit(this.junk.getPosition(this.junkPosition), 0xffb43a, 12);
+    this.particles.emitPickup(this.junk.getPosition(this.junkPosition), 12);
     this.screenShake.add(0.035);
     this.respawnJunk();
     this.ensureObstacleCount();
@@ -1325,6 +1454,7 @@ export class Game {
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
+    this.galleryOpen = false;
     this.missionIntroActive = false;
     this.missionIntroTimer = 0;
     this.hazardNearMissArmed = false;
@@ -1334,6 +1464,7 @@ export class Game {
     const finalStats = this.runStats.getSnapshot();
 
     this.challengeMode.completeRun(finalStats.finalScore);
+    this.unlockEndlessCosmeticIfEligible(finalStats.finalScore);
     this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
     this.queueRadio(
       'AUTOPILOT',
@@ -1367,6 +1498,7 @@ export class Game {
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
+    this.galleryOpen = false;
     this.missionIntroActive = false;
     this.missionIntroTimer = 0;
     this.hazardWarning = false;
@@ -1377,9 +1509,13 @@ export class Game {
     const finalStats = this.runStats.getSnapshot();
 
     this.challengeMode.completeRun(finalStats.finalScore);
+    this.unlockDailyCosmeticIfEligible();
 
     const unlockedSectorId = this.sectorProgress.completeSector(
       this.missionDirector.getCurrentSector().id
+    );
+    this.announceCosmeticUnlocks(
+      this.cosmetics.completeSector(this.missionDirector.getCurrentSector().id)
     );
     this.newlyUnlockedSectorName =
       unlockedSectorId === null ? null : getSectorById(unlockedSectorId).name;
@@ -1430,6 +1566,7 @@ export class Game {
     this.applyCurrentSectorTheme(false);
     this.state = 'title';
     this.upgradePanelOpen = false;
+    this.galleryOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
@@ -1472,6 +1609,7 @@ export class Game {
     this.startMissionIntro();
     this.playCinematic('sectorIntro');
     this.upgradePanelOpen = false;
+    this.galleryOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
@@ -1499,6 +1637,7 @@ export class Game {
     this.startMissionIntro();
     this.playCinematic('sectorIntro');
     this.upgradePanelOpen = false;
+    this.galleryOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
@@ -1565,6 +1704,42 @@ export class Game {
       id,
       displaySeconds
     });
+  }
+
+  private unlockDailyCosmeticIfEligible(): void {
+    const challenge = this.challengeMode.getSnapshot();
+
+    if (challenge.mode !== 'daily' || challenge.dailyDate === null) {
+      return;
+    }
+
+    this.announceCosmeticUnlocks(
+      this.cosmetics.completeDailyChallenge(challenge.dailyDate)
+    );
+  }
+
+  private unlockEndlessCosmeticIfEligible(score: number): void {
+    if (!this.missionDirector.getCurrentSector().isEndless) {
+      return;
+    }
+
+    this.announceCosmeticUnlocks(this.cosmetics.recordEndlessScore(score));
+  }
+
+  private announceCosmeticUnlocks(unlockedNames: string[]): void {
+    if (unlockedNames.length === 0) {
+      return;
+    }
+
+    this.floatingText.show('COSMETIC UNLOCKED', 'bonus');
+    this.queueRadio(
+      'CLEANUP OPS',
+      unlockedNames.length === 1
+        ? `Cosmetic unlocked: ${unlockedNames[0]}. Open Gallery with G on the title screen.`
+        : `${unlockedNames.length} cosmetics unlocked. Open Gallery with G on the title screen.`,
+      `cosmetic-unlock-${this.radioRunId}-${unlockedNames.join('-')}`,
+      4.4
+    );
   }
 
   private announceTitleRadio(): void {
@@ -2129,6 +2304,7 @@ export class Game {
       this.upgradePanelOpen = true;
       this.helpOpen = false;
       this.settingsOpen = false;
+      this.galleryOpen = false;
       this.audio.playUiSelect();
       return;
     }
@@ -2137,6 +2313,7 @@ export class Game {
       this.settingsOpen = true;
       this.helpOpen = false;
       this.upgradePanelOpen = false;
+      this.galleryOpen = false;
       this.audio.playUiSelect();
     }
   }
@@ -2200,6 +2377,7 @@ export class Game {
   private openSectorSelect(): void {
     this.state = 'sectorSelect';
     this.upgradePanelOpen = false;
+    this.galleryOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
@@ -2271,6 +2449,7 @@ export class Game {
       input.sfxVolumeUpPressed ||
       input.sfxTogglePressed ||
       input.upgradeTogglePressed ||
+      input.galleryTogglePressed ||
       input.settingsTogglePressed ||
       input.upgradeBuyPressed !== null
     );
@@ -2330,6 +2509,7 @@ export class Game {
     const settings = this.settings.getSnapshot();
     const cinematic = this.cinematicDirector.getSnapshot();
     const defaultSector = getSectorById(this.sectorProgress.getDefaultSectorId());
+    const cosmeticSnapshot = this.cosmetics.getSnapshot();
     const unlockedSectors = sectorProgress.sectors.filter(
       (candidate) => candidate.isUnlocked
     );
@@ -2385,6 +2565,7 @@ export class Game {
       musicVolume: this.music.getMusicVolume(),
       sfxVolume: this.audio.getSfxVolume(),
       settingsOpen: this.settingsOpen,
+      cosmeticBadgeLabel: cosmeticSnapshot.visuals.titleBadgeLabel,
       highContrastHazards: settings.highContrastHazards,
       sfxEnabled: this.audio.isSfxEnabled()
     });
@@ -2407,6 +2588,7 @@ export class Game {
     this.titleOverlay.update({
       state: this.state,
       upgradePanelOpen: this.upgradePanelOpen,
+      galleryOpen: this.galleryOpen,
       settingsOpen: this.settingsOpen,
       helpOpen: this.helpOpen,
       selectedMenuIndex: this.titleMenuSelectedIndex,
@@ -2420,6 +2602,7 @@ export class Game {
       unlockedSectorCount: unlockedSectors.length,
       totalSectorCount: sectorProgress.sectors.length,
       totalScrap: upgradeSnapshot.totalScrap,
+      titleBadgeLabel: cosmeticSnapshot.visuals.titleBadgeLabel,
       lastUnlockedSectorName: lastUnlockedSector.name,
       musicEnabled: this.audio.isMusicEnabled(),
       musicVolume: this.music.getMusicVolume(),
@@ -2441,6 +2624,13 @@ export class Game {
         this.state === 'gameover' ||
         this.state === 'missionComplete',
       upgrades: upgradeSnapshot
+    });
+    this.galleryOverlay.update({
+      isOpen: this.galleryOpen,
+      canShow: this.state === 'title',
+      cosmetics: cosmeticSnapshot,
+      selectedCategoryIndex: this.galleryCategoryIndex,
+      selectedItemIndex: this.galleryItemIndex
     });
     this.tutorialOverlay.update({
       state: this.state,
@@ -2489,6 +2679,7 @@ export class Game {
         this.helpOpen ||
         this.settingsOpen ||
         this.upgradePanelOpen ||
+        this.galleryOpen ||
         (this.isPaused && this.state === 'playing') ||
         cinematic.isActive ||
         this.missionIntroActive
@@ -2576,10 +2767,19 @@ export class Game {
     this.junk.applyTheme(theme, difficulty.junkColorVariance);
     this.hazardDirector.applyTheme(theme);
     this.eventWaveDirector.applyTheme(theme);
+    this.applyCosmetics();
 
     if (showHint) {
       this.sectorHintTimer = 2.9;
     }
+  }
+
+  private applyCosmetics(): void {
+    const visuals = this.cosmetics.getEquippedVisuals();
+
+    this.player.applyCosmetics(visuals);
+    this.orbitLanes.applyCosmetics(visuals);
+    this.particles.setPickupBurstColor(visuals.pickupBurstColor);
   }
 
   private ensureWorldCoreForCurrentSector(): void {
@@ -2618,6 +2818,7 @@ export class Game {
     const tutorial = this.tutorialDirector.getSnapshot();
     const settings = this.settings.getSnapshot();
     const cinematic = this.cinematicDirector.getSnapshot();
+    const cosmetics = this.cosmetics.getSnapshot();
 
     return {
       sceneId: 'orbit-janitor',
@@ -2654,6 +2855,8 @@ export class Game {
       cinematicTitle: cinematic.title,
       reducedMotion: this.reducedMotion,
       settings,
+      cosmetics,
+      galleryOpen: this.galleryOpen,
       scrap: this.upgrades.getSnapshot().totalScrap,
       shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
@@ -2692,6 +2895,7 @@ export class Game {
     const tutorial = this.tutorialDirector.getSnapshot();
     const settings = this.settings.getSnapshot();
     const cinematic = this.cinematicDirector.getSnapshot();
+    const cosmetics = this.cosmetics.getSnapshot();
 
     this.canvas.dataset.sceneId = 'orbit-janitor';
     this.canvas.dataset.phase = this.state;
@@ -2723,6 +2927,7 @@ export class Game {
     this.canvas.dataset.paused = String(this.isPaused);
     this.canvas.dataset.helpOpen = String(this.helpOpen);
     this.canvas.dataset.settingsOpen = String(this.settingsOpen);
+    this.canvas.dataset.galleryOpen = String(this.galleryOpen);
     this.canvas.dataset.titleMenuSelectedIndex = String(this.titleMenuSelectedIndex);
     this.canvas.dataset.titleMenuSelectedOption = getMainMenuOption(
       this.titleMenuSelectedIndex
@@ -2738,6 +2943,8 @@ export class Game {
     this.canvas.dataset.scrap = String(this.upgrades.getSnapshot().totalScrap);
     this.canvas.dataset.shieldCharges = String(this.shieldCharges);
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);
+    this.canvas.dataset.cosmeticBadge = cosmetics.visuals.titleBadgeLabel;
+    this.canvas.dataset.cosmeticEquipped = Object.values(cosmetics.equipped).join(',');
     this.canvas.dataset.musicEnabled = String(this.audio.isMusicEnabled());
     this.canvas.dataset.musicVolume = this.music.getMusicVolume().toFixed(2);
     this.canvas.dataset.musicDangerIntensity = this.musicDangerIntensity.toFixed(3);

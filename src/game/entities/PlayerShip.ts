@@ -9,6 +9,7 @@ import {
 } from '../constants';
 import type { InputState } from '../input';
 import { clampLaneIndex, setOrbitPositionFromAngle, wrapAngle } from '../math';
+import type { EquippedCosmeticVisuals } from '../systems/CosmeticSystem';
 
 type ShipVariant = 'janitor';
 
@@ -116,6 +117,15 @@ export class PlayerShip {
   setLaneSwitchDuration(duration: number): void {
     this.laneSwitchDuration = Math.max(0.05, duration);
     this.laneSwitchElapsed = Math.min(this.laneSwitchElapsed, this.laneSwitchDuration);
+  }
+
+  applyCosmetics(visuals: EquippedCosmeticVisuals): void {
+    shipBodyMaterial.color.setHex(visuals.shipBodyPrimary);
+    shipWingMaterial.color.setHex(visuals.shipBodySecondary);
+    shipNoseMaterial.color.setHex(visuals.shipBodyAccent);
+    shipCockpitMaterial.color.setHex(visuals.cockpitColor);
+    this.model.engineFlameMaterial.color.setHex(visuals.engineTrailColor);
+    this.model.engineGlowMaterial.color.setHex(visuals.engineTrailColor);
   }
 
   reset(): void {

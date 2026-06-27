@@ -29,6 +29,7 @@ export interface InputState {
   sfxVolumeUpPressed: boolean;
   sfxTogglePressed: boolean;
   upgradeTogglePressed: boolean;
+  galleryTogglePressed: boolean;
   settingsTogglePressed: boolean;
   upgradeBuyPressed: number | null;
 }
@@ -68,6 +69,7 @@ export class InputController {
     this.state.sfxVolumeUpPressed = false;
     this.state.sfxTogglePressed = false;
     this.state.upgradeTogglePressed = false;
+    this.state.galleryTogglePressed = false;
     this.state.settingsTogglePressed = false;
     this.state.upgradeBuyPressed = null;
     return frameState;
@@ -201,6 +203,11 @@ export class InputController {
       event.preventDefault();
     }
 
+    if (event.code === 'KeyG' && !event.repeat) {
+      this.state.galleryTogglePressed = true;
+      event.preventDefault();
+    }
+
     if (event.code === 'KeyO' && !event.repeat) {
       this.state.settingsTogglePressed = true;
       event.preventDefault();
@@ -273,6 +280,7 @@ export function createNeutralInputState(): InputState {
     sfxVolumeUpPressed: false,
     sfxTogglePressed: false,
     upgradeTogglePressed: false,
+    galleryTogglePressed: false,
     settingsTogglePressed: false,
     upgradeBuyPressed: null
   };
@@ -312,6 +320,7 @@ export function mergeInputStates(...states: InputState[]): InputState {
     merged.sfxVolumeUpPressed ||= state.sfxVolumeUpPressed;
     merged.sfxTogglePressed ||= state.sfxTogglePressed;
     merged.upgradeTogglePressed ||= state.upgradeTogglePressed;
+    merged.galleryTogglePressed ||= state.galleryTogglePressed;
     merged.settingsTogglePressed ||= state.settingsTogglePressed;
     merged.upgradeBuyPressed ??= state.upgradeBuyPressed;
   }

@@ -21,9 +21,11 @@ export interface TitleOverlaySnapshot extends Omit<
   selectedMenuIndex: number;
   menuInteracted: boolean;
   upgradePanelOpen: boolean;
+  galleryOpen: boolean;
   settingsOpen: boolean;
   helpOpen: boolean;
   bestScore: number;
+  titleBadgeLabel: string;
   lastUnlockedSectorName: string;
   cinematicPresetKey: CinematicPresetKey | null;
 }
@@ -40,6 +42,7 @@ export class TitleOverlay {
   private readonly dailyValue: HTMLElement;
   private readonly audioValue: HTMLElement;
   private readonly unlockedValue: HTMLElement;
+  private readonly badgeValue: HTMLElement;
 
   constructor(root: HTMLElement) {
     root.insertAdjacentHTML(
@@ -80,11 +83,15 @@ export class TitleOverlay {
                   <span>Unlocked</span>
                   <strong data-title-unlocked>Low Orbit Cleanup</strong>
                 </div>
+                <div>
+                  <span>Badge</span>
+                  <strong data-title-badge>None</strong>
+                </div>
               </aside>
             </div>
           </div>
           <p class="title-overlay-footer">
-            Arrows/W/S select | Enter/Space activate | H help | M/N audio | T/C/D/S/U/O shortcuts
+            Arrows/W/S select | Enter/Space activate | H help | G gallery | M/N audio | T/C/D/S/U/O shortcuts
           </p>
         </section>
       `
@@ -103,6 +110,7 @@ export class TitleOverlay {
     this.dailyValue = getElement(root, '[data-title-daily]');
     this.audioValue = getElement(root, '[data-title-audio]');
     this.unlockedValue = getElement(root, '[data-title-unlocked]');
+    this.badgeValue = getElement(root, '[data-title-badge]');
   }
 
   update(snapshot: TitleOverlaySnapshot): void {
@@ -132,10 +140,12 @@ export class TitleOverlay {
     this.dailyValue.textContent = `${snapshot.dailySeed} / ${snapshot.dailyBestScore}`;
     this.audioValue.textContent = `Music ${snapshot.musicEnabled ? `${Math.round(snapshot.musicVolume * 100)}%` : 'Off'} / SFX ${snapshot.sfxEnabled ? 'On' : 'Off'}`;
     this.unlockedValue.textContent = snapshot.lastUnlockedSectorName;
+    this.badgeValue.textContent = snapshot.titleBadgeLabel;
 
     this.setVisible(
       snapshot.state === 'title' &&
         !snapshot.upgradePanelOpen &&
+        !snapshot.galleryOpen &&
         !snapshot.settingsOpen &&
         !snapshot.helpOpen
     );
