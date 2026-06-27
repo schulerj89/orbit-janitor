@@ -8,7 +8,13 @@ export interface MobileLiteTouchControlsContext {
   overlaysOpen: boolean;
 }
 
-type MobileLiteTouchAction = 'laneIn' | 'laneOut' | 'boost' | 'start';
+type MobileLiteTouchAction =
+  | 'laneIn'
+  | 'laneOut'
+  | 'boost'
+  | 'start'
+  | 'restart'
+  | 'title';
 const BLOCKED_GESTURE_EVENTS = ['contextmenu', 'selectstart', 'dragstart'] as const;
 
 export class MobileLiteTouchControls {
@@ -27,6 +33,10 @@ export class MobileLiteTouchControls {
       </div>
       <button class="mobile-lite-touch-boost" type="button" data-mobile-lite-action="boost" aria-label="Boost">Boost</button>
       <button class="mobile-lite-touch-start" type="button" data-mobile-lite-action="start" aria-label="Start or restart">Start</button>
+      <div class="mobile-lite-touch-end-actions">
+        <button type="button" data-mobile-lite-action="restart" aria-label="Replay Mobile Lite">Replay</button>
+        <button type="button" data-mobile-lite-action="title" aria-label="Return to title">Title</button>
+      </div>
     `;
     root.append(this.element);
 
@@ -61,17 +71,17 @@ export class MobileLiteTouchControls {
     this.currentGameState = context.state;
     const isMobileLite = context.experienceMode === 'mobileLite';
     const canShowGameplay = context.state === 'playing' && !context.overlaysOpen;
-    const canShowStart =
-      context.state === 'title' ||
-      context.state === 'missionComplete' ||
-      context.state === 'gameover';
+    const canShowStart = context.state === 'title';
+    const canShowEnd =
+      context.state === 'missionComplete' || context.state === 'gameover';
 
     this.element.classList.toggle(
       'is-hidden',
-      !isMobileLite || (!canShowGameplay && !canShowStart)
+      !isMobileLite || (!canShowGameplay && !canShowStart && !canShowEnd)
     );
     this.element.classList.toggle('is-gameplay', canShowGameplay);
     this.element.classList.toggle('is-startable', canShowStart);
+    this.element.classList.toggle('is-endstate', canShowEnd);
   }
 
   consumeFrame(): InputState {
@@ -83,6 +93,7 @@ export class MobileLiteTouchControls {
     this.state.menuDownPressed = false;
     this.state.startPressed = false;
     this.state.restartPressed = false;
+    this.state.escapePressed = false;
     this.state.cinematicSkipPressed = false;
     this.state.menuSelectPressed = false;
     return frameState;
@@ -112,6 +123,18 @@ export class MobileLiteTouchControls {
 
     if (action === 'boost') {
       this.state.boost = true;
+      return;
+    }
+
+    if (action === 'restart') {
+      this.state.restartPressed = true;
+      this.state.cinematicSkipPressed = true;
+      return;
+    }
+
+    if (action === 'title') {
+      this.state.escapePressed = true;
+      this.state.cinematicSkipPressed = true;
       return;
     }
 

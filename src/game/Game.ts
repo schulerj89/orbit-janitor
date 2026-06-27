@@ -688,6 +688,16 @@ export class Game {
     }
 
     if (
+      input.escapePressed &&
+      this.state === 'gameover' &&
+      !this.helpOpen &&
+      !inputBlockedByDeviceGate &&
+      !inputBlockedByCinematic
+    ) {
+      this.prepareTitle();
+    }
+
+    if (
       input.tutorialSkipPressed &&
       this.state === 'playing' &&
       !this.isGameplayPaused() &&
@@ -4071,6 +4081,7 @@ export class Game {
     );
     this.touchControls.update({
       state: this.state,
+      experienceMode: this.experienceMode,
       overlaysOpen:
         this.experienceMode === 'mobileLite' ||
         this.helpOpen ||

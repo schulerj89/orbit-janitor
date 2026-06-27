@@ -1,13 +1,24 @@
 import { createNeutralInputState, type InputState } from '../input';
 import type { GameState } from '../ui/Hud';
 import type { TouchControlsMode } from '../systems/SettingsSystem';
+import type { GameExperienceMode } from '../systems/MobileLiteMode';
 
 export interface TouchControlsContext {
   state: GameState;
   overlaysOpen: boolean;
+  experienceMode?: GameExperienceMode;
 }
 
-type TouchAction = 'left' | 'right' | 'boost' | 'laneUp' | 'laneDown' | 'start';
+type TouchAction =
+  | 'left'
+  | 'right'
+  | 'boost'
+  | 'laneUp'
+  | 'laneDown'
+  | 'start'
+  | 'next'
+  | 'restart'
+  | 'title';
 
 const AUTO_QUERY = '(width <= 760px), (pointer: coarse)';
 const BLOCKED_GESTURE_EVENTS = ['contextmenu', 'selectstart', 'dragstart'] as const;
@@ -34,6 +45,11 @@ export class TouchControls {
       </div>
       <button class="touch-control-boost" type="button" data-touch-action="boost" aria-label="Boost">Boost</button>
       <button class="touch-control-start" type="button" data-touch-action="start" aria-label="Start or restart">Start</button>
+      <div class="touch-controls-end-actions">
+        <button type="button" data-touch-action="next" aria-label="Next sector">Next</button>
+        <button type="button" data-touch-action="restart" aria-label="Replay sector">Replay</button>
+        <button type="button" data-touch-action="title" aria-label="Return to title">Title</button>
+      </div>
     `;
     root.append(this.element);
 
@@ -71,20 +87,25 @@ export class TouchControls {
   update(context: TouchControlsContext): void {
     this.currentGameState = context.state;
     const canAutoShow = this.mediaQuery.matches;
-    const enabled = this.mode === 'on' || (this.mode === 'auto' && canAutoShow);
+    const enabled =
+      context.experienceMode !== 'mobileLite' &&
+      (this.mode === 'on' || (this.mode === 'auto' && canAutoShow));
     const canShowGameplay = context.state === 'playing' && !context.overlaysOpen;
-    const canShowStart =
-      context.state === 'title' ||
-      context.state === 'sectorSelect' ||
-      context.state === 'missionComplete' ||
-      context.state === 'gameover';
+    const canShowStart = context.state === 'title' || context.state === 'sectorSelect';
+    const canShowEnd =
+      context.state === 'missionComplete' || context.state === 'gameover';
 
     this.element.classList.toggle(
       'is-hidden',
-      !enabled || (!canShowGameplay && !canShowStart)
+      !enabled || (!canShowGameplay && !canShowStart && !canShowEnd)
     );
     this.element.classList.toggle('is-gameplay', canShowGameplay);
     this.element.classList.toggle('is-startable', canShowStart);
+    this.element.classList.toggle('is-endstate', canShowEnd);
+    this.element.classList.toggle(
+      'is-mission-complete',
+      context.state === 'missionComplete'
+    );
   }
 
   consumeFrame(): InputState {
@@ -99,6 +120,7 @@ export class TouchControls {
     this.state.menuSelectPressed = false;
     this.state.startPressed = false;
     this.state.restartPressed = false;
+    this.state.escapePressed = false;
     this.state.cinematicSkipPressed = false;
     return frameState;
   }
@@ -139,6 +161,25 @@ export class TouchControls {
       this.state.down = true;
       this.state.laneDownPressed = true;
       this.state.menuDownPressed = true;
+      return;
+    }
+
+    if (action === 'next') {
+      this.state.startPressed = true;
+      this.state.menuSelectPressed = true;
+      this.state.cinematicSkipPressed = true;
+      return;
+    }
+
+    if (action === 'restart') {
+      this.state.restartPressed = true;
+      this.state.cinematicSkipPressed = true;
+      return;
+    }
+
+    if (action === 'title') {
+      this.state.escapePressed = true;
+      this.state.cinematicSkipPressed = true;
       return;
     }
 

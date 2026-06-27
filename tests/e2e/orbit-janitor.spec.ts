@@ -209,6 +209,36 @@ test('starts Mobile Lite from the phone device gate', async ({ page }) => {
   const angleAfter = (await getDebugState(page)).playerAngle;
 
   expect(angularDistance(angleBefore, angleAfter)).toBeGreaterThan(0.02);
+
+  await page.evaluate(() =>
+    (window as WindowWithDebug).orbitJanitorDebug?.forceGameOver?.(
+      'Playwright Mobile Lite end state'
+    )
+  );
+  await expectPhase(page, 'gameover');
+  await skipCinematic(page);
+  await page.locator('[data-mobile-lite-action="title"]').click();
+  await expectPhase(page, 'title');
+});
+
+test('mobile touch end-state controls can advance a completed sector', async ({
+  page
+}) => {
+  await page.setViewportSize({ width: 430, height: 932 });
+  await page.goto('/?skipDeviceGate=1');
+  await waitForGameReady(page);
+  await skipCinematic(page);
+
+  await page.keyboard.press('Enter');
+  await expectPhase(page, 'playing');
+  await waitForMissionIntro(page);
+
+  await page.keyboard.press('F2');
+  await expectPhase(page, 'missionComplete');
+  await skipCinematic(page);
+  await expect(page.locator('.touch-controls-end-actions')).toBeVisible();
+  await page.locator('[data-touch-action="next"]').click();
+  await expectPhase(page, 'playing');
 });
 
 test('starts Mobile Lite from the desktop title hotkey', async ({ page }) => {
