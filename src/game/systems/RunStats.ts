@@ -1,3 +1,4 @@
+import type { PowerupType } from '../entities/Powerup';
 import type { EventWaveType } from './EventWaveTypes';
 
 export interface RunStatsSnapshot {
@@ -16,6 +17,7 @@ export interface RunStatsSnapshot {
   shieldBroken: boolean;
   nearMisses: number;
   powerupsCollected: number;
+  powerupTypesCollected: PowerupType[];
   sectorCompleted: boolean;
   upgradePurchasedThisSession: boolean;
   objectiveComplete: boolean;
@@ -38,6 +40,7 @@ export class RunStats {
   private shieldBroken = false;
   private nearMisses = 0;
   private powerupsCollected = 0;
+  private readonly powerupTypesCollected = new Set<PowerupType>();
   private sectorCompleted = false;
   private upgradePurchasedThisSession = false;
   private objectiveComplete = false;
@@ -59,6 +62,7 @@ export class RunStats {
     this.shieldBroken = false;
     this.nearMisses = 0;
     this.powerupsCollected = 0;
+    this.powerupTypesCollected.clear();
     this.sectorCompleted = false;
     this.upgradePurchasedThisSession = false;
     this.objectiveComplete = false;
@@ -103,8 +107,9 @@ export class RunStats {
     this.nearMisses += 1;
   }
 
-  recordPowerupCollected(): void {
+  recordPowerupCollected(type: PowerupType): void {
     this.powerupsCollected += 1;
+    this.powerupTypesCollected.add(type);
   }
 
   recordSectorCompleted(): void {
@@ -145,6 +150,7 @@ export class RunStats {
       shieldBroken: this.shieldBroken,
       nearMisses: this.nearMisses,
       powerupsCollected: this.powerupsCollected,
+      powerupTypesCollected: [...this.powerupTypesCollected],
       sectorCompleted: this.sectorCompleted,
       upgradePurchasedThisSession: this.upgradePurchasedThisSession,
       objectiveComplete: this.objectiveComplete,

@@ -1,3 +1,4 @@
+import { getMedalLabel, type MedalSnapshot } from '../systems/MedalSystem';
 import type { SectorProgressItem } from '../systems/SectorProgress';
 import type { GameState } from './Hud';
 
@@ -5,6 +6,7 @@ export interface SectorSelectOverlaySnapshot {
   state: GameState;
   sectors: SectorProgressItem[];
   selectedSectorId: string;
+  medals: MedalSnapshot;
   upgradePanelOpen: boolean;
 }
 
@@ -37,7 +39,9 @@ export class SectorSelectOverlay {
       snapshot.sectors[0];
 
     this.list.replaceChildren(
-      ...snapshot.sectors.map((sector) => this.createSectorRow(sector, selectedSector.id))
+      ...snapshot.sectors.map((sector) =>
+        this.createSectorRow(sector, selectedSector.id, snapshot.medals)
+      )
     );
     this.description.textContent = selectedSector
       ? getDescription(selectedSector)
@@ -47,11 +51,15 @@ export class SectorSelectOverlay {
 
   private createSectorRow(
     sector: SectorProgressItem,
-    selectedSectorId: string
+    selectedSectorId: string,
+    medals: MedalSnapshot
   ): HTMLElement {
     const row = document.createElement('div');
+    const medal = getMedalLabel(getSectorMedal(sector, medals));
     const status = sector.isCompleted
-      ? 'Complete'
+      ? medal === 'None'
+        ? 'Complete'
+        : `${medal} Medal`
       : sector.isUnlocked
         ? sector.objective.description
         : `Locked: clear ${sector.unlocksAfterName}`;
@@ -73,6 +81,17 @@ export class SectorSelectOverlay {
     this.overlay.classList.toggle('is-hidden', !isVisible);
     this.overlay.setAttribute('aria-hidden', String(!isVisible));
   }
+}
+
+function getSectorMedal(
+  sector: SectorProgressItem,
+  medals: MedalSnapshot
+): import('../systems/MedalSystem').MedalTier {
+  if (sector.isTutorial || sector.isEndless) {
+    return 'none';
+  }
+
+  return medals.medalBySectorId[sector.id] ?? 'none';
 }
 
 function getDescription(sector: SectorProgressItem): string {

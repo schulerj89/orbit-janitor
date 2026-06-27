@@ -325,7 +325,8 @@ body {
 }
 
 .powerup-toast,
-.contract-toast {
+.contract-toast,
+.reward-toast {
   position: absolute;
   top: clamp(76px, 12vh, 118px);
   left: 50%;
@@ -350,7 +351,8 @@ body {
 }
 
 .powerup-toast.is-hidden,
-.contract-toast.is-hidden {
+.contract-toast.is-hidden,
+.reward-toast.is-hidden {
   opacity: 0;
   transform: translateX(-50%) translateY(-8px);
   visibility: hidden;
@@ -359,6 +361,11 @@ body {
 .contract-toast {
   top: clamp(128px, 19vh, 184px);
   border-color: rgb(159 255 238 / 42%);
+}
+
+.reward-toast {
+  top: clamp(180px, 26vh, 248px);
+  border-color: rgb(255 224 107 / 44%);
 }
 
 .debug-panel {
@@ -457,7 +464,8 @@ body {
 }
 
 .powerup-toast-kicker,
-.contract-toast-kicker {
+.contract-toast-kicker,
+.reward-toast-kicker {
   color: #9fffee;
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
   font-size: 0.7rem;
@@ -467,13 +475,15 @@ body {
 }
 
 .powerup-toast strong,
-.contract-toast strong {
+.contract-toast strong,
+.reward-toast strong {
   color: #ffffff;
   font-size: clamp(1rem, 2.4vw, 1.2rem);
   line-height: 1.1;
 }
 
-.contract-toast small {
+.contract-toast small,
+.reward-toast small {
   color: #ffe06b;
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
   font-size: 0.78rem;
@@ -1225,6 +1235,7 @@ body {
 .mission-complete-overlay,
 .upgrade-panel,
 .contract-board-overlay,
+.achievements-overlay,
 .gallery-overlay,
 .shipyard-overlay,
 .settings-overlay,
@@ -1258,6 +1269,7 @@ body {
 .mission-complete-overlay.is-hidden,
 .upgrade-panel.is-hidden,
 .contract-board-overlay.is-hidden,
+.achievements-overlay.is-hidden,
 .gallery-overlay.is-hidden,
 .shipyard-overlay.is-hidden,
 .settings-overlay.is-hidden,
@@ -1606,9 +1618,19 @@ body {
   text-align: left;
 }
 
+.achievements-overlay {
+  align-content: start;
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(700px, calc(100vh - 32px));
+  padding: clamp(18px, 4vw, 28px);
+  overflow: hidden;
+  text-align: left;
+}
+
 .gallery-header,
 .shipyard-header,
-.contract-board-header {
+.contract-board-header,
+.achievements-header {
   display: flex;
   gap: 18px;
   align-items: start;
@@ -1619,24 +1641,31 @@ body {
 .gallery-kicker,
 .shipyard-kicker,
 .contract-board-kicker,
+.achievements-kicker,
 .gallery-badge span,
 .shipyard-badge span,
 .contract-board-badge span,
+.achievements-badge span,
 .gallery-help,
 .shipyard-help,
 .contract-board-help,
+.achievements-help,
 .gallery-category span,
 .gallery-item small,
 .shipyard-item span,
 .shipyard-item small,
 .contract-board-item span,
 .contract-board-item small,
+.achievements-item span,
+.achievements-item small,
 .gallery-detail span,
 .gallery-detail small,
 .shipyard-detail span,
 .shipyard-detail small,
 .contract-board-detail span,
 .contract-board-detail small,
+.achievements-detail span,
+.achievements-detail small,
 .shipyard-preview-note {
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
 }
@@ -1644,13 +1673,16 @@ body {
 .gallery-kicker,
 .shipyard-kicker,
 .contract-board-kicker,
+.achievements-kicker,
 .gallery-badge span,
 .shipyard-badge span,
 .contract-board-badge span,
+.achievements-badge span,
 .gallery-category span,
 .gallery-detail span,
 .shipyard-detail span,
-.contract-board-detail span {
+.contract-board-detail span,
+.achievements-detail span {
   color: #8ba7bd;
   font-size: 0.72rem;
   font-weight: 900;
@@ -1660,7 +1692,8 @@ body {
 
 .gallery-title,
 .shipyard-title,
-.contract-board-title {
+.contract-board-title,
+.achievements-title {
   margin: 0;
   color: #ffffff;
   font-size: clamp(1.65rem, 5vw, 2.7rem);
@@ -1670,14 +1703,16 @@ body {
 
 .gallery-badge,
 .shipyard-badge,
-.contract-board-badge {
+.contract-board-badge,
+.achievements-badge {
   min-width: 150px;
   text-align: right;
 }
 
 .gallery-badge strong,
 .shipyard-badge strong,
-.contract-board-badge strong {
+.contract-board-badge strong,
+.achievements-badge strong {
   display: block;
   color: #ffe06b;
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
@@ -1712,13 +1747,24 @@ body {
   min-height: 410px;
 }
 
+.achievements-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(220px, 0.72fr);
+  gap: 12px;
+  width: 100%;
+  margin: 12px 0 8px;
+  min-height: 390px;
+}
+
 .gallery-categories,
 .gallery-items,
 .gallery-detail,
 .shipyard-list,
 .shipyard-detail,
 .contract-board-list,
-.contract-board-detail {
+.contract-board-detail,
+.achievements-list,
+.achievements-detail {
   display: grid;
   align-content: start;
   gap: 7px;
@@ -1731,7 +1777,9 @@ body {
 .shipyard-item,
 .shipyard-detail,
 .contract-board-item,
-.contract-board-detail {
+.contract-board-detail,
+.achievements-item,
+.achievements-detail {
   border: 1px solid rgb(143 232 255 / 16%);
   border-radius: 8px;
   background: rgb(8 18 28 / 70%);
@@ -1763,6 +1811,10 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.achievements-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .contract-board-item {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr);
@@ -1772,10 +1824,20 @@ body {
   padding: 8px 10px;
 }
 
+.achievements-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 10px;
+}
+
 .gallery-category strong,
 .gallery-item strong,
 .shipyard-item strong,
-.contract-board-item strong {
+.contract-board-item strong,
+.achievements-item strong {
   min-width: 0;
   overflow: hidden;
   color: #ffffff;
@@ -1786,7 +1848,8 @@ body {
 .gallery-category.is-selected,
 .gallery-item.is-selected,
 .shipyard-item.is-selected,
-.contract-board-item.is-selected {
+.contract-board-item.is-selected,
+.achievements-item.is-selected {
   border-color: rgb(255 224 107 / 62%);
   background: linear-gradient(90deg, rgb(255 224 107 / 18%), rgb(8 18 28 / 70%));
   box-shadow: inset 3px 0 0 #ffe06b;
@@ -1811,7 +1874,8 @@ body {
 
 .gallery-item.is-equipped,
 .shipyard-item.is-equipped,
-.contract-board-item.is-completed {
+.contract-board-item.is-completed,
+.achievements-item.is-unlocked {
   border-color: rgb(159 255 238 / 34%);
 }
 
@@ -1838,7 +1902,8 @@ body {
 }
 
 .gallery-item small,
-.shipyard-item small {
+.shipyard-item small,
+.achievements-item small {
   display: block;
   color: #9cb5c8;
   font-size: 0.76rem;
@@ -1848,20 +1913,23 @@ body {
 
 .gallery-item.is-equipped small,
 .shipyard-item.is-equipped small,
-.contract-board-item.is-completed small {
+.contract-board-item.is-completed small,
+.achievements-item.is-unlocked small {
   color: #9fffee;
 }
 
 .gallery-detail,
 .shipyard-detail,
-.contract-board-detail {
+.contract-board-detail,
+.achievements-detail {
   gap: 8px;
   padding: 14px;
 }
 
 .gallery-detail strong,
 .shipyard-detail strong,
-.contract-board-detail strong {
+.contract-board-detail strong,
+.achievements-detail strong {
   color: #ffffff;
   font-size: clamp(1.1rem, 2.6vw, 1.45rem);
   line-height: 1.1;
@@ -1869,7 +1937,8 @@ body {
 
 .gallery-detail p,
 .shipyard-detail p,
-.contract-board-detail p {
+.contract-board-detail p,
+.achievements-detail p {
   margin: 0;
   color: #d7e8f2;
   line-height: 1.35;
@@ -1881,6 +1950,8 @@ body {
 .shipyard-help,
 .contract-board-detail small,
 .contract-board-help,
+.achievements-detail small,
+.achievements-help,
 .shipyard-preview-note {
   color: #ffe06b;
   font-weight: 800;
@@ -1895,7 +1966,8 @@ body {
 
 .gallery-help,
 .shipyard-help,
-.contract-board-help {
+.contract-board-help,
+.achievements-help {
   width: 100%;
   margin: 4px 0 0;
   font-size: clamp(0.9rem, 2.2vw, 1rem);
@@ -2206,22 +2278,31 @@ body {
     padding: 16px;
   }
 
+  .achievements-overlay {
+    width: min(760px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    padding: 16px;
+  }
+
   .gallery-header,
   .shipyard-header,
-  .contract-board-header {
+  .contract-board-header,
+  .achievements-header {
     display: grid;
     gap: 8px;
   }
 
   .gallery-badge,
   .shipyard-badge,
-  .contract-board-badge {
+  .contract-board-badge,
+  .achievements-badge {
     text-align: left;
   }
 
   .gallery-layout,
   .shipyard-layout,
-  .contract-board-layout {
+  .contract-board-layout,
+  .achievements-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     min-height: 0;
@@ -2230,7 +2311,8 @@ body {
   .gallery-categories,
   .gallery-items,
   .shipyard-list,
-  .contract-board-list {
+  .contract-board-list,
+  .achievements-list {
     gap: 5px;
   }
 
@@ -2243,6 +2325,10 @@ body {
   }
 
   .contract-board-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .achievements-list {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -2328,6 +2414,7 @@ body {
   .mission-complete-overlay,
   .upgrade-panel,
   .contract-board-overlay,
+  .achievements-overlay,
   .gallery-overlay,
   .shipyard-overlay,
   .settings-overlay,
@@ -2341,6 +2428,7 @@ body {
   .mission-complete-overlay,
   .upgrade-panel,
   .contract-board-overlay,
+  .achievements-overlay,
   .gallery-overlay,
   .shipyard-overlay,
   .settings-overlay,
@@ -2354,6 +2442,7 @@ body {
   .mission-complete-overlay.is-hidden,
   .upgrade-panel.is-hidden,
   .contract-board-overlay.is-hidden,
+  .achievements-overlay.is-hidden,
   .gallery-overlay.is-hidden,
   .shipyard-overlay.is-hidden,
   .settings-overlay.is-hidden,

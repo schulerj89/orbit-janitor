@@ -152,7 +152,7 @@ export class Hud {
           <span>Audio</span>
           <strong>M music / - = music / [ ] SFX / N mute</strong>
           <span>Upgrades</span>
-          <strong>U on title / game over | B contracts</strong>
+          <strong>U upgrades | A achievements | B contracts</strong>
           <span>Gallery</span>
           <strong>Y shipyard / G gallery</strong>
         </div>

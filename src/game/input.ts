@@ -32,6 +32,7 @@ export interface InputState {
   galleryTogglePressed: boolean;
   shipyardTogglePressed: boolean;
   contractBoardTogglePressed: boolean;
+  achievementsTogglePressed: boolean;
   settingsTogglePressed: boolean;
   debugPanelTogglePressed: boolean;
   debugCommandPressed: number | null;
@@ -76,6 +77,7 @@ export class InputController {
     this.state.galleryTogglePressed = false;
     this.state.shipyardTogglePressed = false;
     this.state.contractBoardTogglePressed = false;
+    this.state.achievementsTogglePressed = false;
     this.state.settingsTogglePressed = false;
     this.state.debugPanelTogglePressed = false;
     this.state.debugCommandPressed = null;
@@ -86,6 +88,9 @@ export class InputController {
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
     if (event.code === 'ArrowLeft' || event.code === 'KeyA') {
       this.state.left = true;
+      if (event.code === 'KeyA' && !event.repeat) {
+        this.state.achievementsTogglePressed = true;
+      }
       if (!event.repeat) {
         this.state.leftPressed = true;
       }
@@ -314,6 +319,7 @@ export function createNeutralInputState(): InputState {
     galleryTogglePressed: false,
     shipyardTogglePressed: false,
     contractBoardTogglePressed: false,
+    achievementsTogglePressed: false,
     settingsTogglePressed: false,
     debugPanelTogglePressed: false,
     debugCommandPressed: null,
@@ -358,6 +364,7 @@ export function mergeInputStates(...states: InputState[]): InputState {
     merged.galleryTogglePressed ||= state.galleryTogglePressed;
     merged.shipyardTogglePressed ||= state.shipyardTogglePressed;
     merged.contractBoardTogglePressed ||= state.contractBoardTogglePressed;
+    merged.achievementsTogglePressed ||= state.achievementsTogglePressed;
     merged.settingsTogglePressed ||= state.settingsTogglePressed;
     merged.debugPanelTogglePressed ||= state.debugPanelTogglePressed;
     merged.debugCommandPressed ??= state.debugCommandPressed;

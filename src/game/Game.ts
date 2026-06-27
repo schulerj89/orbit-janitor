@@ -55,6 +55,12 @@ import { getPowerupColor, getPowerupTypes, type PowerupType } from './entities/P
 import { Starfield } from './entities/Starfield';
 import { createWorldCore } from './entities/world-cores/createWorldCore';
 import type { WorldCore, WorldCoreType } from './entities/world-cores/WorldCore';
+import {
+  AchievementSystem,
+  type AchievementSnapshot,
+  type AchievementUnlock,
+  type AchievementEvaluationContext
+} from './systems/AchievementSystem';
 import { ChallengeMode, type ChallengeRunMode } from './systems/ChallengeMode';
 import type { ContractEvaluationContext } from './systems/ContractDefinitions';
 import {
@@ -74,6 +80,13 @@ import {
   type HazardDirectorResult
 } from './systems/HazardDirector';
 import type { HazardPatternType } from './systems/HazardTypes';
+import {
+  getMedalLabel,
+  MedalSystem,
+  type MedalAwardResult,
+  type MedalSnapshot,
+  type MedalTier
+} from './systems/MedalSystem';
 import { MissionDirector } from './systems/MissionDirector';
 import {
   PowerupDirector,
@@ -108,6 +121,7 @@ import {
 } from './systems/TutorialDirector';
 import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
 import { FloatingText } from './ui/FloatingText';
+import { AchievementsOverlay } from './ui/AchievementsOverlay';
 import { CinematicLetterbox } from './ui/CinematicLetterbox';
 import { ContractBoardOverlay } from './ui/ContractBoardOverlay';
 import { ContractToast } from './ui/ContractToast';
@@ -131,6 +145,7 @@ import { ShipyardOverlay } from './ui/ShipyardOverlay';
 import { TitleOverlay } from './ui/TitleOverlay';
 import { TutorialOverlay } from './ui/TutorialOverlay';
 import { UpgradePanel } from './ui/UpgradePanel';
+import { RewardToast } from './ui/RewardToast';
 
 const STARTING_OBSTACLES: ObstacleConfig[] = [
   { laneIndex: 0, angle: Math.PI * 0.72, angularSpeed: -0.72 },
@@ -187,6 +202,9 @@ interface OrbitJanitorDebugState {
   equippedShipId: string;
   contracts: ContractSnapshot;
   contractBoardOpen: boolean;
+  medals: MedalSnapshot;
+  achievements: AchievementSnapshot;
+  achievementsOpen: boolean;
   debugPanelOpen: boolean;
   debugInvincible: boolean;
   scrap: number;
@@ -254,6 +272,8 @@ export class Game {
   private readonly cosmetics = new CosmeticSystem();
   private readonly ships = new ShipUnlockSystem();
   private readonly contracts = new ContractSystem();
+  private readonly medals = new MedalSystem();
+  private readonly achievements = new AchievementSystem();
   private readonly challengeMode = new ChallengeMode();
   private readonly missionDirector = new MissionDirector();
   private readonly sectorProgress = new SectorProgress();
@@ -284,11 +304,13 @@ export class Game {
   private runSummary!: RunSummary;
   private upgradePanel!: UpgradePanel;
   private contractBoardOverlay!: ContractBoardOverlay;
+  private achievementsOverlay!: AchievementsOverlay;
   private tutorialOverlay!: TutorialOverlay;
   private helpOverlay!: HelpOverlay;
   private pauseOverlay!: PauseOverlay;
   private powerupToast!: PowerupToast;
   private contractToast!: ContractToast;
+  private rewardToast!: RewardToast;
   private radioOverlay!: RadioOverlay;
   private settingsOverlay!: SettingsOverlay;
   private galleryOverlay!: GalleryOverlay;
@@ -326,9 +348,11 @@ export class Game {
   private shieldGraceTimer = 0;
   private upgradePanelOpen = false;
   private contractBoardOpen = false;
+  private achievementsOpen = false;
   private galleryOpen = false;
   private shipyardOpen = false;
   private selectedContractIndex = 0;
+  private selectedAchievementIndex = 0;
   private galleryCategoryIndex = 0;
   private galleryItemIndex = 0;
   private selectedShipIndex = 0;
@@ -345,6 +369,9 @@ export class Game {
   private currentWorldCoreType: WorldCoreType | null = null;
   private titleCinematicPlayed = false;
   private newlyUnlockedSectorName: string | null = null;
+  private lastMissionMedalTier: MedalTier = 'none';
+  private lastMissionMedalImproved = false;
+  private lastAchievementUnlockNames: string[] = [];
   private sectorHintTimer = 0;
   private runBonusScrap = 0;
   private missionIntroTimer = 0;
@@ -381,11 +408,13 @@ export class Game {
     this.runSummary = new RunSummary(hudRoot);
     this.upgradePanel = new UpgradePanel(hudRoot);
     this.contractBoardOverlay = new ContractBoardOverlay(hudRoot);
+    this.achievementsOverlay = new AchievementsOverlay(hudRoot);
     this.tutorialOverlay = new TutorialOverlay(hudRoot);
     this.pauseOverlay = new PauseOverlay(hudRoot);
     this.helpOverlay = new HelpOverlay(hudRoot);
     this.powerupToast = new PowerupToast(hudRoot);
     this.contractToast = new ContractToast(hudRoot);
+    this.rewardToast = new RewardToast(hudRoot);
     this.radioOverlay = new RadioOverlay(hudRoot);
     this.settingsOverlay = new SettingsOverlay(hudRoot);
     this.galleryOverlay = new GalleryOverlay(hudRoot);
@@ -538,6 +567,7 @@ export class Game {
       !this.galleryOpen &&
       !this.shipyardOpen &&
       !this.contractBoardOpen &&
+      !this.achievementsOpen &&
       (this.state === 'title' ||
         this.state === 'gameover' ||
         this.state === 'missionComplete');
@@ -546,6 +576,7 @@ export class Game {
       this.galleryOpen = false;
       this.shipyardOpen = false;
       this.contractBoardOpen = false;
+      this.achievementsOpen = false;
       this.audio.playUiSelect();
     }
 
@@ -654,6 +685,7 @@ export class Game {
     this.floatingText.update(delta);
     this.powerupToast.update(delta);
     this.contractToast.update(delta);
+    this.rewardToast.update(delta);
     this.radioComms.update(delta);
     this.shieldBrokenTimer = Math.max(0, this.shieldBrokenTimer - delta);
     this.shieldGraceTimer = Math.max(0, this.shieldGraceTimer - delta);
@@ -1171,6 +1203,28 @@ export class Game {
   }
 
   private handleOverlayInput(input: InputState): boolean {
+    if (input.achievementsTogglePressed && this.canToggleAchievements()) {
+      this.achievementsOpen = !this.achievementsOpen;
+
+      if (this.achievementsOpen) {
+        this.closeTitleSideOverlays('achievements');
+        this.clampAchievementSelection();
+      }
+
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (input.escapePressed && this.achievementsOpen) {
+      this.achievementsOpen = false;
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (this.achievementsOpen) {
+      return this.handleAchievementsInput(input);
+    }
+
     if (input.contractBoardTogglePressed && this.canToggleContractBoard()) {
       this.contractBoardOpen = !this.contractBoardOpen;
 
@@ -1286,10 +1340,21 @@ export class Game {
   }
 
   private closeTitleSideOverlays(
-    except: 'contracts' | 'gallery' | 'shipyard' | 'settings' | 'help' | 'upgrades'
+    except:
+      | 'contracts'
+      | 'achievements'
+      | 'gallery'
+      | 'shipyard'
+      | 'settings'
+      | 'help'
+      | 'upgrades'
   ): void {
     if (except !== 'contracts') {
       this.contractBoardOpen = false;
+    }
+
+    if (except !== 'achievements') {
+      this.achievementsOpen = false;
     }
 
     if (except !== 'gallery') {
@@ -1336,6 +1401,59 @@ export class Game {
       runMode: challenge.mode,
       dailyDate: challenge.dailyDate
     };
+  }
+
+  private createAchievementContext(): AchievementEvaluationContext {
+    const challenge = this.challengeMode.getSnapshot();
+
+    return {
+      stats: this.runStats.getSnapshot(),
+      sectorId: this.missionDirector.getCurrentSector().id,
+      runMode: challenge.mode,
+      dailyDate: challenge.dailyDate,
+      sectorProgress: this.sectorProgress.getSnapshot(),
+      medals: this.medals.getSnapshot()
+    };
+  }
+
+  private handleAchievementsInput(input: InputState): boolean {
+    if (input.leftPressed || input.laneUpPressed) {
+      this.moveAchievementSelection(-1);
+      return true;
+    }
+
+    if (input.rightPressed || input.laneDownPressed) {
+      this.moveAchievementSelection(1);
+      return true;
+    }
+
+    return true;
+  }
+
+  private moveAchievementSelection(direction: number): void {
+    const achievements = this.achievements.getSnapshot(
+      this.createAchievementContext()
+    ).achievements;
+
+    if (achievements.length === 0) {
+      return;
+    }
+
+    this.selectedAchievementIndex =
+      (this.selectedAchievementIndex + direction + achievements.length) %
+      achievements.length;
+    this.audio.playUiSelect();
+  }
+
+  private clampAchievementSelection(): void {
+    const achievements = this.achievements.getSnapshot(
+      this.createAchievementContext()
+    ).achievements;
+
+    this.selectedAchievementIndex = Math.max(
+      0,
+      Math.min(this.selectedAchievementIndex, Math.max(0, achievements.length - 1))
+    );
   }
 
   private moveContractSelection(direction: number): void {
@@ -1596,6 +1714,10 @@ export class Game {
     return this.state === 'title' || this.contractBoardOpen;
   }
 
+  private canToggleAchievements(): boolean {
+    return this.state === 'title' || this.achievementsOpen;
+  }
+
   private getEquippedShipIndex(): number {
     const ships = this.ships.getSnapshot().ships;
     const equippedIndex = ships.findIndex((ship) => ship.isEquipped);
@@ -1724,7 +1846,7 @@ export class Game {
   }
 
   private handlePowerupCollected(type: PowerupType): void {
-    this.runStats.recordPowerupCollected();
+    this.runStats.recordPowerupCollected(type);
     this.syncRunStats();
     this.powerupToast.show(type);
     this.audio.playCollect();
@@ -2036,6 +2158,7 @@ export class Game {
     this.galleryOpen = false;
     this.shipyardOpen = false;
     this.contractBoardOpen = false;
+    this.achievementsOpen = false;
     this.missionIntroActive = false;
     this.missionIntroTimer = 0;
     this.hazardNearMissArmed = false;
@@ -2048,6 +2171,12 @@ export class Game {
     this.unlockEndlessCosmeticIfEligible(finalStats.finalScore);
     this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
     this.handleContractCompletions();
+    this.lastMissionMedalTier = 'none';
+    this.lastMissionMedalImproved = false;
+    this.handleAchievementUnlocks();
+    this.rewardToast.show({
+      achievementNames: this.lastAchievementUnlockNames
+    });
     this.queueRadio(
       'AUTOPILOT',
       `${reason}. Ship recommends fewer impacts next time.`,
@@ -2083,6 +2212,7 @@ export class Game {
     this.galleryOpen = false;
     this.shipyardOpen = false;
     this.contractBoardOpen = false;
+    this.achievementsOpen = false;
     this.missionIntroActive = false;
     this.missionIntroTimer = 0;
     this.hazardWarning = false;
@@ -2092,6 +2222,8 @@ export class Game {
     this.syncRunStats();
     this.runStats.complete('Mission complete');
     const finalStats = this.runStats.getSnapshot();
+    const sector = this.missionDirector.getCurrentSector();
+    const objective = this.missionDirector.getObjective(finalStats);
 
     this.challengeMode.completeRun(finalStats.finalScore);
     this.unlockDailyCosmeticIfEligible();
@@ -2110,9 +2242,16 @@ export class Game {
     );
     this.newlyUnlockedSectorName =
       unlockedSectorId === null ? null : getSectorById(unlockedSectorId).name;
+    this.applyMissionMedal(sector, finalStats, objective);
 
     this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
     this.handleContractCompletions();
+    this.handleAchievementUnlocks();
+    this.rewardToast.show({
+      medalTier: this.lastMissionMedalTier,
+      medalImproved: this.lastMissionMedalImproved,
+      achievementNames: this.lastAchievementUnlockNames
+    });
     this.queueRadio(
       'DISPATCH',
       this.missionDirector.getCurrentSector().radio.complete,
@@ -2159,6 +2298,7 @@ export class Game {
     this.state = 'title';
     this.upgradePanelOpen = false;
     this.contractBoardOpen = false;
+    this.achievementsOpen = false;
     this.galleryOpen = false;
     this.shipyardOpen = false;
     this.isPaused = false;
@@ -2204,6 +2344,7 @@ export class Game {
     this.playCinematic('sectorIntro');
     this.upgradePanelOpen = false;
     this.contractBoardOpen = false;
+    this.achievementsOpen = false;
     this.galleryOpen = false;
     this.shipyardOpen = false;
     this.isPaused = false;
@@ -2234,6 +2375,7 @@ export class Game {
     this.playCinematic('sectorIntro');
     this.upgradePanelOpen = false;
     this.contractBoardOpen = false;
+    this.achievementsOpen = false;
     this.galleryOpen = false;
     this.shipyardOpen = false;
     this.isPaused = false;
@@ -2349,6 +2491,52 @@ export class Game {
         .join('-')}`,
       4.6
     );
+  }
+
+  private applyMissionMedal(
+    sector: ReturnType<MissionDirector['getCurrentSector']>,
+    stats: RunStatsSnapshot,
+    objective: ReturnType<MissionDirector['getObjective']>
+  ): MedalAwardResult {
+    const medal = this.medals.evaluateRun(sector, stats, objective);
+
+    this.lastMissionMedalTier = medal.earnedTier;
+    this.lastMissionMedalImproved = medal.isNewBest;
+
+    if (medal.isNewBest && medal.earnedTier !== 'none') {
+      this.floatingText.show(
+        `${getMedalLabel(medal.earnedTier).toUpperCase()} MEDAL`,
+        'bonus'
+      );
+      this.queueRadio(
+        'CLEANUP OPS',
+        `${getMedalLabel(medal.earnedTier)} medal logged for ${sector.name}. Try not to act surprised.`,
+        `medal-${this.radioRunId}-${sector.id}-${medal.earnedTier}`,
+        4.2
+      );
+    }
+
+    return medal;
+  }
+
+  private handleAchievementUnlocks(): AchievementUnlock[] {
+    const unlocks = this.achievements.evaluateRun(this.createAchievementContext());
+
+    this.lastAchievementUnlockNames = unlocks.map((unlock) => unlock.name);
+
+    if (unlocks.length > 0) {
+      this.floatingText.show('ACHIEVEMENT UNLOCKED', 'bonus');
+      this.queueRadio(
+        'DISPATCH',
+        unlocks.length === 1
+          ? `Achievement unlocked: ${unlocks[0].name}.`
+          : `${unlocks.length} achievements unlocked. Cleanup Ops is updating the brag sheet.`,
+        `achievement-${this.radioRunId}-${unlocks.map((unlock) => unlock.id).join('-')}`,
+        4.5
+      );
+    }
+
+    return unlocks;
   }
 
   private applyContractRewards(completions: readonly ContractCompletion[]): void {
@@ -2582,6 +2770,9 @@ export class Game {
     this.sectorHintTimer = 2.9;
     this.objectiveAnnounced = false;
     this.newlyUnlockedSectorName = null;
+    this.lastMissionMedalTier = 'none';
+    this.lastMissionMedalImproved = false;
+    this.lastAchievementUnlockNames = [];
     this.gameOverReason = 'Impact detected';
     this.runBonusScrap = 0;
     this.missionIntroTimer = 0;
@@ -2602,6 +2793,7 @@ export class Game {
     this.eventWaveDirector.reset(this.runRng);
     this.powerupDirector.reset(this.runRng);
     this.powerupToast.clear();
+    this.rewardToast.clear();
     this.ghostMarker.clear();
     this.screenShake.clear();
     this.cameraRig.clear();
@@ -3005,6 +3197,14 @@ export class Game {
       return;
     }
 
+    if (option.id === 'achievements') {
+      this.achievementsOpen = true;
+      this.closeTitleSideOverlays('achievements');
+      this.clampAchievementSelection();
+      this.audio.playUiSelect();
+      return;
+    }
+
     if (option.id === 'shipyard') {
       this.openShipyard();
       this.audio.playUiSelect();
@@ -3018,6 +3218,7 @@ export class Game {
       this.galleryOpen = false;
       this.shipyardOpen = false;
       this.contractBoardOpen = false;
+      this.achievementsOpen = false;
       this.audio.playUiSelect();
       return;
     }
@@ -3027,6 +3228,7 @@ export class Game {
       this.helpOpen = false;
       this.upgradePanelOpen = false;
       this.contractBoardOpen = false;
+      this.achievementsOpen = false;
       this.galleryOpen = false;
       this.shipyardOpen = false;
       this.audio.playUiSelect();
@@ -3093,6 +3295,7 @@ export class Game {
     this.state = 'sectorSelect';
     this.upgradePanelOpen = false;
     this.contractBoardOpen = false;
+    this.achievementsOpen = false;
     this.galleryOpen = false;
     this.shipyardOpen = false;
     this.isPaused = false;
@@ -3169,6 +3372,7 @@ export class Game {
       input.galleryTogglePressed ||
       input.shipyardTogglePressed ||
       input.contractBoardTogglePressed ||
+      input.achievementsTogglePressed ||
       input.settingsTogglePressed ||
       input.upgradeBuyPressed !== null
     );
@@ -3226,6 +3430,10 @@ export class Game {
     const cosmeticSnapshot = this.cosmetics.getSnapshot();
     const shipSnapshot = this.ships.getSnapshot();
     const contractSnapshot = this.contracts.getSnapshot(this.createContractContext());
+    const medalSnapshot = this.medals.getSnapshot();
+    const achievementSnapshot = this.achievements.getSnapshot(
+      this.createAchievementContext()
+    );
     const equippedShip =
       shipSnapshot.ships.find((ship) => ship.isEquipped) ?? shipSnapshot.ships[0];
     const unlockedSectors = sectorProgress.sectors.filter(
@@ -3291,6 +3499,7 @@ export class Game {
       state: this.state,
       sectors: sectorProgress.sectors,
       selectedSectorId: this.selectedSectorId,
+      medals: medalSnapshot,
       upgradePanelOpen: this.upgradePanelOpen
     });
     this.missionCompleteOverlay.update({
@@ -3300,6 +3509,9 @@ export class Game {
       stats,
       upgrades: this.upgrades.getSnapshot(),
       newlyUnlockedSectorName: this.newlyUnlockedSectorName,
+      medalTier: this.lastMissionMedalTier,
+      medalImproved: this.lastMissionMedalImproved,
+      achievementNames: this.lastAchievementUnlockNames,
       upgradePanelOpen: this.upgradePanelOpen,
       cinematicActive: cinematic.isActive
     });
@@ -3307,6 +3519,7 @@ export class Game {
       state: this.state,
       upgradePanelOpen: this.upgradePanelOpen,
       contractBoardOpen: this.contractBoardOpen,
+      achievementsOpen: this.achievementsOpen,
       galleryOpen: this.galleryOpen,
       shipyardOpen: this.shipyardOpen,
       settingsOpen: this.settingsOpen,
@@ -3326,6 +3539,8 @@ export class Game {
       totalShipCount: shipSnapshot.ships.length,
       completedContractCount: contractSnapshot.completedCount,
       totalContractCount: contractSnapshot.totalCount,
+      unlockedAchievementCount: achievementSnapshot.unlockedCount,
+      totalAchievementCount: achievementSnapshot.totalCount,
       equippedShipName: equippedShip?.name ?? 'Scrapper',
       titleBadgeLabel: cosmeticSnapshot.visuals.titleBadgeLabel,
       lastUnlockedSectorName: lastUnlockedSector.name,
@@ -3368,6 +3583,12 @@ export class Game {
       canShow: this.state === 'title',
       contracts: contractSnapshot,
       selectedContractIndex: this.selectedContractIndex
+    });
+    this.achievementsOverlay.update({
+      isOpen: this.achievementsOpen,
+      canShow: this.state === 'title',
+      achievements: achievementSnapshot,
+      selectedAchievementIndex: this.selectedAchievementIndex
     });
     this.tutorialOverlay.update({
       state: this.state,
@@ -3419,6 +3640,7 @@ export class Game {
         this.galleryOpen ||
         this.shipyardOpen ||
         this.contractBoardOpen ||
+        this.achievementsOpen ||
         (this.isPaused && this.state === 'playing') ||
         cinematic.isActive ||
         this.missionIntroActive
@@ -3560,6 +3782,8 @@ export class Game {
     const cosmetics = this.cosmetics.getSnapshot();
     const ships = this.ships.getSnapshot();
     const contracts = this.contracts.getSnapshot(this.createContractContext());
+    const medals = this.medals.getSnapshot();
+    const achievements = this.achievements.getSnapshot(this.createAchievementContext());
 
     return {
       sceneId: 'orbit-janitor',
@@ -3603,6 +3827,9 @@ export class Game {
       equippedShipId: ships.equippedId,
       contracts,
       contractBoardOpen: this.contractBoardOpen,
+      medals,
+      achievements,
+      achievementsOpen: this.achievementsOpen,
       debugPanelOpen: import.meta.env.DEV ? this.debugPanelOpen : false,
       debugInvincible: import.meta.env.DEV ? this.debugInvincible : false,
       scrap: this.upgrades.getSnapshot().totalScrap,
@@ -3646,6 +3873,8 @@ export class Game {
     const cosmetics = this.cosmetics.getSnapshot();
     const ships = this.ships.getSnapshot();
     const contracts = this.contracts.getSnapshot(this.createContractContext());
+    const medals = this.medals.getSnapshot();
+    const achievements = this.achievements.getSnapshot(this.createAchievementContext());
 
     this.canvas.dataset.sceneId = 'orbit-janitor';
     this.canvas.dataset.phase = this.state;
@@ -3683,6 +3912,12 @@ export class Game {
     this.canvas.dataset.contractCompletedCount = String(contracts.completedCount);
     this.canvas.dataset.contractTotalCount = String(contracts.totalCount);
     this.canvas.dataset.contractCompletedIds = contracts.completedIds.join(',');
+    this.canvas.dataset.achievementsOpen = String(this.achievementsOpen);
+    this.canvas.dataset.achievementUnlockedCount = String(achievements.unlockedCount);
+    this.canvas.dataset.achievementTotalCount = String(achievements.totalCount);
+    this.canvas.dataset.achievementUnlockedIds = achievements.unlockedIds.join(',');
+    this.canvas.dataset.medalGoldOrBetterCount = String(medals.goldOrBetterCount);
+    this.canvas.dataset.medalPrimeCount = String(medals.primeCount);
     this.canvas.dataset.debugPanelOpen = String(
       import.meta.env.DEV ? this.debugPanelOpen : false
     );

@@ -14,6 +14,8 @@ export interface MenuPreviewSnapshot {
   totalShipCount: number;
   completedContractCount: number;
   totalContractCount: number;
+  unlockedAchievementCount: number;
+  totalAchievementCount: number;
   equippedShipName: string;
   musicEnabled: boolean;
   musicVolume: number;
@@ -70,6 +72,13 @@ export function getMenuPreviewContent(snapshot: MenuPreviewSnapshot): MenuPrevie
         title: 'Replay Contracts',
         body: `${snapshot.completedContractCount} of ${snapshot.totalContractCount} contracts cleared.`,
         meta: 'B hotkey'
+      };
+    case 'achievements':
+      return {
+        eyebrow: 'Milestones',
+        title: 'Achievements',
+        body: `${snapshot.unlockedAchievementCount} of ${snapshot.totalAchievementCount} achievements unlocked.`,
+        meta: 'A hotkey'
       };
     case 'shipyard':
       return {

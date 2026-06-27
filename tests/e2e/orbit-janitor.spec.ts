@@ -12,6 +12,7 @@ type DebugState = {
   helpOpen: boolean;
   settingsOpen: boolean;
   contractBoardOpen: boolean;
+  achievementsOpen: boolean;
   shipyardOpen: boolean;
   equippedShipId: string;
   ships: {
@@ -29,6 +30,22 @@ type DebugState = {
     contracts: Array<{
       id: string;
       isCompleted: boolean;
+    }>;
+  };
+  medals: {
+    goldOrBetterCount: number;
+    primeCount: number;
+    medals: Array<{
+      sectorId: string;
+      tier: string;
+    }>;
+  };
+  achievements: {
+    unlockedCount: number;
+    totalCount: number;
+    achievements: Array<{
+      id: string;
+      isUnlocked: boolean;
     }>;
   };
   debugPanelOpen: boolean;
@@ -119,6 +136,7 @@ test('loads the title scene and exposes debug state', async ({ page }) => {
       'long-orbit'
     ])
   );
+  expect(state.achievements.totalCount).toBeGreaterThanOrEqual(10);
 });
 
 test('toggles music and sfx preferences from keyboard input', async ({ page }) => {
@@ -206,6 +224,28 @@ test('opens contract board from title', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect
     .poll(() => getDebugState(page).then((state) => state.contractBoardOpen))
+    .toBe(false);
+});
+
+test('opens achievements from title', async ({ page }) => {
+  await page.goto('/');
+  await waitForGameReady(page);
+  await skipCinematic(page);
+
+  await page.keyboard.press('A');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.achievementsOpen))
+    .toBe(true);
+
+  const achievementState = await getDebugState(page);
+  expect(achievementState.achievements.totalCount).toBeGreaterThanOrEqual(10);
+  expect(achievementState.achievements.achievements.length).toBe(
+    achievementState.achievements.totalCount
+  );
+
+  await page.keyboard.press('Escape');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.achievementsOpen))
     .toBe(false);
 });
 

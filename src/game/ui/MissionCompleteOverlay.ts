@@ -1,4 +1,5 @@
 import type { MissionObjectiveSnapshot } from '../systems/MissionDirector';
+import { getMedalLabel, type MedalTier } from '../systems/MedalSystem';
 import type { RunStatsSnapshot } from '../systems/RunStats';
 import type { SectorConfig } from '../systems/SectorConfig';
 import type { UpgradeSnapshot } from '../systems/UpgradeSystem';
@@ -11,6 +12,9 @@ export interface MissionCompleteOverlaySnapshot {
   stats: RunStatsSnapshot;
   upgrades: UpgradeSnapshot;
   newlyUnlockedSectorName: string | null;
+  medalTier: MedalTier;
+  medalImproved: boolean;
+  achievementNames: readonly string[];
   upgradePanelOpen: boolean;
   cinematicActive: boolean;
 }
@@ -23,6 +27,8 @@ export class MissionCompleteOverlay {
   private readonly junkValue: HTMLElement;
   private readonly hazardsValue: HTMLElement;
   private readonly scrapValue: HTMLElement;
+  private readonly medalValue: HTMLElement;
+  private readonly achievementsValue: HTMLElement;
   private readonly objectiveValue: HTMLElement;
   private readonly unlockValue: HTMLElement;
 
@@ -46,6 +52,10 @@ export class MissionCompleteOverlay {
             <strong data-mission-hazards>0</strong>
             <span>Scrap earned</span>
             <strong data-mission-scrap>0</strong>
+            <span>Medal</span>
+            <strong data-mission-medal>Bronze</strong>
+            <span>Achievements</span>
+            <strong data-mission-achievements>None</strong>
             <span>Unlocked</span>
             <strong data-mission-unlock>None</strong>
           </div>
@@ -61,6 +71,8 @@ export class MissionCompleteOverlay {
     this.junkValue = getElement(root, '[data-mission-junk]');
     this.hazardsValue = getElement(root, '[data-mission-hazards]');
     this.scrapValue = getElement(root, '[data-mission-scrap]');
+    this.medalValue = getElement(root, '[data-mission-medal]');
+    this.achievementsValue = getElement(root, '[data-mission-achievements]');
     this.objectiveValue = getElement(root, '[data-mission-objective]');
     this.unlockValue = getElement(root, '[data-mission-unlock]');
   }
@@ -73,6 +85,18 @@ export class MissionCompleteOverlay {
     this.junkValue.textContent = String(snapshot.stats.junkCollected);
     this.hazardsValue.textContent = String(snapshot.stats.hazardsSurvived);
     this.scrapValue.textContent = String(snapshot.upgrades.lastRunScrapEarned);
+    this.medalValue.textContent = snapshot.medalImproved
+      ? `${getMedalLabel(snapshot.medalTier)} (New)`
+      : getMedalLabel(snapshot.medalTier);
+    this.medalValue.classList.toggle('is-complete', snapshot.medalTier !== 'none');
+    this.achievementsValue.textContent =
+      snapshot.achievementNames.length > 0
+        ? snapshot.achievementNames.join(', ')
+        : 'None';
+    this.achievementsValue.classList.toggle(
+      'is-complete',
+      snapshot.achievementNames.length > 0
+    );
     this.unlockValue.textContent = snapshot.newlyUnlockedSectorName ?? 'None';
     this.unlockValue.classList.toggle(
       'is-complete',
