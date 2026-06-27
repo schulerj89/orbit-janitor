@@ -6,7 +6,8 @@ import {
   disposeWorldCoreGroup,
   lighten,
   placeSurfaceDetail,
-  type WorldCore
+  type WorldCore,
+  type WorldCoreUpdateContext
 } from './WorldCore';
 
 export class PlanetCore implements WorldCore {
@@ -54,8 +55,37 @@ export class PlanetCore implements WorldCore {
       transparent: true,
       opacity: 0.16,
       depthWrite: false
+    }),
+    cloudBand: new THREE.MeshBasicMaterial({
+      color: 0xdff7ff,
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false
+    }),
+    cityLight: new THREE.MeshBasicMaterial({
+      color: 0xfff08a,
+      transparent: true,
+      opacity: 0.74,
+      depthWrite: false
+    }),
+    habitatHull: new THREE.MeshStandardMaterial({
+      color: 0xcfefff,
+      roughness: 0.56,
+      metalness: 0.18,
+      flatShading: true
+    }),
+    habitatPanel: new THREE.MeshBasicMaterial({
+      color: 0x78e8ff,
+      transparent: true,
+      opacity: 0.82,
+      depthWrite: false
     })
   };
+  private readonly planetBody = new THREE.Group();
+  private readonly cloudRings = new THREE.Group();
+  private readonly cityLights = new THREE.Group();
+  private readonly habitatOrbit = new THREE.Group();
+  private elapsedTime = 0;
 
   constructor() {
     const planet = new THREE.Mesh(
@@ -68,11 +98,15 @@ export class PlanetCore implements WorldCore {
       this.materials.atmosphere
     );
 
-    this.group.add(planet);
+    this.group.add(this.planetBody, this.cloudRings, this.habitatOrbit);
+    this.planetBody.add(planet);
     this.addSurfaceBands();
     this.addLandPatches();
     this.addCraters();
-    this.group.add(atmosphere);
+    this.addNightCityLights();
+    this.addCloudBands();
+    this.addHabitatStation();
+    this.planetBody.add(this.cityLights, atmosphere);
   }
 
   applyTheme(theme: SectorTheme): void {
@@ -83,10 +117,25 @@ export class PlanetCore implements WorldCore {
     this.materials.highland.color.setHex(lighten(theme.planetAccentColor, 0.22));
     this.materials.crater.color.setHex(darken(theme.planetBaseColor, 0.48));
     this.materials.atmosphere.color.setHex(theme.atmosphereColor);
+    this.materials.cloudBand.color.setHex(lighten(theme.atmosphereColor, 0.12));
+    this.materials.cityLight.color.setHex(lighten(theme.hazardWarningColor, 0.24));
+    this.materials.habitatHull.color.setHex(lighten(theme.laneColor, 0.38));
+    this.materials.habitatPanel.color.setHex(theme.activeLaneColor);
   }
 
-  update(): void {
-    // PlanetCore preserves the previous static planet behavior.
+  update(delta: number, context?: WorldCoreUpdateContext): void {
+    this.elapsedTime += delta;
+    this.planetBody.rotation.y += delta * 0.018;
+    this.cloudRings.rotation.y -= delta * 0.04;
+    this.cloudRings.rotation.z = Math.sin(this.elapsedTime * 0.17) * 0.03;
+    this.habitatOrbit.rotation.y += delta * 0.2;
+
+    const pulse = context?.reducedMotion
+      ? 0.5
+      : 0.5 + Math.sin(this.elapsedTime * 1.6) * 0.5;
+
+    this.materials.cloudBand.opacity = 0.14 + pulse * 0.05;
+    this.materials.cityLight.opacity = 0.62 + pulse * 0.18;
   }
 
   dispose(): void {
@@ -109,7 +158,28 @@ export class PlanetCore implements WorldCore {
       );
       band.rotation.x = Math.PI / 2;
       band.position.y = config.y;
-      this.group.add(band);
+      this.planetBody.add(band);
+    }
+  }
+
+  private addCloudBands(): void {
+    const cloudConfigs = [
+      { y: -0.72, radiusScale: 0.78, tube: 0.008, tilt: 0.08 },
+      { y: -0.18, radiusScale: 0.96, tube: 0.009, tilt: -0.06 },
+      { y: 0.36, radiusScale: 0.9, tube: 0.008, tilt: 0.12 },
+      { y: 0.82, radiusScale: 0.62, tube: 0.007, tilt: -0.1 }
+    ];
+
+    for (const config of cloudConfigs) {
+      const baseRadius = Math.sqrt(PLANET_RADIUS * PLANET_RADIUS - config.y * config.y);
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(baseRadius * config.radiusScale, config.tube, 6, 112),
+        this.materials.cloudBand
+      );
+      ring.rotation.x = Math.PI / 2 + config.tilt;
+      ring.rotation.y = config.tilt * 0.7;
+      ring.position.y = config.y;
+      this.cloudRings.add(ring);
     }
   }
 
@@ -130,7 +200,7 @@ export class PlanetCore implements WorldCore {
       placeSurfaceDetail(patch, latitude, longitude, PLANET_RADIUS * 1.012);
       patch.scale.set(scaleX, scaleY, 1);
       patch.rotation.z += longitude * 0.45;
-      this.group.add(patch);
+      this.planetBody.add(patch);
     }
   }
 
@@ -148,7 +218,53 @@ export class PlanetCore implements WorldCore {
       const crater = new THREE.Mesh(geometry, this.materials.crater);
       placeSurfaceDetail(crater, latitude, longitude, PLANET_RADIUS * 1.018);
       crater.scale.setScalar(scale);
-      this.group.add(crater);
+      this.planetBody.add(crater);
     }
+  }
+
+  private addNightCityLights(): void {
+    const lightGeometry = new THREE.CircleGeometry(0.018, 6);
+
+    for (let index = 0; index < 28; index += 1) {
+      const latitude = -0.6 + ((index * 0.31) % 1.2);
+      const longitude = Math.PI * 0.72 + ((index * 0.73) % (Math.PI * 0.82));
+      const light = new THREE.Mesh(lightGeometry, this.materials.cityLight);
+      placeSurfaceDetail(light, latitude, longitude, PLANET_RADIUS * 1.024);
+      light.scale.setScalar(0.6 + (index % 4) * 0.16);
+      this.cityLights.add(light);
+    }
+  }
+
+  private addHabitatStation(): void {
+    const station = new THREE.Group();
+    const hub = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.12, 0.14),
+      this.materials.habitatHull
+    );
+    const mast = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.015, 0.015, 0.48, 6),
+      this.materials.habitatHull
+    );
+    const leftPanel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.34, 0.015, 0.16),
+      this.materials.habitatPanel
+    );
+    const rightPanel = leftPanel.clone();
+    const beacon = new THREE.Mesh(
+      new THREE.SphereGeometry(0.035, 8, 6),
+      this.materials.cityLight
+    );
+
+    mast.rotation.z = Math.PI / 2;
+    leftPanel.position.x = -0.34;
+    rightPanel.position.x = 0.34;
+    beacon.position.set(0, 0.12, 0);
+    station.position.set(PLANET_RADIUS * 1.82, 0.32, 0);
+    station.rotation.y = Math.PI / 2;
+    station.scale.setScalar(0.9);
+    station.add(mast, hub, leftPanel, rightPanel, beacon);
+    this.habitatOrbit.rotation.x = 0.28;
+    this.habitatOrbit.rotation.z = -0.18;
+    this.habitatOrbit.add(station);
   }
 }

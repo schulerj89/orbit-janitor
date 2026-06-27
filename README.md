@@ -95,7 +95,7 @@ Touch:
 - Persistent sector unlocks, best score, daily best, scrap total, upgrades, cosmetic unlocks/equips, audio preferences, and accessibility settings.
 - Training Orbit tutorial with guided rotate, pickup, lane switch, boost, obstacle, and hazard-reading steps.
 - Three orbit lanes with smooth lane switching, readable ship direction, procedural world cores/lanes/stars/junk/satellites/hazards, and sector-specific visual themes.
-- Sector-specific centerpieces: planet core, cracked planetoid, solar reactor, night planet, comet core, and orbital gate.
+- Sector-specific centerpieces with procedural identity: habitat/cloud planet, cracked rubble planetoid, venting solar reactor, night world with city lights and auroras, icy comet plume, and a non-planet orbital gate.
 - Text-only radio comms for title onboarding, sector intros, tutorial steps, hazards, powerups, objective progress, event waves, mission completion, crashes, and sector unlocks.
 - Combo scoring, boost fuel, temporary powerups, upgrade effects, one-run shield support, near-miss feedback, mission intro countdown, and screen/camera feedback.
 - Cosmetic gallery with procedural ship palettes, cockpit colors, engine trails, lane accents, pickup burst colors, and title badges.
