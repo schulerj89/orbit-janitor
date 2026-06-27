@@ -88,7 +88,10 @@ export class MissionCompleteOverlay {
     this.medalValue.textContent = snapshot.medalImproved
       ? `${getMedalLabel(snapshot.medalTier)} (New)`
       : getMedalLabel(snapshot.medalTier);
+    this.medalValue.dataset.medalTier = snapshot.medalTier;
     this.medalValue.classList.toggle('is-complete', snapshot.medalTier !== 'none');
+    this.medalValue.classList.toggle('is-prime', snapshot.medalTier === 'prime');
+    this.medalValue.classList.toggle('is-gold', snapshot.medalTier === 'gold');
     this.achievementsValue.textContent =
       snapshot.achievementNames.length > 0
         ? snapshot.achievementNames.join(', ')

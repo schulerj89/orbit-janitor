@@ -805,6 +805,34 @@ body {
   transition: transform 80ms linear;
 }
 
+.cinematic-letterbox[data-preset='officialTitleReveal'] .cinematic-caption strong {
+  color: #ffe06b;
+  text-shadow:
+    0 2px 18px rgb(0 0 0 / 92%),
+    0 0 28px rgb(255 224 107 / 42%);
+}
+
+.cinematic-letterbox[data-preset='dailyChallengeLaunch'] .cinematic-kicker,
+.cinematic-letterbox[data-preset='dailyChallengeLaunch'] .cinematic-caption small,
+.cinematic-letterbox[data-preset='shipUnlockReveal'] .cinematic-kicker,
+.cinematic-letterbox[data-preset='shipUnlockReveal'] .cinematic-caption small {
+  color: #9fffee;
+}
+
+.cinematic-letterbox[data-preset='endlessWarning'] .cinematic-kicker,
+.cinematic-letterbox[data-preset='endlessWarning'] .cinematic-caption small,
+.cinematic-letterbox[data-preset='gameOverImpact'] .cinematic-kicker,
+.cinematic-letterbox[data-preset='gameOverImpact'] .cinematic-caption small {
+  color: #ff9b73;
+}
+
+.cinematic-letterbox[data-preset='medalCeremony'] .cinematic-caption strong {
+  color: #ffe06b;
+  text-shadow:
+    0 2px 18px rgb(0 0 0 / 92%),
+    0 0 30px rgb(255 224 107 / 58%);
+}
+
 .tutorial-overlay {
   position: absolute;
   bottom: clamp(92px, 14vh, 150px);
@@ -1564,6 +1592,15 @@ body {
 
 .mission-complete-grid .is-complete {
   color: #ffe06b;
+}
+
+.mission-complete-grid .is-gold,
+.mission-complete-grid .is-prime {
+  text-shadow: 0 0 18px rgb(255 224 107 / 42%);
+}
+
+.mission-complete-grid .is-prime {
+  color: #9fffee;
 }
 
 .run-summary-reason {

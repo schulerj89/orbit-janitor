@@ -55,7 +55,7 @@ Keyboard:
 - D: start the daily challenge from the title screen.
 - S: start the visible seeded run before menu navigation, or move down after the title menu is active. Add `?seed=YOUR-SEED` to the URL to choose that seed.
 - Escape: return to title from sector select or mission complete, or close help, pause, and settings overlays.
-- Space / Enter / Escape: skip active cinematic sequences. On first load, the title screen remains visible while the scene moves behind it.
+- Space / Enter / Escape: skip active cinematic sequences, including title, sector, daily, endless, medal, and ship unlock reveals.
 - ArrowLeft or A / ArrowRight or D: rotate around the sector core.
 - ArrowUp or W / ArrowDown or S: switch orbit lanes while playing.
 - Space: boost while held, limited by fuel.
@@ -93,7 +93,7 @@ Touch:
 ## Feature List
 
 - Official title screen with keyboard/gamepad main menu, sector select, mission complete, pause, help, settings, upgrade, cosmetic gallery, game over, and run summary overlays.
-- Skippable real-time micro-cinematics for title fly-in, sector intro, event warnings, mission complete, game over, and sector unlock reveals.
+- Skippable real-time micro-cinematics for the official title reveal, sector world reveals, daily challenge launches, endless warnings, event warnings, mission complete fly-bys, medal ceremonies, ship unlocks, game over beats, and sector unlock reveals.
 - Structured sectors with score, junk collection, survival timer, hazard survival, tutorial, daily challenge, seeded run, and endless objectives.
 - Second sector pack with Graveyard Ring, Neon Belt, Frozen Relay, Reactor Grave, Junk Moon, and Long Orbit.
 - Persistent sector unlocks, sector medals, achievements, best score, daily best, scrap total, upgrades, cosmetic unlocks/equips, audio preferences, and accessibility settings.

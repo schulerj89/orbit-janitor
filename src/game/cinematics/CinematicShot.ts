@@ -2,11 +2,17 @@ import type * as THREE from 'three/webgpu';
 
 export type CinematicPresetKey =
   | 'titleFlyIn'
+  | 'officialTitleReveal'
   | 'sectorIntro'
+  | 'sectorWorldReveal'
   | 'missionCompleteFlyBy'
   | 'gameOverImpact'
   | 'sectorUnlockReveal'
-  | 'eventWarningShot';
+  | 'eventWarningShot'
+  | 'shipUnlockReveal'
+  | 'medalCeremony'
+  | 'dailyChallengeLaunch'
+  | 'endlessWarning';
 
 export type CinematicEasing = 'smooth' | 'easeOut' | 'easeInOut';
 
@@ -37,6 +43,9 @@ export interface CinematicContext {
   sectorSubtitle?: string;
   objectiveText?: string;
   unlockedSectorName?: string;
+  unlockedShipName?: string;
+  medalText?: string;
+  dailySeed?: string;
   gameOverReason?: string;
   eventCallout?: string;
   focus?: VectorTuple;

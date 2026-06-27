@@ -372,6 +372,7 @@ export class Game {
   private lastMissionMedalTier: MedalTier = 'none';
   private lastMissionMedalImproved = false;
   private lastAchievementUnlockNames: string[] = [];
+  private pendingShipUnlockCinematicNames: string[] = [];
   private sectorHintTimer = 0;
   private runBonusScrap = 0;
   private missionIntroTimer = 0;
@@ -2198,6 +2199,7 @@ export class Game {
       gameOverReason: reason,
       focus: this.getPlayerFocus()
     });
+    this.queuePendingShipUnlockCinematics();
   }
 
   private triggerMissionComplete(): void {
@@ -2281,6 +2283,21 @@ export class Game {
       focus: this.getPlayerFocus()
     });
 
+    if (this.lastMissionMedalTier !== 'none') {
+      this.particles.emit(
+        this.player.getPosition(this.playerPosition),
+        0xffe06b,
+        18,
+        true
+      );
+      this.queueCinematic('medalCeremony', {
+        focus: this.getPlayerFocus(),
+        medalText: `${getMedalLabel(this.lastMissionMedalTier)} Medal`
+      });
+    }
+
+    this.queuePendingShipUnlockCinematics();
+
     if (this.newlyUnlockedSectorName) {
       this.queueCinematic('sectorUnlockReveal', {
         unlockedSectorName: this.newlyUnlockedSectorName
@@ -2309,7 +2326,7 @@ export class Game {
     this.music.startTitleMusic();
     if (!this.titleCinematicPlayed) {
       this.titleCinematicPlayed = true;
-      this.playCinematic('titleFlyIn');
+      this.playCinematic('officialTitleReveal');
     }
     this.announceTitleRadio();
     this.updateHud(false);
@@ -2341,7 +2358,7 @@ export class Game {
     this.startTutorialIfNeeded();
     this.state = 'playing';
     this.startMissionIntro();
-    this.playCinematic('sectorIntro');
+    this.playRunStartCinematic(mode, run.seed);
     this.upgradePanelOpen = false;
     this.contractBoardOpen = false;
     this.achievementsOpen = false;
@@ -2372,7 +2389,7 @@ export class Game {
     this.startTutorialIfNeeded();
     this.state = 'playing';
     this.startMissionIntro();
-    this.playCinematic('sectorIntro');
+    this.playRunStartCinematic(run.mode, run.seed);
     this.upgradePanelOpen = false;
     this.contractBoardOpen = false;
     this.achievementsOpen = false;
@@ -2398,6 +2415,24 @@ export class Game {
     this.audio.playBoostLoopStop();
   }
 
+  private playRunStartCinematic(mode: ChallengeRunMode, seed: string): void {
+    const sector = this.missionDirector.getCurrentSector();
+
+    if (mode === 'daily') {
+      this.playCinematic('dailyChallengeLaunch', {
+        dailySeed: seed
+      });
+      return;
+    }
+
+    if (sector.isEndless) {
+      this.playCinematic('endlessWarning');
+      return;
+    }
+
+    this.playCinematic('sectorWorldReveal');
+  }
+
   private playCinematic(
     presetKey: CinematicPresetKey,
     overrides: Partial<CinematicContext> = {}
@@ -2416,12 +2451,14 @@ export class Game {
   private createCinematicContext(overrides: Partial<CinematicContext>): CinematicContext {
     const sector = this.missionDirector.getCurrentSector();
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const challenge = this.challengeMode.getSnapshot();
 
     return {
       reducedMotion: this.reducedMotion,
       sectorName: sector.name,
       sectorSubtitle: sector.subtitle,
       objectiveText: objective.text,
+      dailySeed: challenge.dailyDate ?? challenge.dailySeed,
       ...overrides
     };
   }
@@ -2430,6 +2467,23 @@ export class Game {
     const position = this.player.getPosition(this.playerPosition);
 
     return [position.x, position.y, position.z];
+  }
+
+  private queuePendingShipUnlockCinematics(): void {
+    if (this.pendingShipUnlockCinematicNames.length === 0) {
+      return;
+    }
+
+    const focus = this.getPlayerFocus();
+
+    for (const unlockedShipName of this.pendingShipUnlockCinematicNames) {
+      this.queueCinematic('shipUnlockReveal', {
+        focus,
+        unlockedShipName
+      });
+    }
+
+    this.pendingShipUnlockCinematicNames = [];
   }
 
   private queueRadio(
@@ -2615,6 +2669,12 @@ export class Game {
       return;
     }
 
+    for (const unlockedName of unlockedNames) {
+      if (!this.pendingShipUnlockCinematicNames.includes(unlockedName)) {
+        this.pendingShipUnlockCinematicNames.push(unlockedName);
+      }
+    }
+
     this.floatingText.show('SHIP UNLOCKED', 'bonus');
     this.queueRadio(
       'CLEANUP OPS',
@@ -2773,6 +2833,7 @@ export class Game {
     this.lastMissionMedalTier = 'none';
     this.lastMissionMedalImproved = false;
     this.lastAchievementUnlockNames = [];
+    this.pendingShipUnlockCinematicNames = [];
     this.gameOverReason = 'Impact detected';
     this.runBonusScrap = 0;
     this.missionIntroTimer = 0;
