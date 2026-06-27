@@ -77,6 +77,10 @@ export class ShipUnlockSystem {
     return this.unlockShips(['golden-janitor']);
   }
 
+  unlockContractShips(shipIds: readonly ShipId[]): string[] {
+    return this.unlockShips(shipIds);
+  }
+
   equip(shipId: string): boolean {
     if (!isShipId(shipId) || !this.unlockedIds.has(shipId)) {
       return false;

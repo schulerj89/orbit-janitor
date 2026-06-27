@@ -164,6 +164,19 @@ export class UpgradeSystem {
     return this.totalScrap;
   }
 
+  awardContractScrap(amount: number): number {
+    const awarded = Math.max(0, Math.floor(amount));
+
+    if (awarded <= 0) {
+      return this.totalScrap;
+    }
+
+    this.totalScrap += awarded;
+    this.lastRunScrapEarned += awarded;
+    this.persist();
+    return this.totalScrap;
+  }
+
   awardRunScrap(stats: RunStatsSnapshot, bonusScrap = 0): number {
     const earned =
       stats.junkCollected +

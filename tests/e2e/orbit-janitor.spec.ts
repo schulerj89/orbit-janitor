@@ -11,6 +11,7 @@ type DebugState = {
   isPaused: boolean;
   helpOpen: boolean;
   settingsOpen: boolean;
+  contractBoardOpen: boolean;
   shipyardOpen: boolean;
   equippedShipId: string;
   ships: {
@@ -21,6 +22,14 @@ type DebugState = {
     }>;
     unlockedIds: string[];
     equippedId: string;
+  };
+  contracts: {
+    completedCount: number;
+    totalCount: number;
+    contracts: Array<{
+      id: string;
+      isCompleted: boolean;
+    }>;
   };
   debugPanelOpen: boolean;
   debugInvincible: boolean;
@@ -157,6 +166,28 @@ test('opens shipyard from title and keeps equipped ship stable', async ({ page }
   await page.keyboard.press('Escape');
   await expect
     .poll(() => getDebugState(page).then((state) => state.shipyardOpen))
+    .toBe(false);
+});
+
+test('opens contract board from title', async ({ page }) => {
+  await page.goto('/');
+  await waitForGameReady(page);
+  await skipCinematic(page);
+
+  await page.keyboard.press('B');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.contractBoardOpen))
+    .toBe(true);
+
+  const contractState = await getDebugState(page);
+  expect(contractState.contracts.totalCount).toBeGreaterThanOrEqual(12);
+  expect(contractState.contracts.contracts.length).toBe(
+    contractState.contracts.totalCount
+  );
+
+  await page.keyboard.press('Escape');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.contractBoardOpen))
     .toBe(false);
 });
 

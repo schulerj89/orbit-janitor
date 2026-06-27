@@ -56,6 +56,12 @@ import { Starfield } from './entities/Starfield';
 import { createWorldCore } from './entities/world-cores/createWorldCore';
 import type { WorldCore, WorldCoreType } from './entities/world-cores/WorldCore';
 import { ChallengeMode, type ChallengeRunMode } from './systems/ChallengeMode';
+import type { ContractEvaluationContext } from './systems/ContractDefinitions';
+import {
+  ContractSystem,
+  type ContractCompletion,
+  type ContractSnapshot
+} from './systems/ContractSystem';
 import { CosmeticSystem, type CosmeticSnapshot } from './systems/CosmeticSystem';
 import {
   EventWaveDirector,
@@ -103,6 +109,8 @@ import {
 import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
 import { FloatingText } from './ui/FloatingText';
 import { CinematicLetterbox } from './ui/CinematicLetterbox';
+import { ContractBoardOverlay } from './ui/ContractBoardOverlay';
+import { ContractToast } from './ui/ContractToast';
 import { GalleryOverlay } from './ui/GalleryOverlay';
 import { HelpOverlay } from './ui/HelpOverlay';
 import { Hud, type GameState } from './ui/Hud';
@@ -177,6 +185,8 @@ interface OrbitJanitorDebugState {
   shipyardOpen: boolean;
   ships: ShipUnlockSnapshot;
   equippedShipId: string;
+  contracts: ContractSnapshot;
+  contractBoardOpen: boolean;
   debugPanelOpen: boolean;
   debugInvincible: boolean;
   scrap: number;
@@ -243,6 +253,7 @@ export class Game {
   private readonly upgrades = new UpgradeSystem();
   private readonly cosmetics = new CosmeticSystem();
   private readonly ships = new ShipUnlockSystem();
+  private readonly contracts = new ContractSystem();
   private readonly challengeMode = new ChallengeMode();
   private readonly missionDirector = new MissionDirector();
   private readonly sectorProgress = new SectorProgress();
@@ -272,10 +283,12 @@ export class Game {
   private missionCompleteOverlay!: MissionCompleteOverlay;
   private runSummary!: RunSummary;
   private upgradePanel!: UpgradePanel;
+  private contractBoardOverlay!: ContractBoardOverlay;
   private tutorialOverlay!: TutorialOverlay;
   private helpOverlay!: HelpOverlay;
   private pauseOverlay!: PauseOverlay;
   private powerupToast!: PowerupToast;
+  private contractToast!: ContractToast;
   private radioOverlay!: RadioOverlay;
   private settingsOverlay!: SettingsOverlay;
   private galleryOverlay!: GalleryOverlay;
@@ -312,8 +325,10 @@ export class Game {
   private shieldBrokenTimer = 0;
   private shieldGraceTimer = 0;
   private upgradePanelOpen = false;
+  private contractBoardOpen = false;
   private galleryOpen = false;
   private shipyardOpen = false;
+  private selectedContractIndex = 0;
   private galleryCategoryIndex = 0;
   private galleryItemIndex = 0;
   private selectedShipIndex = 0;
@@ -343,6 +358,7 @@ export class Game {
   private radioLowBoostPlayed = false;
   private radioObjectiveHalfPlayed = false;
   private radioLastTutorialStepId: string | null = null;
+  private upgradePurchasedThisSession = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -364,10 +380,12 @@ export class Game {
     this.missionCompleteOverlay = new MissionCompleteOverlay(hudRoot);
     this.runSummary = new RunSummary(hudRoot);
     this.upgradePanel = new UpgradePanel(hudRoot);
+    this.contractBoardOverlay = new ContractBoardOverlay(hudRoot);
     this.tutorialOverlay = new TutorialOverlay(hudRoot);
     this.pauseOverlay = new PauseOverlay(hudRoot);
     this.helpOverlay = new HelpOverlay(hudRoot);
     this.powerupToast = new PowerupToast(hudRoot);
+    this.contractToast = new ContractToast(hudRoot);
     this.radioOverlay = new RadioOverlay(hudRoot);
     this.settingsOverlay = new SettingsOverlay(hudRoot);
     this.galleryOverlay = new GalleryOverlay(hudRoot);
@@ -519,6 +537,7 @@ export class Game {
       !this.settingsOpen &&
       !this.galleryOpen &&
       !this.shipyardOpen &&
+      !this.contractBoardOpen &&
       (this.state === 'title' ||
         this.state === 'gameover' ||
         this.state === 'missionComplete');
@@ -526,6 +545,7 @@ export class Game {
       this.upgradePanelOpen = !this.upgradePanelOpen;
       this.galleryOpen = false;
       this.shipyardOpen = false;
+      this.contractBoardOpen = false;
       this.audio.playUiSelect();
     }
 
@@ -535,6 +555,8 @@ export class Game {
       canUseUpgradePanel &&
       this.upgrades.buyUpgrade(input.upgradeBuyPressed)
     ) {
+      this.upgradePurchasedThisSession = true;
+      this.runStats.setUpgradePurchasedThisSession(true);
       this.audio.playUiSelect();
     }
 
@@ -594,6 +616,8 @@ export class Game {
     const previousTargetLane = this.player.targetLaneIndex;
 
     if (isBoosting && !wasBoosting) {
+      this.runStats.recordBoostUsed();
+      this.syncRunStats();
       this.audio.playBoostStart();
       this.audio.playBoostLoopStart();
       this.cameraRig.punch(0.08);
@@ -629,6 +653,7 @@ export class Game {
     this.impactFlash.update(delta);
     this.floatingText.update(delta);
     this.powerupToast.update(delta);
+    this.contractToast.update(delta);
     this.radioComms.update(delta);
     this.shieldBrokenTimer = Math.max(0, this.shieldBrokenTimer - delta);
     this.shieldGraceTimer = Math.max(0, this.shieldGraceTimer - delta);
@@ -1146,6 +1171,28 @@ export class Game {
   }
 
   private handleOverlayInput(input: InputState): boolean {
+    if (input.contractBoardTogglePressed && this.canToggleContractBoard()) {
+      this.contractBoardOpen = !this.contractBoardOpen;
+
+      if (this.contractBoardOpen) {
+        this.closeTitleSideOverlays('contracts');
+        this.clampContractSelection();
+      }
+
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (input.escapePressed && this.contractBoardOpen) {
+      this.contractBoardOpen = false;
+      this.audio.playUiSelect();
+      return true;
+    }
+
+    if (this.contractBoardOpen) {
+      return this.handleContractBoardInput(input);
+    }
+
     if (input.shipyardTogglePressed && this.canToggleShipyard()) {
       if (this.shipyardOpen) {
         this.closeShipyard(true);
@@ -1169,10 +1216,7 @@ export class Game {
 
     if (input.galleryTogglePressed && this.canToggleGallery()) {
       this.galleryOpen = !this.galleryOpen;
-      this.helpOpen = false;
-      this.settingsOpen = false;
-      this.upgradePanelOpen = false;
-      this.shipyardOpen = false;
+      this.closeTitleSideOverlays('gallery');
       this.clampGallerySelection();
       this.audio.playUiSelect();
       return true;
@@ -1190,10 +1234,7 @@ export class Game {
 
     if (input.settingsTogglePressed && this.canToggleSettings()) {
       this.settingsOpen = !this.settingsOpen;
-      this.helpOpen = false;
-      this.upgradePanelOpen = false;
-      this.galleryOpen = false;
-      this.shipyardOpen = false;
+      this.closeTitleSideOverlays('settings');
       this.audio.playUiSelect();
 
       if (this.settingsOpen && this.state === 'playing') {
@@ -1215,10 +1256,7 @@ export class Game {
 
     if (input.helpTogglePressed && this.canToggleHelp()) {
       this.helpOpen = !this.helpOpen;
-      this.upgradePanelOpen = false;
-      this.settingsOpen = false;
-      this.galleryOpen = false;
-      this.shipyardOpen = false;
+      this.closeTitleSideOverlays('help');
       this.audio.playUiSelect();
 
       if (this.helpOpen && this.state === 'playing') {
@@ -1247,6 +1285,80 @@ export class Game {
     return false;
   }
 
+  private closeTitleSideOverlays(
+    except: 'contracts' | 'gallery' | 'shipyard' | 'settings' | 'help' | 'upgrades'
+  ): void {
+    if (except !== 'contracts') {
+      this.contractBoardOpen = false;
+    }
+
+    if (except !== 'gallery') {
+      this.galleryOpen = false;
+    }
+
+    if (except !== 'shipyard') {
+      this.shipyardOpen = false;
+    }
+
+    if (except !== 'settings') {
+      this.settingsOpen = false;
+    }
+
+    if (except !== 'help') {
+      this.helpOpen = false;
+    }
+
+    if (except !== 'upgrades') {
+      this.upgradePanelOpen = false;
+    }
+  }
+
+  private handleContractBoardInput(input: InputState): boolean {
+    if (input.leftPressed || input.laneUpPressed) {
+      this.moveContractSelection(-1);
+      return true;
+    }
+
+    if (input.rightPressed || input.laneDownPressed) {
+      this.moveContractSelection(1);
+      return true;
+    }
+
+    return true;
+  }
+
+  private createContractContext(): ContractEvaluationContext {
+    const challenge = this.challengeMode.getSnapshot();
+
+    return {
+      stats: this.runStats.getSnapshot(),
+      sectorId: this.missionDirector.getCurrentSector().id,
+      runMode: challenge.mode,
+      dailyDate: challenge.dailyDate
+    };
+  }
+
+  private moveContractSelection(direction: number): void {
+    const contracts = this.contracts.getSnapshot(this.createContractContext()).contracts;
+
+    if (contracts.length === 0) {
+      return;
+    }
+
+    this.selectedContractIndex =
+      (this.selectedContractIndex + direction + contracts.length) % contracts.length;
+    this.audio.playUiSelect();
+  }
+
+  private clampContractSelection(): void {
+    const contracts = this.contracts.getSnapshot(this.createContractContext()).contracts;
+
+    this.selectedContractIndex = Math.max(
+      0,
+      Math.min(this.selectedContractIndex, Math.max(0, contracts.length - 1))
+    );
+  }
+
   private handleShipyardInput(input: InputState): boolean {
     if (input.leftPressed || input.laneUpPressed) {
       this.moveShipyardSelection(-1);
@@ -1268,10 +1380,7 @@ export class Game {
 
   private openShipyard(): void {
     this.shipyardOpen = true;
-    this.galleryOpen = false;
-    this.helpOpen = false;
-    this.settingsOpen = false;
-    this.upgradePanelOpen = false;
+    this.closeTitleSideOverlays('shipyard');
     this.selectedShipIndex = this.getEquippedShipIndex();
     this.previewSelectedShip();
   }
@@ -1483,6 +1592,10 @@ export class Game {
     return this.state === 'title' || this.shipyardOpen;
   }
 
+  private canToggleContractBoard(): boolean {
+    return this.state === 'title' || this.contractBoardOpen;
+  }
+
   private getEquippedShipIndex(): number {
     const ships = this.ships.getSnapshot().ships;
     const equippedIndex = ships.findIndex((ship) => ship.isEquipped);
@@ -1604,6 +1717,8 @@ export class Game {
   }
 
   private handlePowerupCollected(type: PowerupType): void {
+    this.runStats.recordPowerupCollected();
+    this.syncRunStats();
     this.powerupToast.show(type);
     this.audio.playCollect();
     if (!this.radioFirstPowerupPlayed) {
@@ -1817,6 +1932,7 @@ export class Game {
 
     this.nearMissCooldown = NEAR_MISS_COOLDOWN;
     this.score += 1;
+    this.runStats.recordNearMiss();
     this.unlockEndlessCosmeticIfEligible(this.score);
     this.syncRunStats();
     this.floatingText.show('NEAR MISS +1', 'bonus');
@@ -1882,6 +1998,8 @@ export class Game {
       this.shieldCharges -= 1;
       this.shieldBrokenTimer = 1.2;
       this.shieldGraceTimer = 1.15;
+      this.runStats.recordShieldBroken();
+      this.syncRunStats();
       this.particles.emit(
         this.player.getPosition(this.playerPosition),
         0x7ee7ff,
@@ -1910,6 +2028,7 @@ export class Game {
     this.settingsOpen = false;
     this.galleryOpen = false;
     this.shipyardOpen = false;
+    this.contractBoardOpen = false;
     this.missionIntroActive = false;
     this.missionIntroTimer = 0;
     this.hazardNearMissArmed = false;
@@ -1921,6 +2040,7 @@ export class Game {
     this.challengeMode.completeRun(finalStats.finalScore);
     this.unlockEndlessCosmeticIfEligible(finalStats.finalScore);
     this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
+    this.handleContractCompletions();
     this.queueRadio(
       'AUTOPILOT',
       `${reason}. Ship recommends fewer impacts next time.`,
@@ -1955,11 +2075,13 @@ export class Game {
     this.settingsOpen = false;
     this.galleryOpen = false;
     this.shipyardOpen = false;
+    this.contractBoardOpen = false;
     this.missionIntroActive = false;
     this.missionIntroTimer = 0;
     this.hazardWarning = false;
     this.hazardActive = false;
     this.hazardNearMissArmed = false;
+    this.runStats.recordSectorCompleted();
     this.syncRunStats();
     this.runStats.complete('Mission complete');
     const finalStats = this.runStats.getSnapshot();
@@ -1983,6 +2105,7 @@ export class Game {
       unlockedSectorId === null ? null : getSectorById(unlockedSectorId).name;
 
     this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
+    this.handleContractCompletions();
     this.queueRadio(
       'DISPATCH',
       this.missionDirector.getCurrentSector().radio.complete,
@@ -2028,6 +2151,7 @@ export class Game {
     this.applyCurrentSectorTheme(false);
     this.state = 'title';
     this.upgradePanelOpen = false;
+    this.contractBoardOpen = false;
     this.galleryOpen = false;
     this.shipyardOpen = false;
     this.isPaused = false;
@@ -2072,6 +2196,7 @@ export class Game {
     this.startMissionIntro();
     this.playCinematic('sectorIntro');
     this.upgradePanelOpen = false;
+    this.contractBoardOpen = false;
     this.galleryOpen = false;
     this.shipyardOpen = false;
     this.isPaused = false;
@@ -2101,6 +2226,7 @@ export class Game {
     this.startMissionIntro();
     this.playCinematic('sectorIntro');
     this.upgradePanelOpen = false;
+    this.contractBoardOpen = false;
     this.galleryOpen = false;
     this.shipyardOpen = false;
     this.isPaused = false;
@@ -2190,6 +2316,87 @@ export class Game {
 
     this.announceCosmeticUnlocks(this.cosmetics.recordEndlessScore(score));
     this.announceShipUnlocks(this.ships.recordEndlessScore(score));
+  }
+
+  private handleContractCompletions(): void {
+    const completions = this.contracts.evaluateRun(this.createContractContext());
+
+    if (completions.length === 0) {
+      return;
+    }
+
+    this.applyContractRewards(completions);
+    this.contractToast.show(
+      completions.map((completion) => completion.name),
+      this.formatContractCompletionRewards(completions)
+    );
+    this.floatingText.show('CONTRACT COMPLETE', 'bonus');
+    this.audio.playUiSelect();
+    this.queueRadio(
+      'CLEANUP OPS',
+      completions.length === 1
+        ? `Contract cleared: ${completions[0].name}. Bonus paperwork approved.`
+        : `${completions.length} contracts cleared. Cleanup Ops is pretending this was easy.`,
+      `contract-complete-${this.radioRunId}-${completions
+        .map((completion) => completion.id)
+        .join('-')}`,
+      4.6
+    );
+  }
+
+  private applyContractRewards(completions: readonly ContractCompletion[]): void {
+    const scrapReward = completions.reduce(
+      (total, completion) => total + (completion.reward.scrap ?? 0),
+      0
+    );
+    const shipIds = [
+      ...new Set(completions.flatMap((completion) => completion.reward.shipIds ?? []))
+    ];
+    const cosmeticIds = [
+      ...new Set(completions.flatMap((completion) => completion.reward.cosmeticIds ?? []))
+    ];
+
+    if (scrapReward > 0) {
+      this.upgrades.awardContractScrap(scrapReward);
+    }
+
+    if (shipIds.length > 0) {
+      this.announceShipUnlocks(this.ships.unlockContractShips(shipIds));
+    }
+
+    if (cosmeticIds.length > 0) {
+      this.announceCosmeticUnlocks(this.cosmetics.unlockContractBadges(cosmeticIds));
+    }
+  }
+
+  private formatContractCompletionRewards(
+    completions: readonly ContractCompletion[]
+  ): string {
+    const scrapReward = completions.reduce(
+      (total, completion) => total + (completion.reward.scrap ?? 0),
+      0
+    );
+    const shipRewardCount = new Set(
+      completions.flatMap((completion) => completion.reward.shipIds ?? [])
+    ).size;
+    const badgeRewardCount = new Set(
+      completions.flatMap((completion) => completion.reward.cosmeticIds ?? [])
+    ).size;
+    const parts: string[] = [];
+
+    if (scrapReward > 0) {
+      parts.push(`${scrapReward} scrap`);
+    }
+
+    if (shipRewardCount > 0) {
+      parts.push(`${shipRewardCount} ship unlock${shipRewardCount === 1 ? '' : 's'}`);
+    }
+
+    if (badgeRewardCount > 0) {
+      parts.push(`${badgeRewardCount} badge${badgeRewardCount === 1 ? '' : 's'}`);
+    }
+
+    return parts.length > 0 ? `Reward: ${parts.join(' + ')}` : 'Reward claimed';
   }
 
   private announceCosmeticUnlocks(unlockedNames: string[]): void {
@@ -2383,6 +2590,7 @@ export class Game {
     this.audio.stopAll();
     this.radioComms.clear();
     this.runStats.reset();
+    this.runStats.setUpgradePurchasedThisSession(this.upgradePurchasedThisSession);
     this.tutorialDirector.reset();
     this.eventWaveDirector.reset(this.runRng);
     this.powerupDirector.reset(this.runRng);
@@ -2782,6 +2990,14 @@ export class Game {
       return;
     }
 
+    if (option.id === 'contracts') {
+      this.contractBoardOpen = true;
+      this.closeTitleSideOverlays('contracts');
+      this.clampContractSelection();
+      this.audio.playUiSelect();
+      return;
+    }
+
     if (option.id === 'shipyard') {
       this.openShipyard();
       this.audio.playUiSelect();
@@ -2794,6 +3010,7 @@ export class Game {
       this.settingsOpen = false;
       this.galleryOpen = false;
       this.shipyardOpen = false;
+      this.contractBoardOpen = false;
       this.audio.playUiSelect();
       return;
     }
@@ -2802,6 +3019,7 @@ export class Game {
       this.settingsOpen = true;
       this.helpOpen = false;
       this.upgradePanelOpen = false;
+      this.contractBoardOpen = false;
       this.galleryOpen = false;
       this.shipyardOpen = false;
       this.audio.playUiSelect();
@@ -2867,6 +3085,7 @@ export class Game {
   private openSectorSelect(): void {
     this.state = 'sectorSelect';
     this.upgradePanelOpen = false;
+    this.contractBoardOpen = false;
     this.galleryOpen = false;
     this.shipyardOpen = false;
     this.isPaused = false;
@@ -2942,6 +3161,7 @@ export class Game {
       input.upgradeTogglePressed ||
       input.galleryTogglePressed ||
       input.shipyardTogglePressed ||
+      input.contractBoardTogglePressed ||
       input.settingsTogglePressed ||
       input.upgradeBuyPressed !== null
     );
@@ -2952,15 +3172,10 @@ export class Game {
       this.score,
       this.runTime,
       this.comboCount,
-      this.comboMultiplier
-    );
-    this.runStats.syncProgress(
-      this.score,
-      this.runTime,
-      this.comboCount,
       this.comboMultiplier,
       this.missionDirector.getObjective(this.runStats.getSnapshot()).isComplete
     );
+    this.runStats.setUpgradePurchasedThisSession(this.upgradePurchasedThisSession);
   }
 
   private updateMusicIntensity(): void {
@@ -3003,6 +3218,7 @@ export class Game {
     const defaultSector = getSectorById(this.sectorProgress.getDefaultSectorId());
     const cosmeticSnapshot = this.cosmetics.getSnapshot();
     const shipSnapshot = this.ships.getSnapshot();
+    const contractSnapshot = this.contracts.getSnapshot(this.createContractContext());
     const equippedShip =
       shipSnapshot.ships.find((ship) => ship.isEquipped) ?? shipSnapshot.ships[0];
     const unlockedSectors = sectorProgress.sectors.filter(
@@ -3083,6 +3299,7 @@ export class Game {
     this.titleOverlay.update({
       state: this.state,
       upgradePanelOpen: this.upgradePanelOpen,
+      contractBoardOpen: this.contractBoardOpen,
       galleryOpen: this.galleryOpen,
       shipyardOpen: this.shipyardOpen,
       settingsOpen: this.settingsOpen,
@@ -3100,6 +3317,8 @@ export class Game {
       totalScrap: upgradeSnapshot.totalScrap,
       unlockedShipCount: shipSnapshot.unlockedIds.length,
       totalShipCount: shipSnapshot.ships.length,
+      completedContractCount: contractSnapshot.completedCount,
+      totalContractCount: contractSnapshot.totalCount,
       equippedShipName: equippedShip?.name ?? 'Scrapper',
       titleBadgeLabel: cosmeticSnapshot.visuals.titleBadgeLabel,
       lastUnlockedSectorName: lastUnlockedSector.name,
@@ -3136,6 +3355,12 @@ export class Game {
       canShow: this.state === 'title',
       ships: shipSnapshot,
       selectedShipIndex: this.selectedShipIndex
+    });
+    this.contractBoardOverlay.update({
+      isOpen: this.contractBoardOpen,
+      canShow: this.state === 'title',
+      contracts: contractSnapshot,
+      selectedContractIndex: this.selectedContractIndex
     });
     this.tutorialOverlay.update({
       state: this.state,
@@ -3186,6 +3411,7 @@ export class Game {
         this.upgradePanelOpen ||
         this.galleryOpen ||
         this.shipyardOpen ||
+        this.contractBoardOpen ||
         (this.isPaused && this.state === 'playing') ||
         cinematic.isActive ||
         this.missionIntroActive
@@ -3326,6 +3552,7 @@ export class Game {
     const cinematic = this.cinematicDirector.getSnapshot();
     const cosmetics = this.cosmetics.getSnapshot();
     const ships = this.ships.getSnapshot();
+    const contracts = this.contracts.getSnapshot(this.createContractContext());
 
     return {
       sceneId: 'orbit-janitor',
@@ -3367,6 +3594,8 @@ export class Game {
       shipyardOpen: this.shipyardOpen,
       ships,
       equippedShipId: ships.equippedId,
+      contracts,
+      contractBoardOpen: this.contractBoardOpen,
       debugPanelOpen: import.meta.env.DEV ? this.debugPanelOpen : false,
       debugInvincible: import.meta.env.DEV ? this.debugInvincible : false,
       scrap: this.upgrades.getSnapshot().totalScrap,
@@ -3409,6 +3638,7 @@ export class Game {
     const cinematic = this.cinematicDirector.getSnapshot();
     const cosmetics = this.cosmetics.getSnapshot();
     const ships = this.ships.getSnapshot();
+    const contracts = this.contracts.getSnapshot(this.createContractContext());
 
     this.canvas.dataset.sceneId = 'orbit-janitor';
     this.canvas.dataset.phase = this.state;
@@ -3442,6 +3672,10 @@ export class Game {
     this.canvas.dataset.settingsOpen = String(this.settingsOpen);
     this.canvas.dataset.galleryOpen = String(this.galleryOpen);
     this.canvas.dataset.shipyardOpen = String(this.shipyardOpen);
+    this.canvas.dataset.contractBoardOpen = String(this.contractBoardOpen);
+    this.canvas.dataset.contractCompletedCount = String(contracts.completedCount);
+    this.canvas.dataset.contractTotalCount = String(contracts.totalCount);
+    this.canvas.dataset.contractCompletedIds = contracts.completedIds.join(',');
     this.canvas.dataset.debugPanelOpen = String(
       import.meta.env.DEV ? this.debugPanelOpen : false
     );

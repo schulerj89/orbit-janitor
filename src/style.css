@@ -324,7 +324,8 @@ body {
   white-space: nowrap;
 }
 
-.powerup-toast {
+.powerup-toast,
+.contract-toast {
   position: absolute;
   top: clamp(76px, 12vh, 118px);
   left: 50%;
@@ -348,10 +349,16 @@ body {
   visibility: visible;
 }
 
-.powerup-toast.is-hidden {
+.powerup-toast.is-hidden,
+.contract-toast.is-hidden {
   opacity: 0;
   transform: translateX(-50%) translateY(-8px);
   visibility: hidden;
+}
+
+.contract-toast {
+  top: clamp(128px, 19vh, 184px);
+  border-color: rgb(159 255 238 / 42%);
 }
 
 .debug-panel {
@@ -449,7 +456,8 @@ body {
   line-height: 1.25;
 }
 
-.powerup-toast-kicker {
+.powerup-toast-kicker,
+.contract-toast-kicker {
   color: #9fffee;
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
   font-size: 0.7rem;
@@ -458,10 +466,18 @@ body {
   text-transform: uppercase;
 }
 
-.powerup-toast strong {
+.powerup-toast strong,
+.contract-toast strong {
   color: #ffffff;
   font-size: clamp(1rem, 2.4vw, 1.2rem);
   line-height: 1.1;
+}
+
+.contract-toast small {
+  color: #ffe06b;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .radio-overlay {
@@ -1208,6 +1224,7 @@ body {
 .sector-select-overlay,
 .mission-complete-overlay,
 .upgrade-panel,
+.contract-board-overlay,
 .gallery-overlay,
 .shipyard-overlay,
 .settings-overlay,
@@ -1240,6 +1257,7 @@ body {
 .sector-select-overlay.is-hidden,
 .mission-complete-overlay.is-hidden,
 .upgrade-panel.is-hidden,
+.contract-board-overlay.is-hidden,
 .gallery-overlay.is-hidden,
 .shipyard-overlay.is-hidden,
 .settings-overlay.is-hidden,
@@ -1576,8 +1594,18 @@ body {
   text-align: left;
 }
 
+.contract-board-overlay {
+  align-content: start;
+  width: min(780px, calc(100vw - 32px));
+  max-height: min(700px, calc(100vh - 32px));
+  padding: clamp(18px, 4vw, 28px);
+  overflow: hidden;
+  text-align: left;
+}
+
 .gallery-header,
-.shipyard-header {
+.shipyard-header,
+.contract-board-header {
   display: flex;
   gap: 18px;
   align-items: start;
@@ -1587,29 +1615,39 @@ body {
 
 .gallery-kicker,
 .shipyard-kicker,
+.contract-board-kicker,
 .gallery-badge span,
 .shipyard-badge span,
+.contract-board-badge span,
 .gallery-help,
 .shipyard-help,
+.contract-board-help,
 .gallery-category span,
 .gallery-item small,
 .shipyard-item span,
 .shipyard-item small,
+.contract-board-item span,
+.contract-board-item small,
 .gallery-detail span,
 .gallery-detail small,
 .shipyard-detail span,
 .shipyard-detail small,
+.contract-board-detail span,
+.contract-board-detail small,
 .shipyard-preview-note {
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
 }
 
 .gallery-kicker,
 .shipyard-kicker,
+.contract-board-kicker,
 .gallery-badge span,
 .shipyard-badge span,
+.contract-board-badge span,
 .gallery-category span,
 .gallery-detail span,
-.shipyard-detail span {
+.shipyard-detail span,
+.contract-board-detail span {
   color: #8ba7bd;
   font-size: 0.72rem;
   font-weight: 900;
@@ -1618,7 +1656,8 @@ body {
 }
 
 .gallery-title,
-.shipyard-title {
+.shipyard-title,
+.contract-board-title {
   margin: 0;
   color: #ffffff;
   font-size: clamp(1.65rem, 5vw, 2.7rem);
@@ -1627,13 +1666,15 @@ body {
 }
 
 .gallery-badge,
-.shipyard-badge {
+.shipyard-badge,
+.contract-board-badge {
   min-width: 150px;
   text-align: right;
 }
 
 .gallery-badge strong,
-.shipyard-badge strong {
+.shipyard-badge strong,
+.contract-board-badge strong {
   display: block;
   color: #ffe06b;
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
@@ -1659,11 +1700,22 @@ body {
   min-height: 390px;
 }
 
+.contract-board-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 1fr) minmax(220px, 0.7fr);
+  gap: 12px;
+  width: 100%;
+  margin: 12px 0 8px;
+  min-height: 410px;
+}
+
 .gallery-categories,
 .gallery-items,
 .gallery-detail,
 .shipyard-list,
-.shipyard-detail {
+.shipyard-detail,
+.contract-board-list,
+.contract-board-detail {
   display: grid;
   align-content: start;
   gap: 7px;
@@ -1674,7 +1726,9 @@ body {
 .gallery-item,
 .gallery-detail,
 .shipyard-item,
-.shipyard-detail {
+.shipyard-detail,
+.contract-board-item,
+.contract-board-detail {
   border: 1px solid rgb(143 232 255 / 16%);
   border-radius: 8px;
   background: rgb(8 18 28 / 70%);
@@ -1702,9 +1756,23 @@ body {
   padding: 8px 10px;
 }
 
+.contract-board-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.contract-board-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 60px;
+  padding: 8px 10px;
+}
+
 .gallery-category strong,
 .gallery-item strong,
-.shipyard-item strong {
+.shipyard-item strong,
+.contract-board-item strong {
   min-width: 0;
   overflow: hidden;
   color: #ffffff;
@@ -1714,7 +1782,8 @@ body {
 
 .gallery-category.is-selected,
 .gallery-item.is-selected,
-.shipyard-item.is-selected {
+.shipyard-item.is-selected,
+.contract-board-item.is-selected {
   border-color: rgb(255 224 107 / 62%);
   background: linear-gradient(90deg, rgb(255 224 107 / 18%), rgb(8 18 28 / 70%));
   box-shadow: inset 3px 0 0 #ffe06b;
@@ -1738,7 +1807,8 @@ body {
 }
 
 .gallery-item.is-equipped,
-.shipyard-item.is-equipped {
+.shipyard-item.is-equipped,
+.contract-board-item.is-completed {
   border-color: rgb(159 255 238 / 34%);
 }
 
@@ -1774,25 +1844,29 @@ body {
 }
 
 .gallery-item.is-equipped small,
-.shipyard-item.is-equipped small {
+.shipyard-item.is-equipped small,
+.contract-board-item.is-completed small {
   color: #9fffee;
 }
 
 .gallery-detail,
-.shipyard-detail {
+.shipyard-detail,
+.contract-board-detail {
   gap: 8px;
   padding: 14px;
 }
 
 .gallery-detail strong,
-.shipyard-detail strong {
+.shipyard-detail strong,
+.contract-board-detail strong {
   color: #ffffff;
   font-size: clamp(1.1rem, 2.6vw, 1.45rem);
   line-height: 1.1;
 }
 
 .gallery-detail p,
-.shipyard-detail p {
+.shipyard-detail p,
+.contract-board-detail p {
   margin: 0;
   color: #d7e8f2;
   line-height: 1.35;
@@ -1802,6 +1876,8 @@ body {
 .gallery-help,
 .shipyard-detail small,
 .shipyard-help,
+.contract-board-detail small,
+.contract-board-help,
 .shipyard-preview-note {
   color: #ffe06b;
   font-weight: 800;
@@ -1815,7 +1891,8 @@ body {
 }
 
 .gallery-help,
-.shipyard-help {
+.shipyard-help,
+.contract-board-help {
   width: 100%;
   margin: 4px 0 0;
   font-size: clamp(0.9rem, 2.2vw, 1rem);
@@ -2120,19 +2197,28 @@ body {
     padding: 16px;
   }
 
+  .contract-board-overlay {
+    width: min(780px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    padding: 16px;
+  }
+
   .gallery-header,
-  .shipyard-header {
+  .shipyard-header,
+  .contract-board-header {
     display: grid;
     gap: 8px;
   }
 
   .gallery-badge,
-  .shipyard-badge {
+  .shipyard-badge,
+  .contract-board-badge {
     text-align: left;
   }
 
   .gallery-layout,
-  .shipyard-layout {
+  .shipyard-layout,
+  .contract-board-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     min-height: 0;
@@ -2140,7 +2226,8 @@ body {
 
   .gallery-categories,
   .gallery-items,
-  .shipyard-list {
+  .shipyard-list,
+  .contract-board-list {
     gap: 5px;
   }
 
@@ -2149,6 +2236,10 @@ body {
   }
 
   .shipyard-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contract-board-list {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -2233,6 +2324,7 @@ body {
   .sector-select-overlay,
   .mission-complete-overlay,
   .upgrade-panel,
+  .contract-board-overlay,
   .gallery-overlay,
   .shipyard-overlay,
   .settings-overlay,
@@ -2245,6 +2337,7 @@ body {
   .sector-select-overlay,
   .mission-complete-overlay,
   .upgrade-panel,
+  .contract-board-overlay,
   .gallery-overlay,
   .shipyard-overlay,
   .settings-overlay,
@@ -2257,6 +2350,7 @@ body {
   .sector-select-overlay.is-hidden,
   .mission-complete-overlay.is-hidden,
   .upgrade-panel.is-hidden,
+  .contract-board-overlay.is-hidden,
   .gallery-overlay.is-hidden,
   .shipyard-overlay.is-hidden,
   .settings-overlay.is-hidden,

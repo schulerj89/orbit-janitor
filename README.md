@@ -62,6 +62,7 @@ Keyboard:
 - P: pause or resume while playing.
 - H: open or close help/instructions.
 - O: open or close settings.
+- B: open the Contract Board from the title screen; arrow keys review optional replay challenges.
 - Y: open the Shipyard from the title screen; arrow keys preview ships and Enter equips unlocked models.
 - G: open the cosmetic gallery from the title screen; arrow keys navigate and Enter equips unlocked cosmetics.
 - K: skip the Training Orbit tutorial while it is active.
@@ -99,6 +100,7 @@ Touch:
 - Sector-specific centerpieces with procedural identity: habitat/cloud planet, cracked rubble planetoid, venting solar reactor, night world with city lights and auroras, icy comet plume, and a non-planet orbital gate.
 - Text-only radio comms for title onboarding, sector intros, tutorial steps, hazards, powerups, objective progress, event waves, mission completion, crashes, and sector unlocks.
 - Combo scoring, boost fuel, temporary powerups, upgrade effects, one-run shield support, near-miss feedback, mission intro countdown, and screen/camera feedback.
+- Contract Board with optional replay challenges, persistent completions, scrap rewards, and cosmetic or ship unlock rewards.
 - Shipyard with unlockable procedural ship models: Scrapper, Needle, Tugboat, Manta, Comet Skiff, Solar Dart, Night Runner, and Golden Janitor.
 - Cosmetic gallery with procedural ship palettes, cockpit colors, engine trails, lane accents, pickup burst colors, and title badges.
 - Telegraph-first hazards: lane arcs, double lane arcs, sweepers, gate hazards, pulse mines, and debris showers.

@@ -21,6 +21,7 @@ export interface TitleOverlaySnapshot extends Omit<
   selectedMenuIndex: number;
   menuInteracted: boolean;
   upgradePanelOpen: boolean;
+  contractBoardOpen: boolean;
   galleryOpen: boolean;
   shipyardOpen: boolean;
   settingsOpen: boolean;
@@ -92,7 +93,7 @@ export class TitleOverlay {
             </div>
           </div>
           <p class="title-overlay-footer">
-            Arrows/W/S select | Enter/Space activate | H help | Y shipyard | G gallery | M/N audio | T/C/D/S/U/O shortcuts
+            Arrows/W/S select | Enter/Space activate | H help | B contracts | Y shipyard | G gallery | M/N audio | T/C/D/S/U/O shortcuts
           </p>
         </section>
       `
@@ -146,6 +147,7 @@ export class TitleOverlay {
     this.setVisible(
       snapshot.state === 'title' &&
         !snapshot.upgradePanelOpen &&
+        !snapshot.contractBoardOpen &&
         !snapshot.galleryOpen &&
         !snapshot.shipyardOpen &&
         !snapshot.settingsOpen &&

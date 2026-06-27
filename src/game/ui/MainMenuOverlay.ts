@@ -4,6 +4,7 @@ export type MainMenuOptionId =
   | 'sectorSelect'
   | 'dailyChallenge'
   | 'seededRun'
+  | 'contracts'
   | 'shipyard'
   | 'upgrades'
   | 'settings';
@@ -40,6 +41,11 @@ export const MAIN_MENU_OPTIONS: readonly MainMenuOption[] = [
     id: 'seededRun',
     label: 'Seeded Run',
     shortcut: 'S'
+  },
+  {
+    id: 'contracts',
+    label: 'Contract Board',
+    shortcut: 'B'
   },
   {
     id: 'shipyard',

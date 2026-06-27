@@ -6,7 +6,14 @@ export interface RunStatsSnapshot {
   junkCollected: number;
   longestCombo: number;
   highestMultiplier: number;
+  highestComboMultiplier: number;
   hazardsSurvived: number;
+  boostUsed: boolean;
+  shieldBroken: boolean;
+  nearMisses: number;
+  powerupsCollected: number;
+  sectorCompleted: boolean;
+  upgradePurchasedThisSession: boolean;
   objectiveComplete: boolean;
   gameOverReason: string;
 }
@@ -22,6 +29,12 @@ export class RunStats {
   private longestCombo = 0;
   private highestMultiplier = 1;
   private hazardsSurvived = 0;
+  private boostUsed = false;
+  private shieldBroken = false;
+  private nearMisses = 0;
+  private powerupsCollected = 0;
+  private sectorCompleted = false;
+  private upgradePurchasedThisSession = false;
   private objectiveComplete = false;
   private gameOverReason = 'Impact detected';
 
@@ -36,6 +49,12 @@ export class RunStats {
     this.longestCombo = 0;
     this.highestMultiplier = 1;
     this.hazardsSurvived = 0;
+    this.boostUsed = false;
+    this.shieldBroken = false;
+    this.nearMisses = 0;
+    this.powerupsCollected = 0;
+    this.sectorCompleted = false;
+    this.upgradePurchasedThisSession = false;
     this.objectiveComplete = false;
     this.gameOverReason = 'Impact detected';
   }
@@ -62,6 +81,30 @@ export class RunStats {
     this.hazardsSurvived += 1;
   }
 
+  recordBoostUsed(): void {
+    this.boostUsed = true;
+  }
+
+  recordShieldBroken(): void {
+    this.shieldBroken = true;
+  }
+
+  recordNearMiss(): void {
+    this.nearMisses += 1;
+  }
+
+  recordPowerupCollected(): void {
+    this.powerupsCollected += 1;
+  }
+
+  recordSectorCompleted(): void {
+    this.sectorCompleted = true;
+  }
+
+  setUpgradePurchasedThisSession(upgradePurchasedThisSession: boolean): void {
+    this.upgradePurchasedThisSession = upgradePurchasedThisSession;
+  }
+
   complete(gameOverReason: string): void {
     this.finalScore = this.score;
     this.gameOverReason = gameOverReason;
@@ -81,7 +124,14 @@ export class RunStats {
       junkCollected: this.junkCollected,
       longestCombo: this.longestCombo,
       highestMultiplier: this.highestMultiplier,
+      highestComboMultiplier: this.highestMultiplier,
       hazardsSurvived: this.hazardsSurvived,
+      boostUsed: this.boostUsed,
+      shieldBroken: this.shieldBroken,
+      nearMisses: this.nearMisses,
+      powerupsCollected: this.powerupsCollected,
+      sectorCompleted: this.sectorCompleted,
+      upgradePurchasedThisSession: this.upgradePurchasedThisSession,
       objectiveComplete: this.objectiveComplete,
       gameOverReason: this.gameOverReason
     };

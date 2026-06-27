@@ -433,6 +433,26 @@ const COSMETIC_ITEMS: readonly CosmeticItemDefinition[] = [
     visuals: {
       titleBadgeLabel: 'Daily Badge'
     }
+  },
+  {
+    id: 'badge-contractor',
+    category: 'titleBadge',
+    name: 'Contractor Badge',
+    description: 'A title badge for pilots who clear optional contract work.',
+    unlockHint: 'Complete a contract board challenge.',
+    visuals: {
+      titleBadgeLabel: 'Contractor'
+    }
+  },
+  {
+    id: 'badge-endless-master',
+    category: 'titleBadge',
+    name: 'Endless Master Badge',
+    description: 'A title badge for high-score contract specialists.',
+    unlockHint: 'Complete the Endless Master contract.',
+    visuals: {
+      titleBadgeLabel: 'Endless Master'
+    }
   }
 ];
 
@@ -510,6 +530,10 @@ export class CosmeticSystem {
     writeStoredString(DAILY_BADGE_DATE_STORAGE_KEY, dailyDate);
 
     return this.unlockItems(['badge-daily']);
+  }
+
+  unlockContractBadges(itemIds: readonly string[]): string[] {
+    return this.unlockItems(itemIds);
   }
 
   equip(itemId: string): boolean {

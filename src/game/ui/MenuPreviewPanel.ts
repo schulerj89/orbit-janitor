@@ -12,6 +12,8 @@ export interface MenuPreviewSnapshot {
   totalScrap: number;
   unlockedShipCount: number;
   totalShipCount: number;
+  completedContractCount: number;
+  totalContractCount: number;
   equippedShipName: string;
   musicEnabled: boolean;
   musicVolume: number;
@@ -61,6 +63,13 @@ export function getMenuPreviewContent(snapshot: MenuPreviewSnapshot): MenuPrevie
         title: snapshot.titleSeed,
         body: 'Start a deterministic run from the visible title seed.',
         meta: 'Repeatable spawns'
+      };
+    case 'contracts':
+      return {
+        eyebrow: 'Challenge board',
+        title: 'Replay Contracts',
+        body: `${snapshot.completedContractCount} of ${snapshot.totalContractCount} contracts cleared.`,
+        meta: 'B hotkey'
       };
     case 'shipyard':
       return {
