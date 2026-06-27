@@ -3867,6 +3867,8 @@ export class Game {
       defaultSector;
     const upgradeSnapshot = this.upgrades.getSnapshot();
 
+    document.documentElement.dataset.experienceMode = this.experienceMode;
+
     this.hud.update({
       score: this.score,
       state: this.state,
@@ -4102,6 +4104,7 @@ export class Game {
       state: this.state,
       mobileLite,
       isPaused: this.isPaused,
+      missionIntroActive: this.missionIntroActive,
       overlaysOpen:
         this.helpOpen ||
         this.deviceGateOpen ||

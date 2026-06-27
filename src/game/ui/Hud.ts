@@ -86,28 +86,28 @@ export class Hud {
       <section class="hud-panel hud-main" aria-live="polite">
         <h1 class="hud-title">Orbit Janitor</h1>
         <div class="hud-lite-badge is-hidden" data-hud-lite-badge>Mobile Lite</div>
-        <div class="hud-row">
+        <div class="hud-row" data-hud-row="score">
           <span class="hud-label">Score</span>
           <span class="hud-value" data-hud-score>0</span>
         </div>
-        <div class="hud-row">
+        <div class="hud-row" data-hud-row="lane">
           <span class="hud-label">Current Lane</span>
           <span class="hud-value" data-hud-lane>Middle</span>
         </div>
-        <div class="hud-row">
+        <div class="hud-row" data-hud-row="time">
           <span class="hud-label">Time</span>
           <span class="hud-value" data-hud-timer>0:00</span>
         </div>
-        <div class="hud-row">
+        <div class="hud-row" data-hud-row="run">
           <span class="hud-label">Run</span>
           <span class="hud-value" data-hud-run>Normal Run</span>
         </div>
-        <div class="hud-row">
+        <div class="hud-row" data-hud-row="sector">
           <span class="hud-label">Sector</span>
           <span class="hud-value hud-sector-value" data-hud-sector>Low Orbit Cleanup</span>
         </div>
         <div class="hud-sector-hint is-hidden" data-hud-sector-hint>Standard route: Baseline cleanup route</div>
-        <div class="hud-row">
+        <div class="hud-row" data-hud-row="seed">
           <span class="hud-label">Seed</span>
           <span class="hud-value hud-seed-value" data-hud-seed>OJ-0000000</span>
         </div>
@@ -124,7 +124,7 @@ export class Hud {
         <div class="hud-meter hud-meter-combo" aria-hidden="true">
           <span data-hud-combo-fill></span>
         </div>
-        <div class="hud-row">
+        <div class="hud-row" data-hud-row="boost">
           <span class="hud-label">Boost Fuel</span>
           <span class="hud-value" data-hud-boost-value>100%</span>
         </div>
@@ -132,7 +132,7 @@ export class Hud {
           <span data-hud-boost-fill></span>
         </div>
         <div class="hud-powerups is-hidden" data-hud-powerups aria-label="Active powerups"></div>
-        <div class="hud-row hud-status">
+        <div class="hud-row hud-status" data-hud-row="status">
           <span class="hud-label">Status</span>
           <span class="hud-value" data-hud-status>Cleaning orbit</span>
         </div>
@@ -223,9 +223,11 @@ export class Hud {
         : `Seed: ${snapshot.runSeed}`;
     this.laneValue.textContent = snapshot.laneName;
     this.timerValue.textContent = formatRunTime(snapshot.runTime);
-    this.objectiveValue.textContent = snapshot.objectiveComplete
-      ? `Mission Complete: ${snapshot.objectiveProgressText}`
-      : `${snapshot.objectiveText} (${snapshot.objectiveProgressText})`;
+    this.objectiveValue.textContent = isMobileLite
+      ? `Goal: ${snapshot.objectiveProgressText}`
+      : snapshot.objectiveComplete
+        ? `Mission Complete: ${snapshot.objectiveProgressText}`
+        : `${snapshot.objectiveText} (${snapshot.objectiveProgressText})`;
     this.objectiveValue.classList.toggle('is-complete', snapshot.objectiveComplete);
     this.updateEvent(snapshot);
     this.comboValue.textContent = `x${snapshot.comboMultiplier}`;

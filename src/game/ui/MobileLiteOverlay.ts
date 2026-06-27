@@ -5,6 +5,7 @@ export interface MobileLiteOverlaySnapshot {
   state: GameState;
   mobileLite: MobileLiteSnapshot;
   isPaused: boolean;
+  missionIntroActive: boolean;
   overlaysOpen: boolean;
 }
 
@@ -43,6 +44,7 @@ export class MobileLiteOverlay {
     const isVisible =
       snapshot.mobileLite.isActive &&
       !snapshot.isPaused &&
+      !snapshot.missionIntroActive &&
       !snapshot.overlaysOpen &&
       (snapshot.state === 'title' ||
         (snapshot.state === 'playing' && snapshot.mobileLite.guideVisible));
