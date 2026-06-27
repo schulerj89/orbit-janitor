@@ -70,6 +70,11 @@ import {
   PowerupDirector,
   type PowerupDirectorDebugState
 } from './systems/PowerupDirector';
+import {
+  RadioComms,
+  type RadioCommsSnapshot,
+  type RadioSpeaker
+} from './systems/RadioComms';
 import { RunStats, type RunStatsSnapshot } from './systems/RunStats';
 import {
   DEFAULT_SECTOR_ID,
@@ -87,7 +92,8 @@ import {
 import {
   TutorialDirector,
   type TutorialContext,
-  type TutorialSetupAction
+  type TutorialSetupAction,
+  type TutorialStepId
 } from './systems/TutorialDirector';
 import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
 import { FloatingText } from './ui/FloatingText';
@@ -98,6 +104,7 @@ import { MissionCompleteOverlay } from './ui/MissionCompleteOverlay';
 import { MissionIntroOverlay } from './ui/MissionIntroOverlay';
 import { PauseOverlay } from './ui/PauseOverlay';
 import { PowerupToast } from './ui/PowerupToast';
+import { RadioOverlay } from './ui/RadioOverlay';
 import { RunSummary } from './ui/RunSummary';
 import { SectorSelectOverlay } from './ui/SectorSelectOverlay';
 import { SettingsOverlay } from './ui/SettingsOverlay';
@@ -167,6 +174,7 @@ interface OrbitJanitorDebugState {
   hazard: HazardDirectorDebugState;
   eventWave: EventWaveDebugState;
   powerup: PowerupDirectorDebugState;
+  radio: RadioCommsSnapshot;
   runStats: RunStatsSnapshot;
   upgrades: UpgradeSnapshot;
   playerPosition: number[];
@@ -209,6 +217,7 @@ export class Game {
   private readonly hazardDirector = new HazardDirector();
   private readonly eventWaveDirector = new EventWaveDirector();
   private readonly powerupDirector = new PowerupDirector();
+  private readonly radioComms = new RadioComms();
   private readonly runStats = new RunStats(RUN_OBJECTIVE_TARGET_SCORE);
   private readonly upgrades = new UpgradeSystem();
   private readonly challengeMode = new ChallengeMode();
@@ -236,6 +245,7 @@ export class Game {
   private helpOverlay!: HelpOverlay;
   private pauseOverlay!: PauseOverlay;
   private powerupToast!: PowerupToast;
+  private radioOverlay!: RadioOverlay;
   private settingsOverlay!: SettingsOverlay;
   private touchControls!: TouchControls;
   private impactFlash!: ImpactFlash;
@@ -286,6 +296,13 @@ export class Game {
   private missionIntroActive = false;
   private nearMissCooldown = 0;
   private hazardNearMissArmed = false;
+  private titleRadioPlayed = false;
+  private radioRunId = 0;
+  private radioFirstHazardWarningPlayed = false;
+  private radioFirstPowerupPlayed = false;
+  private radioLowBoostPlayed = false;
+  private radioObjectiveHalfPlayed = false;
+  private radioLastTutorialStepId: string | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -311,6 +328,7 @@ export class Game {
     this.pauseOverlay = new PauseOverlay(hudRoot);
     this.helpOverlay = new HelpOverlay(hudRoot);
     this.powerupToast = new PowerupToast(hudRoot);
+    this.radioOverlay = new RadioOverlay(hudRoot);
     this.settingsOverlay = new SettingsOverlay(hudRoot);
     this.touchControls = new TouchControls(hudRoot);
     this.impactFlash = new ImpactFlash(hudRoot);
@@ -430,6 +448,7 @@ export class Game {
 
     const inputBlockedByCinematic =
       this.cinematicDirector.isActive() || cinematicInputConsumed;
+    this.handleRadioSkip(input, inputBlockedByCinematic);
     const consumedOverlayInput = inputBlockedByCinematic
       ? false
       : this.handleOverlayInput(input);
@@ -546,6 +565,7 @@ export class Game {
     this.impactFlash.update(delta);
     this.floatingText.update(delta);
     this.powerupToast.update(delta);
+    this.radioComms.update(delta);
     this.shieldBrokenTimer = Math.max(0, this.shieldBrokenTimer - delta);
     this.shieldGraceTimer = Math.max(0, this.shieldGraceTimer - delta);
     this.sectorHintTimer = Math.max(0, this.sectorHintTimer - delta);
@@ -567,6 +587,7 @@ export class Game {
       );
       this.syncRunStats();
       this.updateTutorial(delta, input, isBoosting);
+      this.announceObjectiveHalfProgress();
 
       if (this.state === 'playing' && !this.tryCompleteMission()) {
         const difficulty = this.missionDirector.getDifficulty(
@@ -605,6 +626,14 @@ export class Game {
         if (hazardResult.warning && !wasHazardWarning) {
           this.hazardNearMissArmed = true;
           this.audio.playHazardWarning();
+          if (!this.radioFirstHazardWarningPlayed) {
+            this.radioFirstHazardWarningPlayed = true;
+            this.queueRadio(
+              'AUTOPILOT',
+              'Orange means move soon. Red means move now.',
+              `first-hazard-${this.radioRunId}`
+            );
+          }
         }
 
         if (hazardResult.active && !wasHazardActive) {
@@ -693,6 +722,18 @@ export class Game {
       this.boostFuel = Math.max(0, this.boostFuel - BOOST_FUEL_DRAIN_PER_SECOND * delta);
       this.isBoosting = true;
 
+      if (
+        !this.radioLowBoostPlayed &&
+        this.boostFuel / this.currentBoostFuelMax <= 0.22
+      ) {
+        this.radioLowBoostPlayed = true;
+        this.queueRadio(
+          'AUTOPILOT',
+          'Boost reserve low. Coast a beat and it refills.',
+          `low-boost-${this.radioRunId}`
+        );
+      }
+
       if (this.boostFuel <= 0) {
         this.boostFuel = 0;
         this.boostLocked = true;
@@ -729,6 +770,24 @@ export class Game {
         this.boostFuel < BOOST_MIN_TO_ACTIVATE ||
         this.boostEmptyFlashTimer > 0)
     );
+  }
+
+  private handleRadioSkip(input: InputState, inputBlockedByCinematic: boolean): void {
+    if (!input.startPressed || inputBlockedByCinematic) {
+      return;
+    }
+
+    const canSkipWithoutConflict =
+      (this.state === 'playing' && !input.boost) ||
+      this.missionIntroActive ||
+      this.isPaused ||
+      this.helpOpen ||
+      this.settingsOpen ||
+      this.state === 'gameover';
+
+    if (canSkipWithoutConflict) {
+      this.radioComms.skipCurrent();
+    }
   }
 
   private handleOverlayInput(input: InputState): boolean {
@@ -884,10 +943,17 @@ export class Game {
     });
 
     if (result.started) {
+      const eventWave = this.eventWaveDirector.getSnapshot();
+
       this.hazardDirector.delayNextSpawn(2.25);
       this.audio.playHazardWarning();
+      this.queueRadio(
+        'DISPATCH',
+        `${eventWave.callout}. ${eventWave.instruction}.`,
+        `event-wave-${this.radioRunId}-${eventWave.type}`
+      );
       this.playCinematic('eventWarningShot', {
-        eventCallout: this.eventWaveDirector.getSnapshot().callout || 'Event Incoming'
+        eventCallout: eventWave.callout || 'Event Incoming'
       });
     }
 
@@ -955,6 +1021,14 @@ export class Game {
   private handlePowerupCollected(type: PowerupType): void {
     this.powerupToast.show(type);
     this.audio.playCollect();
+    if (!this.radioFirstPowerupPlayed) {
+      this.radioFirstPowerupPlayed = true;
+      this.queueRadio(
+        'CLEANUP OPS',
+        'Powerup pinged. Useful, shiny, and probably within warranty.',
+        `first-powerup-${this.radioRunId}`
+      );
+    }
     this.particles.emit(
       this.powerupDirector.powerup.getPosition(this.junkPosition),
       getPowerupColor(type),
@@ -1252,6 +1326,12 @@ export class Game {
 
     this.challengeMode.completeRun(finalStats.finalScore);
     this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
+    this.queueRadio(
+      'AUTOPILOT',
+      `${reason}. Ship recommends fewer impacts next time.`,
+      `gameover-${this.radioRunId}`,
+      4.6
+    );
     this.audio.playImpact();
     this.audio.playBoostLoopStop();
     this.music.playGameOver();
@@ -1296,6 +1376,19 @@ export class Game {
       unlockedSectorId === null ? null : getSectorById(unlockedSectorId).name;
 
     this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
+    this.queueRadio(
+      'DISPATCH',
+      this.missionDirector.getCurrentSector().radio.complete,
+      `mission-complete-${this.radioRunId}`,
+      4.4
+    );
+    if (this.newlyUnlockedSectorName) {
+      this.queueRadio(
+        'CLEANUP OPS',
+        `New route unlocked: ${this.newlyUnlockedSectorName}. Try not to make it famous.`,
+        `sector-unlocked-${this.newlyUnlockedSectorName}`
+      );
+    }
     this.audio.playObjectiveComplete();
     this.audio.playBoostLoopStop();
     this.music.playMissionComplete();
@@ -1336,6 +1429,7 @@ export class Game {
       this.titleCinematicPlayed = true;
       this.playCinematic('titleFlyIn');
     }
+    this.announceTitleRadio();
     this.updateHud(false);
     this.syncDebugAttributes();
   }
@@ -1360,6 +1454,8 @@ export class Game {
           : this.challengeMode.startNormalRun();
     this.runRng = new SeededRandom(run.seed);
     this.resetRunState();
+    this.radioRunId += 1;
+    this.announceSectorIntro();
     this.startTutorialIfNeeded();
     this.state = 'playing';
     this.startMissionIntro();
@@ -1385,6 +1481,8 @@ export class Game {
     const run = this.challengeMode.restartCurrentRun();
     this.runRng = new SeededRandom(run.seed);
     this.resetRunState();
+    this.radioRunId += 1;
+    this.announceSectorIntro();
     this.startTutorialIfNeeded();
     this.state = 'playing';
     this.startMissionIntro();
@@ -1442,6 +1540,79 @@ export class Game {
     const position = this.player.getPosition(this.playerPosition);
 
     return [position.x, position.y, position.z];
+  }
+
+  private queueRadio(
+    speaker: RadioSpeaker,
+    text: string,
+    id?: string,
+    displaySeconds?: number
+  ): void {
+    this.radioComms.queueMessage({
+      speaker,
+      text,
+      id,
+      displaySeconds
+    });
+  }
+
+  private announceTitleRadio(): void {
+    if (this.titleRadioPlayed) {
+      return;
+    }
+
+    this.titleRadioPlayed = true;
+    this.queueRadio(
+      'DISPATCH',
+      'Cleanup contract accepted. Pick a route and keep the lanes breathing.',
+      'title-first-load'
+    );
+  }
+
+  private announceSectorIntro(): void {
+    const sector = this.missionDirector.getCurrentSector();
+
+    this.queueRadio(
+      'CLEANUP OPS',
+      sector.radio.intro,
+      `sector-intro-${this.radioRunId}-${sector.id}`
+    );
+  }
+
+  private announceTutorialStep(): void {
+    const tutorial = this.tutorialDirector.getSnapshot();
+    const step = tutorial.currentStep;
+
+    if (!tutorial.isActive || !step || this.radioLastTutorialStepId === step.id) {
+      return;
+    }
+
+    this.radioLastTutorialStepId = step.id;
+    this.queueRadio(
+      'AUTOPILOT',
+      getTutorialRadioMessage(step.id),
+      `tutorial-${this.radioRunId}-${step.id}`,
+      3.6
+    );
+  }
+
+  private announceObjectiveHalfProgress(): void {
+    if (this.radioObjectiveHalfPlayed || this.state !== 'playing') {
+      return;
+    }
+
+    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+
+    if (objective.isEndless || objective.progress < 0.5) {
+      return;
+    }
+
+    this.radioObjectiveHalfPlayed = true;
+    this.queueRadio(
+      'CLEANUP OPS',
+      'Halfway there. Keep the combo alive and the insurance forms stay short.',
+      `objective-half-${this.radioRunId}`
+    );
   }
 
   private updateMissionIntro(delta: number): void {
@@ -1535,8 +1706,14 @@ export class Game {
     this.missionIntroActive = false;
     this.nearMissCooldown = 0;
     this.hazardNearMissArmed = false;
+    this.radioFirstHazardWarningPlayed = false;
+    this.radioFirstPowerupPlayed = false;
+    this.radioLowBoostPlayed = false;
+    this.radioObjectiveHalfPlayed = false;
+    this.radioLastTutorialStepId = null;
     this.nearMissObstacles.clear();
     this.audio.stopAll();
+    this.radioComms.clear();
     this.runStats.reset();
     this.tutorialDirector.reset();
     this.eventWaveDirector.reset(this.runRng);
@@ -1722,6 +1899,7 @@ export class Game {
       this.createTutorialContext(createNeutralInputState(), false)
     );
     this.applyTutorialSetup(this.tutorialDirector.consumeSetupAction());
+    this.announceTutorialStep();
   }
 
   private updateTutorial(delta: number, input: InputState, isBoosting: boolean): void {
@@ -1732,6 +1910,7 @@ export class Game {
     );
 
     this.applyTutorialSetup(this.tutorialDirector.consumeSetupAction());
+    this.announceTutorialStep();
 
     if (
       !wasFinished &&
@@ -2179,6 +2358,10 @@ export class Game {
       settings,
       selectedIndex: this.settingsSelectionIndex
     });
+    this.radioOverlay.update({
+      radio: this.radioComms.getSnapshot(),
+      reducedMotion: this.reducedMotion
+    });
     this.cinematicLetterbox.update(cinematic);
     this.touchControls.update({
       state: this.state,
@@ -2365,6 +2548,7 @@ export class Game {
       hazard: this.hazardDirector.getDebugState(),
       eventWave: this.eventWaveDirector.getDebugState(),
       powerup: this.powerupDirector.getDebugState(),
+      radio: this.radioComms.getSnapshot(),
       runStats: this.runStats.getSnapshot(),
       upgrades: this.upgrades.getSnapshot(),
       playerPosition: this.player.getPosition(this.playerPosition).toArray(),
@@ -2434,6 +2618,10 @@ export class Game {
     this.canvas.dataset.sfxEnabled = String(this.audio.isSfxEnabled());
     this.canvas.dataset.sfxVolume = this.audio.getSfxVolume().toFixed(2);
     this.canvas.dataset.loadedAudioAssets = this.audio.getLoadedAssetIds().join(',');
+    const radio = this.radioComms.getSnapshot();
+    this.canvas.dataset.radioVisible = String(radio.isVisible);
+    this.canvas.dataset.radioSpeaker = radio.speaker;
+    this.canvas.dataset.radioText = radio.text;
     this.canvas.dataset.objectiveComplete = String(
       objective.isComplete && !objective.isEndless
     );
@@ -2478,6 +2666,25 @@ export class Game {
     this.canvas.dataset.renderTriangles = String(this.renderer.info.render.triangles);
     this.canvas.dataset.renderGeometries = String(this.renderer.info.memory.geometries);
     this.canvas.dataset.renderTextures = String(this.renderer.info.memory.textures);
+  }
+}
+
+function getTutorialRadioMessage(stepId: TutorialStepId): string {
+  switch (stepId) {
+    case 'rotate':
+      return 'Start with orbit control. Left or right, smooth and boring is good.';
+    case 'collect':
+      return 'Marked junk is your paycheck. Fly through it before it files a complaint.';
+    case 'lane-switch':
+      return 'Three lanes, one ship. Switch lanes before the problem becomes personal.';
+    case 'boost':
+      return 'Boost is for closing gaps. Empty tanks are for dramatic apologies.';
+    case 'dodge-obstacle':
+      return 'Satellites do not negotiate. Give them a lane and let them feel important.';
+    case 'read-hazard':
+      return 'Orange means warning. Red means active danger. The colors are not suggestions.';
+    case 'finish':
+      return 'Training complete. Keep the combo alive and the paperwork asleep.';
   }
 }
 

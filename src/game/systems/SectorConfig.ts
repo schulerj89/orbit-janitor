@@ -43,6 +43,11 @@ export interface SectorUnlockRequirement {
   completedSectorId: string | null;
 }
 
+export interface SectorRadioConfig {
+  intro: string;
+  complete: string;
+}
+
 export interface SectorConfig {
   id: string;
   themeId: SectorThemeId;
@@ -63,6 +68,7 @@ export interface SectorConfig {
   lanePalette: SectorPalette;
   unlockRequirement: SectorUnlockRequirement;
   musicIntensityHint: 'calm' | 'steady' | 'tense' | 'endless';
+  radio: SectorRadioConfig;
   isTutorial: boolean;
   isEndless: boolean;
 }
@@ -108,6 +114,10 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       completedSectorId: null
     },
     musicIntensityHint: 'calm',
+    radio: {
+      intro: 'Training Orbit is quiet. We left the expensive hazards unplugged.',
+      complete: 'Flight check stamped. Cleanup Ops may even trust you with sharp corners.'
+    },
     isTutorial: true,
     isEndless: false
   },
@@ -147,6 +157,10 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       completedSectorId: null
     },
     musicIntensityHint: 'steady',
+    radio: {
+      intro: 'Low Orbit is open. The planet thanks you. Legally, it cannot tip.',
+      complete: 'Low Orbit reads clean enough for marketing. Nobody tell legal.'
+    },
     isTutorial: false,
     isEndless: false
   },
@@ -186,6 +200,10 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       completedSectorId: DEFAULT_SECTOR_ID
     },
     musicIntensityHint: 'steady',
+    radio: {
+      intro: 'Debris Belt is crowded. If it sparkles, clean it. If it blinks, dodge it.',
+      complete: 'Debris Belt is breathing again. Nice sweep through the ugly lane.'
+    },
     isTutorial: false,
     isEndless: false
   },
@@ -225,6 +243,10 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       completedSectorId: 'debris-belt'
     },
     musicIntensityHint: 'tense',
+    radio: {
+      intro: 'Solar Storm is charging. Orange means move soon. Red means move now.',
+      complete: 'Storm window cleared. The reactor is still dramatic, but quieter.'
+    },
     isTutorial: false,
     isEndless: false
   },
@@ -264,6 +286,11 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       completedSectorId: 'solar-storm'
     },
     musicIntensityHint: 'tense',
+    radio: {
+      intro: 'Night Side runs dark. Trust the telegraphs, not the scenery.',
+      complete:
+        'Night Side lanes are clean. The city lights can stop holding their breath.'
+    },
     isTutorial: false,
     isEndless: false
   },
@@ -303,6 +330,10 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       completedSectorId: 'night-side'
     },
     musicIntensityHint: 'tense',
+    radio: {
+      intro: 'Comet Wake is moving fast. Keep your route loose and your boost ready.',
+      complete: 'Comet Wake survived your paperwork. That counts as a miracle.'
+    },
     isTutorial: false,
     isEndless: false
   },
@@ -354,6 +385,10 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
       completedSectorId: DEFAULT_SECTOR_ID
     },
     musicIntensityHint: 'endless',
+    radio: {
+      intro: 'Endless Cleanup is all meter, no mercy. Clock in and make a mess smaller.',
+      complete: 'Endless route logged. High-score clerks are pretending not to cheer.'
+    },
     isTutorial: false,
     isEndless: true
   }

@@ -95,6 +95,7 @@ Touch:
 - Training Orbit tutorial with guided rotate, pickup, lane switch, boost, obstacle, and hazard-reading steps.
 - Three orbit lanes with smooth lane switching, readable ship direction, procedural world cores/lanes/stars/junk/satellites/hazards, and sector-specific visual themes.
 - Sector-specific centerpieces: planet core, cracked planetoid, solar reactor, night planet, comet core, and orbital gate.
+- Text-only radio comms for title onboarding, sector intros, tutorial steps, hazards, powerups, objective progress, event waves, mission completion, crashes, and sector unlocks.
 - Combo scoring, boost fuel, temporary powerups, upgrade effects, one-run shield support, near-miss feedback, mission intro countdown, and screen/camera feedback.
 - Telegraph-first hazards: lane arcs, double lane arcs, sweepers, gate hazards, pulse mines, and debris showers.
 - Sector-specific event waves near finales and in endless mode: Debris Storm debris crossings, Satellite Net safe-lane formations, Solar Flare lane pulses, Comet Pass background fly-bys, and Cleanup Frenzy reward phases.
