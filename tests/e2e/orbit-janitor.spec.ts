@@ -11,6 +11,8 @@ type DebugState = {
   isPaused: boolean;
   helpOpen: boolean;
   settingsOpen: boolean;
+  debugPanelOpen: boolean;
+  debugInvincible: boolean;
   missionIntroActive: boolean;
   cinematicActive: boolean;
   sectorId: string;
@@ -117,6 +119,27 @@ test('opens settings and exposes persisted accessibility controls', async ({ pag
   await page.keyboard.press('Escape');
   await expect
     .poll(() => getDebugState(page).then((state) => state.settingsOpen))
+    .toBe(false);
+});
+
+test('supports dev-only debug panel and invincible toggle', async ({ page }) => {
+  await page.goto('/');
+  await waitForGameReady(page);
+
+  await page.keyboard.press('F1');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.debugPanelOpen))
+    .toBe(true);
+  await expect(page.locator('[data-debug-panel]')).toBeVisible();
+
+  await page.keyboard.press('F6');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.debugInvincible))
+    .toBe(true);
+
+  await page.keyboard.press('F1');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.debugPanelOpen))
     .toBe(false);
 });
 

@@ -40,6 +40,8 @@ import { AudioManager } from './audio/AudioManager';
 import { MusicDirector } from './audio/MusicDirector';
 import { CinematicDirector } from './cinematics/CinematicDirector';
 import type { CinematicContext, CinematicPresetKey } from './cinematics/CinematicShot';
+import type { DebugCommandContext, DebugCommands } from './debug/DebugCommands';
+import type { DebugPanel } from './debug/DebugPanel';
 import { CameraRig } from './effects/CameraRig';
 import { ImpactFlash } from './effects/ImpactFlash';
 import { ParticleBurst } from './effects/ParticleBurst';
@@ -49,7 +51,7 @@ import { Junk, type LaneAngle } from './entities/Junk';
 import { ObstacleSatellite, type ObstacleConfig } from './entities/ObstacleSatellite';
 import { OrbitLanes } from './entities/OrbitLanes';
 import { PlayerShip } from './entities/PlayerShip';
-import { getPowerupColor, type PowerupType } from './entities/Powerup';
+import { getPowerupColor, getPowerupTypes, type PowerupType } from './entities/Powerup';
 import { Starfield } from './entities/Starfield';
 import { createWorldCore } from './entities/world-cores/createWorldCore';
 import type { WorldCore, WorldCoreType } from './entities/world-cores/WorldCore';
@@ -79,6 +81,7 @@ import {
 import { RunStats, type RunStatsSnapshot } from './systems/RunStats';
 import {
   DEFAULT_SECTOR_ID,
+  SECTOR_CONFIGS,
   TRAINING_SECTOR_ID,
   getSectorById
 } from './systems/SectorConfig';
@@ -169,6 +172,8 @@ interface OrbitJanitorDebugState {
   settings: SettingsSnapshot;
   cosmetics: CosmeticSnapshot;
   galleryOpen: boolean;
+  debugPanelOpen: boolean;
+  debugInvincible: boolean;
   scrap: number;
   shieldCharges: number;
   musicEnabled: boolean;
@@ -243,6 +248,14 @@ export class Game {
   private readonly obstaclePosition = new THREE.Vector3();
   private reducedMotion = this.settings.getSnapshot().reducedMotion;
   private readonly nearMissObstacles = new Set<ObstacleSatellite>();
+  private debugPanel: DebugPanel | null = null;
+  private debugCommands: DebugCommands | null = null;
+  private debugPanelOpen = false;
+  private debugInvincible = false;
+  private debugFps = 0;
+  private debugFpsElapsed = 0;
+  private debugFpsFrames = 0;
+  private debugLastCommand = 'Ready';
 
   private renderer!: THREE.WebGPURenderer;
   private ambientLight!: THREE.AmbientLight;
@@ -354,6 +367,15 @@ export class Game {
     this.floatingText = new FloatingText(hudRoot);
     this.cinematicLetterbox = new CinematicLetterbox(hudRoot);
     this.missionIntroOverlay = new MissionIntroOverlay(hudRoot);
+    if (import.meta.env.DEV) {
+      const [{ DebugPanel }, { DebugCommands }] = await Promise.all([
+        import('./debug/DebugPanel'),
+        import('./debug/DebugCommands')
+      ]);
+
+      this.debugPanel = new DebugPanel(hudRoot);
+      this.debugCommands = new DebugCommands();
+    }
     this.applySettings();
     this.cosmetics.syncCompletedSectors(
       this.sectorProgress.getSnapshot().completedSectorIds
@@ -416,6 +438,11 @@ export class Game {
       this.gamepadInput.consumeFrame(),
       this.touchControls.consumeFrame()
     );
+
+    if (import.meta.env.DEV) {
+      this.updateDebugFps(delta);
+      this.handleDebugInput(input);
+    }
 
     if (this.hasPlayerInput(input)) {
       this.music.unlock();
@@ -710,8 +737,299 @@ export class Game {
     this.applyCinematicCameraOverride();
     this.updateHud(this.shouldShowBoostEmpty(input));
     this.renderer.render(this.scene, this.camera);
+    this.updateDebugPanel();
     this.syncDebugAttributes();
   };
+
+  private handleDebugInput(input: InputState): void {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    if (input.debugPanelTogglePressed) {
+      this.debugPanelOpen = !this.debugPanelOpen;
+      this.debugLastCommand = this.debugPanelOpen
+        ? 'Debug panel opened.'
+        : 'Debug panel closed.';
+    }
+
+    if (input.debugCommandPressed === null || !this.debugCommands) {
+      return;
+    }
+
+    this.debugLastCommand = this.debugCommands.execute(
+      input.debugCommandPressed,
+      this.createDebugCommandContext()
+    );
+  }
+
+  private updateDebugFps(delta: number): void {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    this.debugFpsElapsed += delta;
+    this.debugFpsFrames += 1;
+
+    if (this.debugFpsElapsed >= 0.5) {
+      this.debugFps = this.debugFpsFrames / this.debugFpsElapsed;
+      this.debugFpsElapsed = 0;
+      this.debugFpsFrames = 0;
+    }
+  }
+
+  private updateDebugPanel(): void {
+    if (!import.meta.env.DEV || !this.debugPanel) {
+      return;
+    }
+
+    const debugState = this.getDebugState();
+
+    this.debugPanel.update({
+      isOpen: this.debugPanelOpen,
+      phase: debugState.phase,
+      sectorId: debugState.sectorId,
+      score: debugState.score,
+      runTime: debugState.runTime,
+      playerAngle: debugState.playerAngle,
+      playerLaneIndex: debugState.playerLaneIndex,
+      hazardType: debugState.hazard.type,
+      hazardPhase: debugState.hazard.phase,
+      activePowerups: debugState.powerup.activeEffects.map(
+        (effect) => `${effect.name} ${effect.remaining.toFixed(1)}s`
+      ),
+      eventWaveType: debugState.eventWave.type,
+      eventWavePhase: debugState.eventWave.phase,
+      musicDangerIntensity: debugState.musicDangerIntensity,
+      fps: this.debugFps,
+      invincible: this.debugInvincible,
+      lastCommand: this.debugLastCommand,
+      renderInfo: debugState.renderInfo
+    });
+  }
+
+  private createDebugCommandContext(): DebugCommandContext {
+    if (!import.meta.env.DEV) {
+      return {
+        forceCompleteSector: () => 'Debug commands are disabled.',
+        spawnHazardOrEvent: () => 'Debug commands are disabled.',
+        addScrap: () => 'Debug commands are disabled.',
+        cycleWorldCoreTheme: () => 'Debug commands are disabled.',
+        toggleInvincible: () => 'Debug commands are disabled.',
+        spawnPowerup: () => 'Debug commands are disabled.',
+        resetLocalStorageProgress: () => 'Debug commands are disabled.'
+      };
+    }
+
+    return {
+      forceCompleteSector: () => this.debugForceCompleteSector(),
+      spawnHazardOrEvent: () => this.debugSpawnHazardOrEvent(),
+      addScrap: () => this.debugAddScrap(),
+      cycleWorldCoreTheme: () => this.debugCycleWorldCoreTheme(),
+      toggleInvincible: () => this.debugToggleInvincible(),
+      spawnPowerup: () => this.debugSpawnPowerup(),
+      resetLocalStorageProgress: () => this.debugResetLocalStorageProgress()
+    };
+  }
+
+  private debugForceCompleteSector(): string {
+    if (!import.meta.env.DEV) {
+      return 'Debug commands are disabled.';
+    }
+
+    if (this.state !== 'playing') {
+      return 'F2 requires an active run.';
+    }
+
+    const sectorName = this.missionDirector.getCurrentSector().name;
+
+    this.triggerMissionComplete();
+    return `Forced mission complete: ${sectorName}.`;
+  }
+
+  private debugSpawnHazardOrEvent(): string {
+    if (!import.meta.env.DEV) {
+      return 'Debug commands are disabled.';
+    }
+
+    if (this.state !== 'playing') {
+      return 'F3 requires an active run.';
+    }
+
+    const sector = this.missionDirector.getCurrentSector();
+
+    if (
+      !sector.isTutorial &&
+      sector.eventWaveTypes.length > 0 &&
+      this.eventWaveDirector.getDebugState().type === 'none'
+    ) {
+      const eventType = this.runRng.pick([...sector.eventWaveTypes]);
+
+      if (this.eventWaveDirector.forceEvent(eventType, this.createEventWaveContext())) {
+        this.hazardDirector.delayNextSpawn(2.25);
+        this.audio.playHazardWarning();
+        return `Forced event wave: ${eventType}.`;
+      }
+    }
+
+    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+    const hazardTypes =
+      difficulty.allowedHazardTypes.length > 0
+        ? [...difficulty.allowedHazardTypes]
+        : (['laneArc'] as HazardPatternType[]);
+    const hazardType = this.runRng.pick(hazardTypes);
+    const didSpawn = this.hazardDirector.forceHazard(
+      hazardType,
+      this.createHazardDebugContext(hazardType)
+    );
+
+    if (didSpawn) {
+      this.audio.playHazardWarning();
+      return `Forced hazard: ${hazardType}.`;
+    }
+
+    return 'No hazard/event spawned; one may already be active.';
+  }
+
+  private debugAddScrap(): string {
+    if (!import.meta.env.DEV) {
+      return 'Debug commands are disabled.';
+    }
+
+    const totalScrap = this.upgrades.addDebugScrap(25);
+
+    return `Added 25 scrap. Total scrap: ${totalScrap}.`;
+  }
+
+  private debugCycleWorldCoreTheme(): string {
+    if (!import.meta.env.DEV) {
+      return 'Debug commands are disabled.';
+    }
+
+    const currentSector = this.missionDirector.getCurrentSector();
+    const currentIndex = Math.max(
+      0,
+      SECTOR_CONFIGS.findIndex((sector) => sector.id === currentSector.id)
+    );
+    const nextSector = SECTOR_CONFIGS[(currentIndex + 1) % SECTOR_CONFIGS.length];
+
+    this.missionDirector.setSector(nextSector.id);
+    this.selectedSectorId = nextSector.id;
+    this.applyCurrentSectorTheme(true);
+
+    if (this.state === 'playing') {
+      this.music.startSectorMusic(
+        nextSector.id,
+        this.missionDirector.getMusicIntensityHint()
+      );
+    }
+
+    return `Cycled sector theme/core: ${nextSector.name}.`;
+  }
+
+  private debugToggleInvincible(): string {
+    if (!import.meta.env.DEV) {
+      return 'Debug commands are disabled.';
+    }
+
+    this.debugInvincible = !this.debugInvincible;
+
+    return `Invincible ${this.debugInvincible ? 'enabled' : 'disabled'}.`;
+  }
+
+  private debugSpawnPowerup(): string {
+    if (!import.meta.env.DEV) {
+      return 'Debug commands are disabled.';
+    }
+
+    if (this.state !== 'playing') {
+      return 'F7 requires an active run.';
+    }
+
+    const type = this.runRng.pick([...getPowerupTypes()]);
+    const laneIndex = (this.player.targetLaneIndex + 1) % ORBIT_LANES.length;
+    const angle = wrapAngle(this.player.angle + 1.15);
+
+    this.powerupDirector.forcePowerup(type, laneIndex, angle);
+    return `Spawned powerup: ${type}.`;
+  }
+
+  private debugResetLocalStorageProgress(): string {
+    if (!import.meta.env.DEV) {
+      return 'Debug commands are disabled.';
+    }
+
+    if (!window.confirm('Reset Orbit Janitor localStorage progress and reload?')) {
+      return 'Reset cancelled.';
+    }
+
+    try {
+      const keysToRemove: string[] = [];
+
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const key = window.localStorage.key(index);
+
+        if (key?.startsWith('orbit-janitor.')) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach((key) => window.localStorage.removeItem(key));
+      window.location.reload();
+      return `Reset ${keysToRemove.length} localStorage keys.`;
+    } catch {
+      return 'Reset failed; localStorage is unavailable.';
+    }
+  }
+
+  private createEventWaveContext() {
+    if (!import.meta.env.DEV) {
+      throw new Error('Debug event context is unavailable outside dev builds.');
+    }
+
+    const stats = this.runStats.getSnapshot();
+
+    return {
+      sector: this.missionDirector.getCurrentSector(),
+      objective: this.missionDirector.getObjective(stats),
+      stats,
+      playerAngle: this.player.angle,
+      playerRadius: this.player.currentRadius,
+      rng: this.runRng,
+      hazard: this.hazardDirector.getDebugState(),
+      canStart: true
+    };
+  }
+
+  private createHazardDebugContext(type: HazardPatternType) {
+    if (!import.meta.env.DEV) {
+      throw new Error('Debug hazard context is unavailable outside dev builds.');
+    }
+
+    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+    const eventEffects = this.eventWaveDirector.getEffects();
+
+    return {
+      score: this.score,
+      runTime: this.runTime,
+      playerAngle: this.player.angle,
+      playerRadius: this.player.currentRadius,
+      junkAngle: this.junk.angle,
+      junkLaneIndex: this.junk.laneIndex,
+      rng: this.runRng,
+      hazardIntensity: 1,
+      hazardIntervalMultiplier:
+        difficulty.hazardIntervalMultiplier * eventEffects.hazardIntervalMultiplier,
+      hazardTelegraphMultiplier:
+        difficulty.hazardTelegraphMultiplier * eventEffects.hazardTelegraphMultiplier,
+      hazardActiveMultiplier:
+        difficulty.hazardActiveMultiplier * eventEffects.hazardActiveMultiplier,
+      hazardSpeedMultiplier:
+        difficulty.hazardSpeedMultiplier * eventEffects.hazardSpeedMultiplier,
+      allowedHazardTypes: [type],
+      isGameOver: false
+    };
+  }
 
   private updateBoost(
     delta: number,
@@ -1415,6 +1733,11 @@ export class Game {
   }
 
   private handlePlayerHit(reason: string): void {
+    if (import.meta.env.DEV && this.debugInvincible) {
+      this.floatingText.show('INVINCIBLE', 'bonus');
+      return;
+    }
+
     if (this.shieldGraceTimer > 0) {
       return;
     }
@@ -2857,6 +3180,8 @@ export class Game {
       settings,
       cosmetics,
       galleryOpen: this.galleryOpen,
+      debugPanelOpen: import.meta.env.DEV ? this.debugPanelOpen : false,
+      debugInvincible: import.meta.env.DEV ? this.debugInvincible : false,
       scrap: this.upgrades.getSnapshot().totalScrap,
       shieldCharges: this.shieldCharges,
       musicEnabled: this.audio.isMusicEnabled(),
@@ -2928,6 +3253,12 @@ export class Game {
     this.canvas.dataset.helpOpen = String(this.helpOpen);
     this.canvas.dataset.settingsOpen = String(this.settingsOpen);
     this.canvas.dataset.galleryOpen = String(this.galleryOpen);
+    this.canvas.dataset.debugPanelOpen = String(
+      import.meta.env.DEV ? this.debugPanelOpen : false
+    );
+    this.canvas.dataset.debugInvincible = String(
+      import.meta.env.DEV ? this.debugInvincible : false
+    );
     this.canvas.dataset.titleMenuSelectedIndex = String(this.titleMenuSelectedIndex);
     this.canvas.dataset.titleMenuSelectedOption = getMainMenuOption(
       this.titleMenuSelectedIndex

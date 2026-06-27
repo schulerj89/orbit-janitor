@@ -354,6 +354,101 @@ body {
   visibility: hidden;
 }
 
+.debug-panel {
+  position: absolute;
+  top: clamp(12px, 2vw, 20px);
+  right: clamp(12px, 2vw, 20px);
+  z-index: 12;
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+  width: min(390px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid rgb(255 224 107 / 42%);
+  border-radius: 8px;
+  background: rgb(4 10 18 / 86%);
+  box-shadow: 0 18px 54px rgb(0 0 0 / 42%);
+  color: #edf7ff;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.78rem;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 85%);
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease,
+    visibility 150ms ease;
+  visibility: visible;
+}
+
+.debug-panel.is-hidden {
+  opacity: 0;
+  transform: translateY(-8px);
+  visibility: hidden;
+}
+
+.debug-panel-header {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.debug-panel-header strong {
+  color: #ffe06b;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+}
+
+.debug-panel-header span,
+.debug-panel-grid span,
+.debug-panel-commands span {
+  color: #8ba7bd;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.debug-panel-grid {
+  display: grid;
+  grid-template-columns: minmax(92px, auto) minmax(0, 1fr);
+  gap: 4px 10px;
+  min-width: 0;
+}
+
+.debug-panel-grid strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-weight: 800;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-panel-commands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.debug-panel-commands span {
+  padding: 3px 6px;
+  border: 1px solid rgb(143 232 255 / 18%);
+  border-radius: 5px;
+  background: rgb(8 18 28 / 70%);
+  color: #9fffee;
+}
+
+.debug-panel p {
+  margin: 0;
+  color: #ffe06b;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
 .powerup-toast-kicker {
   color: #9fffee;
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;

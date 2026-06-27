@@ -151,6 +151,19 @@ export class UpgradeSystem {
     return true;
   }
 
+  addDebugScrap(amount: number): number {
+    if (!import.meta.env.DEV) {
+      return this.totalScrap;
+    }
+
+    const awarded = Math.max(0, Math.floor(amount));
+
+    this.totalScrap += awarded;
+    this.lastRunScrapEarned = awarded;
+    this.persist();
+    return this.totalScrap;
+  }
+
   awardRunScrap(stats: RunStatsSnapshot, bonusScrap = 0): number {
     const earned =
       stats.junkCollected +

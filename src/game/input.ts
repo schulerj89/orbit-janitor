@@ -31,6 +31,8 @@ export interface InputState {
   upgradeTogglePressed: boolean;
   galleryTogglePressed: boolean;
   settingsTogglePressed: boolean;
+  debugPanelTogglePressed: boolean;
+  debugCommandPressed: number | null;
   upgradeBuyPressed: number | null;
 }
 
@@ -71,6 +73,8 @@ export class InputController {
     this.state.upgradeTogglePressed = false;
     this.state.galleryTogglePressed = false;
     this.state.settingsTogglePressed = false;
+    this.state.debugPanelTogglePressed = false;
+    this.state.debugCommandPressed = null;
     this.state.upgradeBuyPressed = null;
     return frameState;
   }
@@ -213,6 +217,19 @@ export class InputController {
       event.preventDefault();
     }
 
+    if (import.meta.env.DEV && !event.repeat) {
+      if (event.code === 'F1') {
+        this.state.debugPanelTogglePressed = true;
+        event.preventDefault();
+      }
+
+      const debugCommand = getDebugCommandNumber(event.code);
+      if (debugCommand !== null) {
+        this.state.debugCommandPressed = debugCommand;
+        event.preventDefault();
+      }
+    }
+
     const upgradeBuyIndex = getUpgradeBuyIndex(event.code);
     if (upgradeBuyIndex !== null && !event.repeat) {
       this.state.upgradeBuyPressed = upgradeBuyIndex;
@@ -282,6 +299,8 @@ export function createNeutralInputState(): InputState {
     upgradeTogglePressed: false,
     galleryTogglePressed: false,
     settingsTogglePressed: false,
+    debugPanelTogglePressed: false,
+    debugCommandPressed: null,
     upgradeBuyPressed: null
   };
 }
@@ -322,6 +341,8 @@ export function mergeInputStates(...states: InputState[]): InputState {
     merged.upgradeTogglePressed ||= state.upgradeTogglePressed;
     merged.galleryTogglePressed ||= state.galleryTogglePressed;
     merged.settingsTogglePressed ||= state.settingsTogglePressed;
+    merged.debugPanelTogglePressed ||= state.debugPanelTogglePressed;
+    merged.debugCommandPressed ??= state.debugCommandPressed;
     merged.upgradeBuyPressed ??= state.upgradeBuyPressed;
   }
 
@@ -340,4 +361,14 @@ function getUpgradeBuyIndex(code: string): number | null {
   }
 
   return null;
+}
+
+function getDebugCommandNumber(code: string): number | null {
+  if (!code.startsWith('F')) {
+    return null;
+  }
+
+  const functionKey = Number(code.slice(1));
+
+  return functionKey >= 2 && functionKey <= 8 ? functionKey : null;
 }

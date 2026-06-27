@@ -146,6 +146,15 @@ export class EventWaveDirector {
     };
   }
 
+  forceEvent(type: EventWaveType, context: EventWaveDirectorContext): boolean {
+    if (this.phase !== 'idle' || !context.sector.eventWaveTypes.includes(type)) {
+      return false;
+    }
+
+    this.startEvent(type, context);
+    return true;
+  }
+
   getEffects(): EventWaveEffects {
     if (!this.activeType) {
       return createDefaultEffects();

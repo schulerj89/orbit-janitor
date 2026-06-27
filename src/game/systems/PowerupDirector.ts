@@ -121,6 +121,12 @@ export class PowerupDirector {
     this.spawnTimer = rng ? this.getNextSpawnTime(rng) : POWERUP_SPAWN_MIN_SECONDS;
   }
 
+  forcePowerup(type: PowerupType, laneIndex: number, angle: number): void {
+    this.powerup.spawn(type, laneIndex, angle);
+    this.collectibleLifetime = POWERUP_LIFETIME_SECONDS;
+    this.spawnTimer = POWERUP_SPAWN_MIN_SECONDS;
+  }
+
   getEffects(): PowerupEffects {
     return {
       magnetSurge: this.isActive('magnetSurge'),

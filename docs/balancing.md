@@ -85,6 +85,21 @@ Powerups spawn during active runs every 20-35 seconds, expire after 12 seconds i
 | Combo Lock    | 6 seconds where the combo timer does not decrease.   |
 | Scrap Cache   | Adds 5 bonus scrap.                                  |
 
+## Dev-Only Debug Tools
+
+When running with `npm run dev`, debug tools are available behind `import.meta.env.DEV` guards and are not exposed in production builds.
+
+| Key | Command                                      |
+| --- | -------------------------------------------- |
+| F1  | Toggle debug panel.                          |
+| F2  | Force complete the current sector.           |
+| F3  | Force a sector event wave or hazard.         |
+| F4  | Add 25 scrap.                                |
+| F5  | Cycle the current world core and theme.      |
+| F6  | Toggle dev invincibility.                    |
+| F7  | Spawn a powerup near the player route.       |
+| F8  | Confirm and reset `orbit-janitor.*` storage. |
+
 ## Tuning Questions
 
 - Does Low Orbit Cleanup reach mission complete before the first event too often?
