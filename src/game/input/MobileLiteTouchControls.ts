@@ -9,6 +9,7 @@ export interface MobileLiteTouchControlsContext {
 }
 
 type MobileLiteTouchAction = 'laneIn' | 'laneOut' | 'boost' | 'start';
+const BLOCKED_GESTURE_EVENTS = ['contextmenu', 'selectstart', 'dragstart'] as const;
 
 export class MobileLiteTouchControls {
   private readonly element: HTMLElement;
@@ -28,6 +29,13 @@ export class MobileLiteTouchControls {
       <button class="mobile-lite-touch-start" type="button" data-mobile-lite-action="start" aria-label="Start or restart">Start</button>
     `;
     root.append(this.element);
+
+    for (const eventName of BLOCKED_GESTURE_EVENTS) {
+      this.element.addEventListener(eventName, this.preventGesture);
+    }
+    this.element.addEventListener('touchstart', this.preventGesture, {
+      passive: false
+    });
 
     this.element
       .querySelectorAll<HTMLButtonElement>('[data-mobile-lite-action]')
@@ -121,6 +129,10 @@ export class MobileLiteTouchControls {
     event.preventDefault();
     this.releaseHold(action);
   }
+
+  private readonly preventGesture = (event: Event): void => {
+    event.preventDefault();
+  };
 
   private releaseHold(action: MobileLiteTouchAction): void {
     if (action === 'laneIn') {

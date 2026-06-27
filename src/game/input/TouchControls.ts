@@ -10,6 +10,7 @@ export interface TouchControlsContext {
 type TouchAction = 'left' | 'right' | 'boost' | 'laneUp' | 'laneDown' | 'start';
 
 const AUTO_QUERY = '(width <= 760px), (pointer: coarse)';
+const BLOCKED_GESTURE_EVENTS = ['contextmenu', 'selectstart', 'dragstart'] as const;
 
 export class TouchControls {
   private readonly element: HTMLElement;
@@ -35,6 +36,13 @@ export class TouchControls {
       <button class="touch-control-start" type="button" data-touch-action="start" aria-label="Start or restart">Start</button>
     `;
     root.append(this.element);
+
+    for (const eventName of BLOCKED_GESTURE_EVENTS) {
+      this.element.addEventListener(eventName, this.preventGesture);
+    }
+    this.element.addEventListener('touchstart', this.preventGesture, {
+      passive: false
+    });
 
     this.element
       .querySelectorAll<HTMLButtonElement>('[data-touch-action]')
@@ -148,6 +156,10 @@ export class TouchControls {
     event.preventDefault();
     this.releaseHold(action);
   }
+
+  private readonly preventGesture = (event: Event): void => {
+    event.preventDefault();
+  };
 
   private releaseHold(action: TouchAction): void {
     if (action === 'left') {
