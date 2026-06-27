@@ -187,10 +187,10 @@ export class Hud {
         ? Math.max(0, Math.min(1, snapshot.comboTimer / snapshot.comboWindow))
         : 0;
     const boostPercent = Math.max(0, Math.min(1, snapshot.boostFuel));
-    const hidePanelsForCinematic = snapshot.cinematicActive;
+    const hideGameplayHud = snapshot.state !== 'playing' || snapshot.cinematicActive;
 
-    this.mainPanel.classList.toggle('is-cinematic-hidden', hidePanelsForCinematic);
-    this.controlsPanel.classList.toggle('is-cinematic-hidden', hidePanelsForCinematic);
+    this.mainPanel.classList.toggle('is-cinematic-hidden', hideGameplayHud);
+    this.controlsPanel.classList.toggle('is-cinematic-hidden', hideGameplayHud);
     this.scoreValue.textContent = String(snapshot.score);
     this.runValue.textContent =
       snapshot.state === 'title' ? 'Choose Run' : snapshot.runLabel;
