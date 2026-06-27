@@ -69,6 +69,7 @@ import {
   type ContractSnapshot
 } from './systems/ContractSystem';
 import { CosmeticSystem, type CosmeticSnapshot } from './systems/CosmeticSystem';
+import { DeviceProfile, type DeviceProfileSnapshot } from './systems/DeviceProfile';
 import {
   EventWaveDirector,
   type EventWaveDebugState,
@@ -125,6 +126,12 @@ import { AchievementsOverlay } from './ui/AchievementsOverlay';
 import { CinematicLetterbox } from './ui/CinematicLetterbox';
 import { ContractBoardOverlay } from './ui/ContractBoardOverlay';
 import { ContractToast } from './ui/ContractToast';
+import {
+  DeviceGateOverlay,
+  getDeviceGateOption,
+  normalizeDeviceGateOptionIndex,
+  type DeviceGateOptionId
+} from './ui/DeviceGateOverlay';
 import { GalleryOverlay } from './ui/GalleryOverlay';
 import { HelpOverlay } from './ui/HelpOverlay';
 import { Hud, type GameState } from './ui/Hud';
@@ -159,6 +166,7 @@ const MISSION_INTRO_REDUCED_MOTION_DURATION = 0.95;
 const NEAR_MISS_DISTANCE_BONUS = 0.36;
 const NEAR_MISS_COOLDOWN = 0.72;
 const HAZARD_NEAR_MISS_ANGLE = 0.92;
+const SETTINGS_ROW_COUNT = 7;
 
 interface OrbitJanitorDebugState {
   sceneId: 'orbit-janitor';
@@ -195,6 +203,8 @@ interface OrbitJanitorDebugState {
   cinematicTitle: string;
   reducedMotion: boolean;
   settings: SettingsSnapshot;
+  deviceProfile: DeviceProfileSnapshot;
+  deviceGateOpen: boolean;
   cosmetics: CosmeticSnapshot;
   galleryOpen: boolean;
   shipyardOpen: boolean;
@@ -274,6 +284,7 @@ export class Game {
   private readonly contracts = new ContractSystem();
   private readonly medals = new MedalSystem();
   private readonly achievements = new AchievementSystem();
+  private readonly deviceProfile = new DeviceProfile();
   private readonly challengeMode = new ChallengeMode();
   private readonly missionDirector = new MissionDirector();
   private readonly sectorProgress = new SectorProgress();
@@ -302,6 +313,7 @@ export class Game {
   private sectorSelectOverlay!: SectorSelectOverlay;
   private missionCompleteOverlay!: MissionCompleteOverlay;
   private runSummary!: RunSummary;
+  private deviceGateOverlay!: DeviceGateOverlay;
   private upgradePanel!: UpgradePanel;
   private contractBoardOverlay!: ContractBoardOverlay;
   private achievementsOverlay!: AchievementsOverlay;
@@ -360,6 +372,10 @@ export class Game {
   private helpOpen = false;
   private settingsOpen = false;
   private settingsSelectionIndex = 0;
+  private deviceGateOpen = false;
+  private deviceGateSelectedIndex = 0;
+  private deviceGateDontShowAgain = false;
+  private deviceGateSessionDismissed = false;
   private objectiveAnnounced = false;
   private gameOverReason = 'Impact detected';
   private runRng = new SeededRandom('title');
@@ -407,6 +423,10 @@ export class Game {
     this.sectorSelectOverlay = new SectorSelectOverlay(hudRoot);
     this.missionCompleteOverlay = new MissionCompleteOverlay(hudRoot);
     this.runSummary = new RunSummary(hudRoot);
+    this.deviceGateOverlay = new DeviceGateOverlay(hudRoot, {
+      onSelect: (optionId) => this.activateDeviceGateOption(optionId),
+      onToggleDontShowAgain: () => this.toggleDeviceGateDontShowAgain()
+    });
     this.upgradePanel = new UpgradePanel(hudRoot);
     this.contractBoardOverlay = new ContractBoardOverlay(hudRoot);
     this.achievementsOverlay = new AchievementsOverlay(hudRoot);
@@ -507,11 +527,17 @@ export class Game {
       this.music.unlock();
     }
 
+    const inputBlockedByDeviceGate = this.deviceGateOpen;
     const cinematicWasActive = this.cinematicDirector.isActive();
     const titleCinematicSkip =
-      cinematicWasActive && this.state === 'title' && this.hasPlayerInput(input);
+      cinematicWasActive &&
+      this.state === 'title' &&
+      !inputBlockedByDeviceGate &&
+      this.hasPlayerInput(input);
     const cinematicInputConsumed =
-      cinematicWasActive && (input.cinematicSkipPressed || titleCinematicSkip);
+      !inputBlockedByDeviceGate &&
+      cinematicWasActive &&
+      (input.cinematicSkipPressed || titleCinematicSkip);
 
     if (cinematicInputConsumed) {
       this.cinematicDirector.skip();
@@ -519,48 +545,56 @@ export class Game {
       this.audio.playBoostLoopStop();
     }
 
-    if (input.musicTogglePressed) {
+    const consumedDeviceGateInput = inputBlockedByDeviceGate
+      ? this.handleDeviceGateInput(input)
+      : false;
+
+    if (!inputBlockedByDeviceGate && input.musicTogglePressed) {
       const musicEnabled = !this.music.isMusicEnabled();
       this.music.setMusicEnabled(musicEnabled);
       this.audio.playUiSelect();
     }
 
-    if (input.musicVolumeDownPressed) {
+    if (!inputBlockedByDeviceGate && input.musicVolumeDownPressed) {
       this.settings.adjustMusicVolume(-0.1);
       this.applySettings();
       this.audio.playUiSelect();
     }
 
-    if (input.musicVolumeUpPressed) {
+    if (!inputBlockedByDeviceGate && input.musicVolumeUpPressed) {
       this.settings.adjustMusicVolume(0.1);
       this.applySettings();
       this.audio.playUiSelect();
     }
 
-    if (input.sfxVolumeDownPressed) {
+    if (!inputBlockedByDeviceGate && input.sfxVolumeDownPressed) {
       this.settings.adjustSfxVolume(-0.1);
       this.applySettings();
       this.audio.playUiSelect();
     }
 
-    if (input.sfxVolumeUpPressed) {
+    if (!inputBlockedByDeviceGate && input.sfxVolumeUpPressed) {
       this.settings.adjustSfxVolume(0.1);
       this.applySettings();
       this.audio.playUiSelect();
     }
 
-    if (input.sfxTogglePressed) {
+    if (!inputBlockedByDeviceGate && input.sfxTogglePressed) {
       this.audio.toggleSfx();
       this.audio.playUiSelect();
     }
 
     const inputBlockedByCinematic =
-      this.cinematicDirector.isActive() || cinematicInputConsumed;
-    this.handleRadioSkip(input, inputBlockedByCinematic);
-    const consumedOverlayInput = inputBlockedByCinematic
-      ? false
-      : this.handleOverlayInput(input);
+      !inputBlockedByDeviceGate &&
+      (this.cinematicDirector.isActive() || cinematicInputConsumed);
+    this.handleRadioSkip(input, inputBlockedByCinematic || inputBlockedByDeviceGate);
+    const consumedOverlayInput = inputBlockedByDeviceGate
+      ? consumedDeviceGateInput
+      : inputBlockedByCinematic
+        ? false
+        : this.handleOverlayInput(input);
     const canUseUpgradePanel =
+      !inputBlockedByDeviceGate &&
       !inputBlockedByCinematic &&
       !this.helpOpen &&
       !this.isPaused &&
@@ -592,17 +626,30 @@ export class Game {
       this.audio.playUiSelect();
     }
 
-    let consumedStartInput = cinematicInputConsumed;
+    let consumedStartInput = cinematicInputConsumed || inputBlockedByDeviceGate;
     if (
       !inputBlockedByCinematic &&
+      !inputBlockedByDeviceGate &&
       (consumedOverlayInput || this.helpOpen || this.isPaused || this.settingsOpen)
     ) {
       consumedStartInput = consumedOverlayInput;
-    } else if (!inputBlockedByCinematic && this.state === 'title') {
+    } else if (
+      !inputBlockedByCinematic &&
+      !inputBlockedByDeviceGate &&
+      this.state === 'title'
+    ) {
       consumedStartInput = this.handleTitleInput(input);
-    } else if (!inputBlockedByCinematic && this.state === 'sectorSelect') {
+    } else if (
+      !inputBlockedByCinematic &&
+      !inputBlockedByDeviceGate &&
+      this.state === 'sectorSelect'
+    ) {
       consumedStartInput = this.handleSectorSelectInput(input);
-    } else if (!inputBlockedByCinematic && this.state === 'missionComplete') {
+    } else if (
+      !inputBlockedByCinematic &&
+      !inputBlockedByDeviceGate &&
+      this.state === 'missionComplete'
+    ) {
       consumedStartInput = this.handleMissionCompleteInput(input);
     }
 
@@ -610,6 +657,7 @@ export class Game {
       input.restartPressed &&
       this.state === 'gameover' &&
       !this.helpOpen &&
+      !inputBlockedByDeviceGate &&
       !inputBlockedByCinematic
     ) {
       this.restart();
@@ -619,6 +667,7 @@ export class Game {
       input.tutorialSkipPressed &&
       this.state === 'playing' &&
       !this.isGameplayPaused() &&
+      !inputBlockedByDeviceGate &&
       !inputBlockedByCinematic &&
       this.tutorialDirector.getSnapshot().isActive
     ) {
@@ -1203,6 +1252,94 @@ export class Game {
     }
   }
 
+  private handleDeviceGateInput(input: InputState): boolean {
+    if (!this.deviceGateOpen) {
+      return false;
+    }
+
+    if (input.laneUpPressed || input.menuUpPressed) {
+      this.moveDeviceGateSelection(-1);
+      return true;
+    }
+
+    if (input.laneDownPressed || input.menuDownPressed) {
+      this.moveDeviceGateSelection(1);
+      return true;
+    }
+
+    if (input.deviceGateDontShowTogglePressed) {
+      this.toggleDeviceGateDontShowAgain();
+      return true;
+    }
+
+    if (input.escapePressed) {
+      this.closeDeviceGate(false);
+      return true;
+    }
+
+    if (input.startPressed || input.menuSelectPressed) {
+      this.activateDeviceGateOption(getDeviceGateOption(this.deviceGateSelectedIndex));
+      return true;
+    }
+
+    return true;
+  }
+
+  private moveDeviceGateSelection(direction: number): void {
+    this.deviceGateSelectedIndex = normalizeDeviceGateOptionIndex(
+      this.deviceGateSelectedIndex + direction
+    );
+    this.audio.playUiSelect();
+  }
+
+  private toggleDeviceGateDontShowAgain(): void {
+    this.deviceGateDontShowAgain = !this.deviceGateDontShowAgain;
+    this.audio.playUiSelect();
+  }
+
+  private activateDeviceGateOption(optionId: DeviceGateOptionId): void {
+    if (!this.deviceGateOpen) {
+      return;
+    }
+
+    if (optionId === 'mobileLite') {
+      this.audio.playUiSelect();
+      return;
+    }
+
+    this.closeDeviceGate(optionId === 'continueFullGame');
+  }
+
+  private closeDeviceGate(allowPermanentDismissal: boolean): void {
+    if (allowPermanentDismissal && this.deviceGateDontShowAgain) {
+      this.deviceProfile.dismissPermanently();
+    }
+
+    this.deviceGateSessionDismissed = true;
+    this.deviceGateOpen = false;
+    this.audio.playUiSelect();
+  }
+
+  private updateDeviceGateVisibility(): void {
+    const profile = this.getDeviceProfileSnapshot();
+
+    this.deviceGateOpen =
+      this.state === 'title' &&
+      !this.deviceGateSessionDismissed &&
+      profile.shouldShowDeviceGate;
+
+    if (!this.deviceGateOpen) {
+      this.deviceGateDontShowAgain = false;
+      this.deviceGateSelectedIndex = 0;
+    }
+  }
+
+  private getDeviceProfileSnapshot(): DeviceProfileSnapshot {
+    return this.deviceProfile.getSnapshot(
+      this.settings.getSnapshot().deviceExperienceMode
+    );
+  }
+
   private handleOverlayInput(input: InputState): boolean {
     if (input.achievementsTogglePressed && this.canToggleAchievements()) {
       this.achievementsOpen = !this.achievementsOpen;
@@ -1646,13 +1783,15 @@ export class Game {
 
   private handleSettingsInput(input: InputState): boolean {
     if (input.laneUpPressed) {
-      this.settingsSelectionIndex = (this.settingsSelectionIndex + 5) % 6;
+      this.settingsSelectionIndex =
+        (this.settingsSelectionIndex + SETTINGS_ROW_COUNT - 1) % SETTINGS_ROW_COUNT;
       this.audio.playUiSelect();
       return true;
     }
 
     if (input.laneDownPressed) {
-      this.settingsSelectionIndex = (this.settingsSelectionIndex + 1) % 6;
+      this.settingsSelectionIndex =
+        (this.settingsSelectionIndex + 1) % SETTINGS_ROW_COUNT;
       this.audio.playUiSelect();
       return true;
     }
@@ -1683,6 +1822,8 @@ export class Game {
       this.settings.toggleHighContrastHazards();
     } else if (this.settingsSelectionIndex === 5) {
       this.settings.cycleTouchControlsMode(direction);
+    } else if (this.settingsSelectionIndex === 6) {
+      this.settings.cycleDeviceExperienceMode(direction);
     }
 
     this.applySettings();
@@ -2323,6 +2464,7 @@ export class Game {
     this.settingsOpen = false;
     this.titleMenuSelectedIndex = 0;
     this.titleMenuInteracted = false;
+    this.updateDeviceGateVisibility();
     this.music.startTitleMusic();
     if (!this.titleCinematicPlayed) {
       this.titleCinematicPlayed = true;
@@ -3486,6 +3628,7 @@ export class Game {
     const eventWave = this.eventWaveDirector.getSnapshot();
     const eventEffects = this.eventWaveDirector.getEffects();
     const settings = this.settings.getSnapshot();
+    const deviceProfile = this.deviceProfile.getSnapshot(settings.deviceExperienceMode);
     const cinematic = this.cinematicDirector.getSnapshot();
     const defaultSector = getSectorById(this.sectorProgress.getDefaultSectorId());
     const cosmeticSnapshot = this.cosmetics.getSnapshot();
@@ -3578,6 +3721,7 @@ export class Game {
     });
     this.titleOverlay.update({
       state: this.state,
+      deviceGateOpen: this.deviceGateOpen,
       upgradePanelOpen: this.upgradePanelOpen,
       contractBoardOpen: this.contractBoardOpen,
       achievementsOpen: this.achievementsOpen,
@@ -3617,6 +3761,12 @@ export class Game {
       upgrades: upgradeSnapshot,
       upgradePanelOpen: this.upgradePanelOpen,
       cinematicActive: cinematic.isActive
+    });
+    this.deviceGateOverlay.update({
+      isOpen: this.deviceGateOpen,
+      profile: deviceProfile,
+      selectedOptionIndex: this.deviceGateSelectedIndex,
+      dontShowAgain: this.deviceGateDontShowAgain
     });
     this.upgradePanel.update({
       isOpen: this.upgradePanelOpen,
@@ -3696,6 +3846,7 @@ export class Game {
       state: this.state,
       overlaysOpen:
         this.helpOpen ||
+        this.deviceGateOpen ||
         this.settingsOpen ||
         this.upgradePanelOpen ||
         this.galleryOpen ||
@@ -3711,6 +3862,7 @@ export class Game {
   private readonly handleResize = (): void => {
     this.updateCameraForViewport();
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+    this.updateDeviceGateVisibility();
   };
 
   private updateCameraForViewport(): void {
@@ -3764,6 +3916,7 @@ export class Game {
     document.documentElement.dataset.highContrastHazards = String(
       settings.highContrastHazards
     );
+    this.updateDeviceGateVisibility();
 
     if (this.worldCore) {
       this.applyCurrentSectorTheme(false);
@@ -3839,6 +3992,7 @@ export class Game {
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
     const tutorial = this.tutorialDirector.getSnapshot();
     const settings = this.settings.getSnapshot();
+    const deviceProfile = this.deviceProfile.getSnapshot(settings.deviceExperienceMode);
     const cinematic = this.cinematicDirector.getSnapshot();
     const cosmetics = this.cosmetics.getSnapshot();
     const ships = this.ships.getSnapshot();
@@ -3881,6 +4035,8 @@ export class Game {
       cinematicTitle: cinematic.title,
       reducedMotion: this.reducedMotion,
       settings,
+      deviceProfile,
+      deviceGateOpen: this.deviceGateOpen,
       cosmetics,
       galleryOpen: this.galleryOpen,
       shipyardOpen: this.shipyardOpen,
@@ -3930,6 +4086,7 @@ export class Game {
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
     const tutorial = this.tutorialDirector.getSnapshot();
     const settings = this.settings.getSnapshot();
+    const deviceProfile = this.deviceProfile.getSnapshot(settings.deviceExperienceMode);
     const cinematic = this.cinematicDirector.getSnapshot();
     const cosmetics = this.cosmetics.getSnapshot();
     const ships = this.ships.getSnapshot();
@@ -3997,6 +4154,14 @@ export class Game {
     this.canvas.dataset.screenShakeIntensity = settings.screenShakeIntensity;
     this.canvas.dataset.highContrastHazards = String(settings.highContrastHazards);
     this.canvas.dataset.touchControlsMode = settings.touchControlsMode;
+    this.canvas.dataset.deviceExperienceMode = settings.deviceExperienceMode;
+    this.canvas.dataset.deviceGateOpen = String(this.deviceGateOpen);
+    this.canvas.dataset.deviceGateRecommended = deviceProfile.recommendedExperience;
+    this.canvas.dataset.deviceGateShouldShow = String(deviceProfile.shouldShowDeviceGate);
+    this.canvas.dataset.deviceSmallViewport = String(deviceProfile.isSmallViewport);
+    this.canvas.dataset.devicePortrait = String(deviceProfile.isPortrait);
+    this.canvas.dataset.deviceCoarsePointer = String(deviceProfile.isCoarsePointer);
+    this.canvas.dataset.deviceFinePointer = String(deviceProfile.hasFinePointer);
     this.canvas.dataset.scrap = String(this.upgrades.getSnapshot().totalScrap);
     this.canvas.dataset.shieldCharges = String(this.shieldCharges);
     this.canvas.dataset.upgradePanelOpen = String(this.upgradePanelOpen);

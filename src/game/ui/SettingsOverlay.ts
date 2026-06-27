@@ -31,6 +31,11 @@ const SETTING_ROWS = [
   {
     label: 'Touch controls',
     getValue: (settings: SettingsSnapshot) => titleCase(settings.touchControlsMode)
+  },
+  {
+    label: 'Device experience',
+    getValue: (settings: SettingsSnapshot) =>
+      settings.deviceExperienceMode === 'full' ? 'Full Game' : 'Auto'
   }
 ] as const;
 
@@ -104,6 +109,7 @@ function getFallbackSettings(): SettingsSnapshot {
     musicVolume: 1,
     sfxVolume: 1,
     highContrastHazards: false,
-    touchControlsMode: 'auto'
+    touchControlsMode: 'auto',
+    deviceExperienceMode: 'auto'
   };
 }

@@ -21,6 +21,7 @@ export interface TitleOverlaySnapshot extends Omit<
   selectedMenuIndex: number;
   menuInteracted: boolean;
   upgradePanelOpen: boolean;
+  deviceGateOpen: boolean;
   contractBoardOpen: boolean;
   achievementsOpen: boolean;
   galleryOpen: boolean;
@@ -147,6 +148,7 @@ export class TitleOverlay {
 
     this.setVisible(
       snapshot.state === 'title' &&
+        !snapshot.deviceGateOpen &&
         !snapshot.upgradePanelOpen &&
         !snapshot.contractBoardOpen &&
         !snapshot.achievementsOpen &&

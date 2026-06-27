@@ -11,6 +11,16 @@ type DebugState = {
   isPaused: boolean;
   helpOpen: boolean;
   settingsOpen: boolean;
+  deviceGateOpen: boolean;
+  deviceProfile: {
+    isSmallViewport: boolean;
+    isPortrait: boolean;
+    isCoarsePointer: boolean;
+    hasFinePointer: boolean;
+    hasTouch: boolean;
+    recommendedExperience: string;
+    shouldShowDeviceGate: boolean;
+  };
   contractBoardOpen: boolean;
   achievementsOpen: boolean;
   shipyardOpen: boolean;
@@ -67,6 +77,7 @@ type DebugState = {
     reducedMotion: boolean;
     screenShakeIntensity: string;
     touchControlsMode: string;
+    deviceExperienceMode: string;
   };
 };
 
@@ -125,6 +136,8 @@ test('loads the title scene and exposes debug state', async ({ page }) => {
   const state = await getDebugState(page);
   expect(state.sceneId).toBe('orbit-janitor');
   expect(state.phase).toBe('title');
+  expect(state.deviceGateOpen).toBe(false);
+  expect(state.deviceProfile.recommendedExperience).toBe('desktop');
   expect(state.sectorProgress.sectors.length).toBeGreaterThanOrEqual(13);
   expect(state.sectorProgress.sectors.map((sector) => sector.id)).toEqual(
     expect.arrayContaining([
@@ -137,6 +150,32 @@ test('loads the title scene and exposes debug state', async ({ page }) => {
     ])
   );
   expect(state.achievements.totalCount).toBeGreaterThanOrEqual(10);
+});
+
+test('shows device gate on phone-like viewport and allows continuing', async ({
+  page
+}) => {
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.goto('/');
+  await waitForGameReady(page);
+
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.deviceGateOpen))
+    .toBe(true);
+  await expect(page.locator('[data-device-gate-overlay]')).toBeVisible();
+  await expect(page.locator('[data-device-gate-overlay]')).toContainText(
+    'optimized for desktop keyboard or gamepad'
+  );
+
+  const gateState = await getDebugState(page);
+  expect(gateState.deviceProfile.recommendedExperience).toBe('phone');
+  expect(gateState.deviceProfile.shouldShowDeviceGate).toBe(true);
+
+  await page.keyboard.press('Enter');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.deviceGateOpen))
+    .toBe(false);
+  expect((await getDebugState(page)).phase).toBe('title');
 });
 
 test('toggles music and sfx preferences from keyboard input', async ({ page }) => {
@@ -272,7 +311,7 @@ test('supports dev-only debug panel and invincible toggle', async ({ page }) => 
 
 test('shows touch controls on narrow screens', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 760 });
-  await page.goto('/');
+  await page.goto('/?skipDeviceGate=1');
   await waitForGameReady(page);
 
   await expect(page.locator('.touch-controls')).toBeVisible();

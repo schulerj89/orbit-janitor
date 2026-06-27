@@ -84,9 +84,14 @@ Gamepad:
 - Right trigger or X / Square: boost.
 - Start: pause or resume.
 
-Touch:
+Touch and mobile:
 
-- On narrow or coarse-pointer screens, touch controls appear automatically.
+- Orbit Janitor is optimized for desktop keyboard/gamepad.
+- Touch controls exist, but full mobile play is experimental because the complete game includes sectors, upgrades, shipyard, challenge boards, powerups, event waves, audio, cinematics, and multiple overlays.
+- Phone-like viewports show a desktop-optimized notice before entering the full game.
+- Mobile Lite is planned; the current Mobile Lite option is a coming-soon path.
+- Landscape is recommended on phones.
+- On narrow or coarse-pointer screens, touch controls appear automatically after entering the game.
 - Touch controls can be forced on or off from Settings.
 - Edge buttons rotate, switch lanes, boost, and start or restart without covering the central orbit.
 
@@ -108,7 +113,7 @@ Touch:
 - Cosmetic gallery with procedural ship palettes, cockpit colors, engine trails, lane accents, pickup burst colors, and title badges.
 - Telegraph-first hazards: lane arcs, double lane arcs, sweepers, gate hazards, pulse mines, and debris showers.
 - Sector-specific event waves near finales and in endless mode: Debris Storm debris crossings, Satellite Net safe-lane formations, Solar Flare lane pulses, Comet Pass background fly-bys, and Cleanup Frenzy reward phases.
-- Keyboard, gamepad, and touch controls.
+- Desktop-first keyboard/gamepad controls, with experimental touch controls and a planned Mobile Lite path.
 - Accessibility settings for reduced motion, screen shake intensity, high-contrast hazards, and audio volumes.
 - Web Audio procedural fallback plus optional committed MP3 SFX/music under `public/audio`.
 - Playwright smoke tests using `window.orbitJanitorDebug`.

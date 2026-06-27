@@ -34,6 +34,7 @@ export interface InputState {
   contractBoardTogglePressed: boolean;
   achievementsTogglePressed: boolean;
   settingsTogglePressed: boolean;
+  deviceGateDontShowTogglePressed: boolean;
   debugPanelTogglePressed: boolean;
   debugCommandPressed: number | null;
   upgradeBuyPressed: number | null;
@@ -79,6 +80,7 @@ export class InputController {
     this.state.contractBoardTogglePressed = false;
     this.state.achievementsTogglePressed = false;
     this.state.settingsTogglePressed = false;
+    this.state.deviceGateDontShowTogglePressed = false;
     this.state.debugPanelTogglePressed = false;
     this.state.debugCommandPressed = null;
     this.state.upgradeBuyPressed = null;
@@ -101,6 +103,7 @@ export class InputController {
       this.state.right = true;
       if (event.code === 'KeyD' && !event.repeat) {
         this.state.dailyStartPressed = true;
+        this.state.deviceGateDontShowTogglePressed = true;
       }
       if (!event.repeat) {
         this.state.rightPressed = true;
@@ -321,6 +324,7 @@ export function createNeutralInputState(): InputState {
     contractBoardTogglePressed: false,
     achievementsTogglePressed: false,
     settingsTogglePressed: false,
+    deviceGateDontShowTogglePressed: false,
     debugPanelTogglePressed: false,
     debugCommandPressed: null,
     upgradeBuyPressed: null
@@ -366,6 +370,7 @@ export function mergeInputStates(...states: InputState[]): InputState {
     merged.contractBoardTogglePressed ||= state.contractBoardTogglePressed;
     merged.achievementsTogglePressed ||= state.achievementsTogglePressed;
     merged.settingsTogglePressed ||= state.settingsTogglePressed;
+    merged.deviceGateDontShowTogglePressed ||= state.deviceGateDontShowTogglePressed;
     merged.debugPanelTogglePressed ||= state.debugPanelTogglePressed;
     merged.debugCommandPressed ??= state.debugCommandPressed;
     merged.upgradeBuyPressed ??= state.upgradeBuyPressed;

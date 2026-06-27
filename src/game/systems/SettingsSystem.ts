@@ -1,5 +1,6 @@
 export type ScreenShakeIntensity = 'off' | 'low' | 'normal';
 export type TouchControlsMode = 'auto' | 'on' | 'off';
+export type DeviceExperienceMode = 'auto' | 'full';
 
 export interface SettingsSnapshot {
   reducedMotion: boolean;
@@ -8,6 +9,7 @@ export interface SettingsSnapshot {
   sfxVolume: number;
   highContrastHazards: boolean;
   touchControlsMode: TouchControlsMode;
+  deviceExperienceMode: DeviceExperienceMode;
 }
 
 const SETTINGS_STORAGE_KEY = 'orbit-janitor.settings';
@@ -63,6 +65,14 @@ export class SettingsSystem {
     return this.update({ touchControlsMode: values[nextIndex] });
   }
 
+  cycleDeviceExperienceMode(direction = 1): SettingsSnapshot {
+    const values: DeviceExperienceMode[] = ['auto', 'full'];
+    const currentIndex = values.indexOf(this.snapshot.deviceExperienceMode);
+    const nextIndex = (currentIndex + direction + values.length) % values.length;
+
+    return this.update({ deviceExperienceMode: values[nextIndex] });
+  }
+
   adjustMusicVolume(delta: number): SettingsSnapshot {
     return this.update({ musicVolume: this.snapshot.musicVolume + delta });
   }
@@ -109,7 +119,8 @@ function getDefaultSettings(): SettingsSnapshot {
     musicVolume: DEFAULT_VOLUME,
     sfxVolume: DEFAULT_VOLUME,
     highContrastHazards: false,
-    touchControlsMode: 'auto'
+    touchControlsMode: 'auto',
+    deviceExperienceMode: 'auto'
   };
 }
 
@@ -124,6 +135,9 @@ function normalizeSettings(settings: SettingsSnapshot): SettingsSnapshot {
     highContrastHazards: Boolean(settings.highContrastHazards),
     touchControlsMode: isTouchControlsMode(settings.touchControlsMode)
       ? settings.touchControlsMode
+      : 'auto',
+    deviceExperienceMode: isDeviceExperienceMode(settings.deviceExperienceMode)
+      ? settings.deviceExperienceMode
       : 'auto'
   };
 }
@@ -155,4 +169,8 @@ function isScreenShakeIntensity(value: unknown): value is ScreenShakeIntensity {
 
 function isTouchControlsMode(value: unknown): value is TouchControlsMode {
   return value === 'auto' || value === 'on' || value === 'off';
+}
+
+function isDeviceExperienceMode(value: unknown): value is DeviceExperienceMode {
+  return value === 'auto' || value === 'full';
 }
