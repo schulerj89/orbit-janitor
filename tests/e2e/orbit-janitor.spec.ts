@@ -217,6 +217,10 @@ test('starts Mobile Lite from the phone device gate', async ({ page }) => {
   );
   await expectPhase(page, 'gameover');
   await skipCinematic(page);
+  await expect(page.locator('[data-run-summary]')).toContainText('Tap Replay to restart');
+  await expect(page.locator('[data-run-summary]')).not.toContainText(
+    'Press R to restart'
+  );
   await page.locator('[data-mobile-lite-action="title"]').click();
   await expectPhase(page, 'title');
 });
@@ -236,6 +240,12 @@ test('mobile touch end-state controls can advance a completed sector', async ({
   await page.keyboard.press('F2');
   await expectPhase(page, 'missionComplete');
   await skipCinematic(page);
+  await expect(page.locator('[data-mission-complete-overlay]')).toContainText(
+    'Tap Next for next sector'
+  );
+  await expect(page.locator('[data-mission-complete-overlay]')).not.toContainText(
+    'R replay'
+  );
   await expect(page.locator('.touch-controls-end-actions')).toBeVisible();
   await page.locator('[data-touch-action="next"]').click();
   await expectPhase(page, 'playing');

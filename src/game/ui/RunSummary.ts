@@ -12,6 +12,7 @@ export interface RunSummarySnapshot {
   upgrades: UpgradeSnapshot;
   upgradePanelOpen: boolean;
   cinematicActive: boolean;
+  usesTouchEndActions: boolean;
 }
 
 export class RunSummary {
@@ -29,6 +30,7 @@ export class RunSummary {
   private readonly objectiveValue: HTMLElement;
   private readonly scrapEarnedValue: HTMLElement;
   private readonly totalScrapValue: HTMLElement;
+  private readonly restartHelpValue: HTMLElement;
 
   constructor(root: HTMLElement) {
     root.insertAdjacentHTML(
@@ -63,7 +65,7 @@ export class RunSummary {
             <span>Total scrap</span>
             <strong data-summary-total-scrap>0</strong>
           </div>
-          <p class="run-summary-restart">Press R to restart</p>
+          <p class="run-summary-restart" data-summary-restart-help>Press R to restart</p>
         </section>
       `
     );
@@ -82,6 +84,7 @@ export class RunSummary {
     this.objectiveValue = getElement(root, '[data-summary-objective]');
     this.scrapEarnedValue = getElement(root, '[data-summary-scrap-earned]');
     this.totalScrapValue = getElement(root, '[data-summary-total-scrap]');
+    this.restartHelpValue = getElement(root, '[data-summary-restart-help]');
   }
 
   update(snapshot: RunSummarySnapshot): void {
@@ -107,6 +110,9 @@ export class RunSummary {
     this.objectiveValue.classList.toggle('is-complete', stats.objectiveComplete);
     this.scrapEarnedValue.textContent = String(snapshot.upgrades.lastRunScrapEarned);
     this.totalScrapValue.textContent = String(snapshot.upgrades.totalScrap);
+    this.restartHelpValue.textContent = snapshot.usesTouchEndActions
+      ? 'Tap Replay to restart | Title returns to menu'
+      : 'Press R to restart';
     this.setVisible(
       snapshot.state === 'gameover' &&
         !snapshot.upgradePanelOpen &&

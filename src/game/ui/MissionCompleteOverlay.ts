@@ -18,6 +18,7 @@ export interface MissionCompleteOverlaySnapshot {
   achievementNames: readonly string[];
   upgradePanelOpen: boolean;
   cinematicActive: boolean;
+  usesTouchEndActions: boolean;
 }
 
 export class MissionCompleteOverlay {
@@ -32,6 +33,7 @@ export class MissionCompleteOverlay {
   private readonly achievementsValue: HTMLElement;
   private readonly objectiveValue: HTMLElement;
   private readonly unlockValue: HTMLElement;
+  private readonly helpValue: HTMLElement;
 
   constructor(root: HTMLElement) {
     root.insertAdjacentHTML(
@@ -60,7 +62,7 @@ export class MissionCompleteOverlay {
             <span>Unlocked</span>
             <strong data-mission-unlock>None</strong>
           </div>
-          <p class="mission-complete-help">Enter next sector | R replay | Escape title</p>
+          <p class="mission-complete-help" data-mission-complete-help>Enter next sector | R replay | Escape title</p>
         </section>
       `
     );
@@ -76,6 +78,7 @@ export class MissionCompleteOverlay {
     this.achievementsValue = getElement(root, '[data-mission-achievements]');
     this.objectiveValue = getElement(root, '[data-mission-objective]');
     this.unlockValue = getElement(root, '[data-mission-unlock]');
+    this.helpValue = getElement(root, '[data-mission-complete-help]');
   }
 
   update(snapshot: MissionCompleteOverlaySnapshot): void {
@@ -106,6 +109,9 @@ export class MissionCompleteOverlay {
       'is-complete',
       snapshot.newlyUnlockedSectorName !== null
     );
+    this.helpValue.textContent = snapshot.usesTouchEndActions
+      ? 'Tap Next for next sector | Replay retry | Title menu'
+      : 'Enter next sector | R replay | Escape title';
     this.setVisible(
       snapshot.state === 'missionComplete' &&
         !snapshot.upgradePanelOpen &&

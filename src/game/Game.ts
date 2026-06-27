@@ -3876,6 +3876,9 @@ export class Game {
       unlockedSectors[unlockedSectors.length - 1] ??
       defaultSector;
     const upgradeSnapshot = this.upgrades.getSnapshot();
+    const usesTouchEndActions =
+      this.experienceMode === 'mobileLite' ||
+      deviceProfile.recommendedExperience !== 'desktop';
 
     document.documentElement.dataset.experienceMode = this.experienceMode;
 
@@ -3951,7 +3954,8 @@ export class Game {
       medalImproved: this.lastMissionMedalImproved,
       achievementNames: this.lastAchievementUnlockNames,
       upgradePanelOpen: this.upgradePanelOpen,
-      cinematicActive: cinematic.isActive
+      cinematicActive: cinematic.isActive,
+      usesTouchEndActions
     });
     this.titleOverlay.update({
       state: this.state,
@@ -3997,7 +4001,8 @@ export class Game {
         this.experienceMode === 'mobileLite' ? mobileLite.bestScore : stats.bestScore,
       upgrades: upgradeSnapshot,
       upgradePanelOpen: this.upgradePanelOpen,
-      cinematicActive: cinematic.isActive
+      cinematicActive: cinematic.isActive,
+      usesTouchEndActions
     });
     this.deviceGateOverlay.update({
       isOpen: this.deviceGateOpen,
