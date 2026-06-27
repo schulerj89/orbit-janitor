@@ -1,5 +1,6 @@
 import type { ActivePowerupSnapshot } from '../systems/PowerupDirector';
 import type { EventWavePhase } from '../systems/EventWaveDirector';
+import type { CinematicPresetKey } from '../cinematics/CinematicShot';
 
 export type GameState =
   | 'title'
@@ -40,6 +41,7 @@ export interface HudSnapshot {
   tutorialStepLabel: string | null;
   isPaused: boolean;
   cinematicActive: boolean;
+  cinematicPresetKey: CinematicPresetKey | null;
   shieldCharges: number;
   shieldBroken: boolean;
   gameOverReason: string;
@@ -52,6 +54,8 @@ export interface HudSnapshot {
 }
 
 export class Hud {
+  private readonly mainPanel: HTMLElement;
+  private readonly controlsPanel: HTMLElement;
   private readonly scoreValue: HTMLElement;
   private readonly statusValue: HTMLElement;
   private readonly runValue: HTMLElement;
@@ -150,6 +154,8 @@ export class Hud {
       </section>
     `;
 
+    this.mainPanel = getElement(root, '.hud-main');
+    this.controlsPanel = getElement(root, '.hud-controls');
     this.scoreValue = getElement(root, '[data-hud-score]');
     this.statusValue = getElement(root, '[data-hud-status]');
     this.runValue = getElement(root, '[data-hud-run]');
@@ -176,7 +182,10 @@ export class Hud {
         ? Math.max(0, Math.min(1, snapshot.comboTimer / snapshot.comboWindow))
         : 0;
     const boostPercent = Math.max(0, Math.min(1, snapshot.boostFuel));
+    const hidePanelsForCinematic = snapshot.cinematicActive;
 
+    this.mainPanel.classList.toggle('is-cinematic-hidden', hidePanelsForCinematic);
+    this.controlsPanel.classList.toggle('is-cinematic-hidden', hidePanelsForCinematic);
     this.scoreValue.textContent = String(snapshot.score);
     this.runValue.textContent =
       snapshot.state === 'title' ? 'Choose Run' : snapshot.runLabel;

@@ -188,6 +188,7 @@ test('restarts from game over with R when debug game-over hook is available', as
 }) => {
   await page.goto('/');
   await waitForGameReady(page);
+  await skipCinematic(page);
 
   await page.keyboard.press('Enter');
   await expectPhase(page, 'playing');

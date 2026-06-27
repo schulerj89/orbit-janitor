@@ -1,4 +1,5 @@
 import type { GameState } from './Hud';
+import type { CinematicPresetKey } from '../cinematics/CinematicShot';
 
 export interface TitleOverlaySnapshot {
   state: GameState;
@@ -9,6 +10,7 @@ export interface TitleOverlaySnapshot {
   musicEnabled: boolean;
   musicVolume: number;
   sfxEnabled: boolean;
+  cinematicPresetKey: CinematicPresetKey | null;
 }
 
 export class TitleOverlay {
@@ -82,7 +84,11 @@ export class TitleOverlay {
     this.musicValue.textContent = snapshot.musicEnabled ? 'On' : 'Off';
     this.musicVolumeValue.textContent = `${Math.round(snapshot.musicVolume * 100)}%`;
     this.sfxValue.textContent = snapshot.sfxEnabled ? 'On' : 'Off';
-    this.setVisible(snapshot.state === 'title' && !snapshot.upgradePanelOpen);
+    this.setVisible(
+      snapshot.state === 'title' &&
+        !snapshot.upgradePanelOpen &&
+        snapshot.cinematicPresetKey !== 'titleFlyIn'
+    );
   }
 
   private setVisible(isVisible: boolean): void {

@@ -55,7 +55,7 @@ Keyboard:
 - S: start the visible seeded run from the title screen. Add `?seed=YOUR-SEED` to the URL to choose that seed.
 - ArrowUp or W / ArrowDown or S: move selection in sector select.
 - Escape: return to title from sector select or mission complete, or close help, pause, and settings overlays.
-- Space / Enter / Escape: skip active cinematic sequences.
+- Space / Enter / Escape: skip active cinematic sequences. On first load, this reveals the title menu before starting a run.
 - ArrowLeft or A / ArrowRight or D: rotate around the sector core.
 - ArrowUp or W / ArrowDown or S: switch orbit lanes while playing.
 - Space: boost while held, limited by fuel.

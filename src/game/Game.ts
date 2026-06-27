@@ -382,12 +382,12 @@ export class Game {
     }
 
     const cinematicWasActive = this.cinematicDirector.isActive();
-    const titleCinematicYield =
+    const titleCinematicSkip =
       cinematicWasActive && this.state === 'title' && this.hasPlayerInput(input);
     const cinematicInputConsumed =
-      cinematicWasActive && input.cinematicSkipPressed && !titleCinematicYield;
+      cinematicWasActive && (input.cinematicSkipPressed || titleCinematicSkip);
 
-    if (cinematicWasActive && (input.cinematicSkipPressed || titleCinematicYield)) {
+    if (cinematicInputConsumed) {
       this.cinematicDirector.skip();
       this.audio.playUiSelect();
       this.audio.playBoostLoopStop();
@@ -428,16 +428,13 @@ export class Game {
       this.audio.playUiSelect();
     }
 
-    const allowTitleInputAfterCinematicSkip = titleCinematicYield;
     const inputBlockedByCinematic =
-      this.cinematicDirector.isActive() ||
-      (cinematicInputConsumed && !allowTitleInputAfterCinematicSkip);
+      this.cinematicDirector.isActive() || cinematicInputConsumed;
     const consumedOverlayInput = inputBlockedByCinematic
       ? false
       : this.handleOverlayInput(input);
     const canUseUpgradePanel =
       !inputBlockedByCinematic &&
-      !allowTitleInputAfterCinematicSkip &&
       !this.helpOpen &&
       !this.isPaused &&
       !this.settingsOpen &&
@@ -458,7 +455,7 @@ export class Game {
       this.audio.playUiSelect();
     }
 
-    let consumedStartInput = cinematicInputConsumed && !allowTitleInputAfterCinematicSkip;
+    let consumedStartInput = cinematicInputConsumed;
     if (
       !inputBlockedByCinematic &&
       (consumedOverlayInput || this.helpOpen || this.isPaused || this.settingsOpen)
@@ -2094,6 +2091,7 @@ export class Game {
       tutorialStepLabel: tutorial.currentStep?.id ?? null,
       isPaused: this.isPaused,
       cinematicActive: cinematic.isActive,
+      cinematicPresetKey: cinematic.presetKey,
       shieldCharges: this.shieldCharges,
       shieldBroken: this.shieldBrokenTimer > 0,
       gameOverReason: this.gameOverReason,
@@ -2128,7 +2126,8 @@ export class Game {
       dailyBestScore: challenge.dailyBestScore,
       musicEnabled: this.audio.isMusicEnabled(),
       musicVolume: this.music.getMusicVolume(),
-      sfxEnabled: this.audio.isSfxEnabled()
+      sfxEnabled: this.audio.isSfxEnabled(),
+      cinematicPresetKey: cinematic.presetKey
     });
     this.runSummary.update({
       state: this.state,
@@ -2179,6 +2178,7 @@ export class Game {
         this.settingsOpen ||
         this.upgradePanelOpen ||
         (this.isPaused && this.state === 'playing') ||
+        cinematic.isActive ||
         this.missionIntroActive
     });
   }
