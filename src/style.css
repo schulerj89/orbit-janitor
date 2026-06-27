@@ -63,6 +63,43 @@ body {
   width: min(310px, calc(100vw - 24px));
 }
 
+.hud-main.is-mobile-lite {
+  width: min(280px, calc(100vw - 24px));
+}
+
+.hud-lite-badge {
+  display: inline-block;
+  margin: -2px 0 8px;
+  padding: 4px 8px;
+  border: 1px solid rgb(126 231 255 / 42%);
+  border-radius: 999px;
+  background: rgb(14 40 54 / 72%);
+  color: #9fffee;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.hud-lite-badge.is-hidden {
+  display: none;
+}
+
+.hud-main.is-mobile-lite .hud-title {
+  margin-bottom: 3px;
+  font-size: clamp(1rem, 4vw, 1.35rem);
+}
+
+.hud-main.is-mobile-lite .hud-row {
+  min-height: 21px;
+  font-size: clamp(0.78rem, 3.1vw, 0.92rem);
+}
+
+.hud-main.is-mobile-lite .hud-objective {
+  white-space: normal;
+  text-align: left;
+}
+
 .hud-controls {
   bottom: clamp(12px, 3vw, 26px);
   width: min(390px, calc(100vw - 24px));
@@ -2394,6 +2431,127 @@ body {
 .touch-controls:not(.is-gameplay) .touch-control-boost,
 .touch-controls:not(.is-startable) .touch-control-start {
   display: none;
+}
+
+.mobile-lite-touch-controls {
+  position: absolute;
+  inset: auto 0 0;
+  height: 178px;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.mobile-lite-touch-controls.is-hidden {
+  display: none;
+}
+
+.mobile-lite-touch-controls button {
+  pointer-events: auto;
+  min-width: 96px;
+  min-height: 64px;
+  border: 1px solid rgb(159 255 238 / 44%);
+  border-radius: 10px;
+  background: rgb(5 14 24 / 84%);
+  color: #ffffff;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.88rem;
+  font-weight: 900;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 85%);
+  touch-action: none;
+}
+
+.mobile-lite-touch-controls button:active {
+  border-color: rgb(255 224 107 / 78%);
+  background: rgb(22 38 44 / 92%);
+  color: #ffe06b;
+}
+
+.mobile-lite-touch-lanes {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 76px);
+  display: flex;
+  gap: 10px;
+}
+
+.mobile-lite-touch-boost {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  min-width: 204px;
+}
+
+.mobile-lite-touch-start {
+  position: absolute;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: 50%;
+  min-width: 168px;
+  transform: translateX(-50%);
+}
+
+.mobile-lite-touch-controls:not(.is-gameplay) .mobile-lite-touch-lanes,
+.mobile-lite-touch-controls:not(.is-gameplay) .mobile-lite-touch-boost,
+.mobile-lite-touch-controls:not(.is-startable) .mobile-lite-touch-start {
+  display: none;
+}
+
+.mobile-lite-overlay {
+  position: absolute;
+  right: clamp(12px, 4vw, 28px);
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 188px);
+  width: min(340px, calc(100vw - 24px));
+  padding: 12px 14px;
+  border: 1px solid rgb(126 231 255 / 26%);
+  border-radius: 8px;
+  background: rgb(3 10 18 / 68%);
+  box-shadow: 0 14px 36px rgb(0 0 0 / 30%);
+  color: #edf7ff;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 80%);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    visibility 160ms ease;
+}
+
+.mobile-lite-overlay.is-hidden {
+  opacity: 0;
+  transform: translateY(8px);
+  visibility: hidden;
+}
+
+.mobile-lite-overlay-kicker {
+  display: block;
+  color: #9fffee;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mobile-lite-overlay strong {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(1.05rem, 4vw, 1.35rem);
+}
+
+.mobile-lite-overlay p {
+  margin: 6px 0 9px;
+  color: #cfe0ec;
+  font-size: 0.9rem;
+}
+
+.mobile-lite-guide {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+  color: #8ba7bd;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.78rem;
+}
+
+.mobile-lite-guide li.is-active {
+  color: #ffe06b;
 }
 
 :root[data-high-contrast-hazards='true'] .hud-event {

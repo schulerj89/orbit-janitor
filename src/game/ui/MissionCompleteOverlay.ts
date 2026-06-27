@@ -8,6 +8,7 @@ import type { GameState } from './Hud';
 export interface MissionCompleteOverlaySnapshot {
   state: GameState;
   sector: SectorConfig;
+  missionName: string;
   objective: MissionObjectiveSnapshot;
   stats: RunStatsSnapshot;
   upgrades: UpgradeSnapshot;
@@ -78,7 +79,7 @@ export class MissionCompleteOverlay {
   }
 
   update(snapshot: MissionCompleteOverlaySnapshot): void {
-    this.sectorValue.textContent = snapshot.sector.name;
+    this.sectorValue.textContent = snapshot.missionName;
     this.objectiveValue.textContent = snapshot.objective.text.replace('Objective: ', '');
     this.scoreValue.textContent = String(snapshot.stats.finalScore);
     this.timeValue.textContent = formatRunTime(snapshot.stats.runTime);

@@ -51,6 +51,7 @@ Keyboard:
 - ArrowUp/W and ArrowDown/S: move selection on the title main menu and sector select.
 - Enter or Space: activate the selected title menu option, or start the default sector when Start Mission is selected.
 - T: start Training Orbit from the title screen.
+- L: start Mobile Lite / Pocket Cleanup from the title screen.
 - C: open sector select from the title screen or mission complete screen.
 - D: start the daily challenge from the title screen.
 - S: start the visible seeded run before menu navigation, or move down after the title menu is active. Add `?seed=YOUR-SEED` to the URL to choose that seed.
@@ -89,15 +90,18 @@ Touch and mobile:
 - Orbit Janitor is optimized for desktop keyboard/gamepad.
 - Touch controls exist, but full mobile play is experimental because the complete game includes sectors, upgrades, shipyard, challenge boards, powerups, event waves, audio, cinematics, and multiple overlays.
 - Phone-like viewports show a desktop-optimized notice before entering the full game.
-- Mobile Lite is planned; the current Mobile Lite option is a coming-soon path.
+- Mobile Lite is available as a simplified Pocket Cleanup mode for phones.
 - Landscape is recommended on phones.
-- On narrow or coarse-pointer screens, touch controls appear automatically after entering the game.
+- Mobile Lite auto-orbits clockwise. Use Lane In, Lane Out, and Boost to dodge, collect, and finish the short objective: collect 20 junk or survive 75 seconds.
+- Mobile Lite has larger hazard warning windows, a two-satellite cap, no event waves, and a limited powerup pool.
+- On narrow or coarse-pointer screens, full-game touch controls appear automatically after entering the full game.
 - Touch controls can be forced on or off from Settings.
-- Edge buttons rotate, switch lanes, boost, and start or restart without covering the central orbit.
+- Edge buttons rotate, switch lanes, boost, and start or restart without covering the central orbit. Mobile Lite uses its own larger touch controls.
 
 ## Feature List
 
 - Official title screen with keyboard/gamepad main menu, sector select, mission complete, pause, help, settings, upgrade, cosmetic gallery, game over, and run summary overlays.
+- Mobile Lite Pocket Cleanup mode for phone-like devices, with auto-orbit, large touch controls, reduced hazards, shorter missions, reduced scrap rewards, and a separate best score.
 - Skippable real-time micro-cinematics for the official title reveal, sector world reveals, daily challenge launches, endless warnings, event warnings, mission complete fly-bys, medal ceremonies, ship unlocks, game over beats, and sector unlock reveals.
 - Structured sectors with score, junk collection, survival timer, hazard survival, tutorial, daily challenge, seeded run, and endless objectives.
 - Second sector pack with Graveyard Ring, Neon Belt, Frozen Relay, Reactor Grave, Junk Moon, and Long Orbit.
@@ -113,7 +117,7 @@ Touch and mobile:
 - Cosmetic gallery with procedural ship palettes, cockpit colors, engine trails, lane accents, pickup burst colors, and title badges.
 - Telegraph-first hazards: lane arcs, double lane arcs, sweepers, gate hazards, pulse mines, and debris showers.
 - Sector-specific event waves near finales and in endless mode: Debris Storm debris crossings, Satellite Net safe-lane formations, Solar Flare lane pulses, Comet Pass background fly-bys, and Cleanup Frenzy reward phases.
-- Desktop-first keyboard/gamepad controls, with experimental touch controls and a planned Mobile Lite path.
+- Desktop-first keyboard/gamepad controls, with experimental full-game touch controls and Mobile Lite for phones.
 - Accessibility settings for reduced motion, screen shake intensity, high-contrast hazards, and audio volumes.
 - Web Audio procedural fallback plus optional committed MP3 SFX/music under `public/audio`.
 - Playwright smoke tests using `window.orbitJanitorDebug`.
@@ -179,4 +183,4 @@ Before a public release, confirm the deployed URL loads the canvas, starts from 
 3. Continue the audio mix pass so static music sits clearly above SFX while preserving procedural fallback.
 4. Add more sector-specific hazard/event rules and powerup tuning.
 5. Expand upgrades and cosmetics with more distinct late-run choices.
-6. Add broader browser/device smoke coverage for gamepad, touch, reduced motion, and WebGPU fallback behavior.
+6. Add broader browser/device smoke coverage for gamepad, touch, reduced motion, Mobile Lite, and WebGPU fallback behavior.

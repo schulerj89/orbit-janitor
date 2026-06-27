@@ -31,6 +31,7 @@ export interface PowerupDirectorContext {
   rng: SeededRandom;
   canSpawn: boolean;
   spawnIntervalMultiplier?: number;
+  allowedPowerupTypes?: readonly PowerupType[];
 }
 
 export interface ActivePowerupSnapshot {
@@ -190,7 +191,10 @@ export class PowerupDirector {
   }
 
   private spawn(context: PowerupDirectorContext): void {
-    const type = context.rng.pick([...getPowerupTypes()]);
+    const allowedTypes = context.allowedPowerupTypes?.length
+      ? context.allowedPowerupTypes
+      : getPowerupTypes();
+    const type = context.rng.pick([...allowedTypes]);
     const { laneIndex, angle } = this.pickSpawnLocation(context);
 
     this.powerup.spawn(type, laneIndex, angle);

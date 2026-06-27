@@ -95,7 +95,7 @@ export class TitleOverlay {
             </div>
           </div>
           <p class="title-overlay-footer">
-            Arrows/W/S select | Enter/Space activate | H help | A achievements | B contracts | Y shipyard | G gallery | M/N audio
+            Arrows/W/S select | Enter/Space activate | L Mobile Lite | H help | A achievements | B contracts | Y shipyard | G gallery | M/N audio
           </p>
         </section>
       `

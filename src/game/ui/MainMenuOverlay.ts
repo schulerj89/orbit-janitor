@@ -1,6 +1,7 @@
 export type MainMenuOptionId =
   | 'startMission'
   | 'trainingOrbit'
+  | 'mobileLite'
   | 'sectorSelect'
   | 'dailyChallenge'
   | 'seededRun'
@@ -27,6 +28,11 @@ export const MAIN_MENU_OPTIONS: readonly MainMenuOption[] = [
     id: 'trainingOrbit',
     label: 'Training Orbit',
     shortcut: 'T'
+  },
+  {
+    id: 'mobileLite',
+    label: 'Mobile Lite',
+    shortcut: 'L'
   },
   {
     id: 'sectorSelect',

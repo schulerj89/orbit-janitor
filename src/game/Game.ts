@@ -27,6 +27,7 @@ import {
   type InputState
 } from './input';
 import { GamepadInput } from './input/GamepadInput';
+import { MobileLiteTouchControls } from './input/MobileLiteTouchControls';
 import { TouchControls } from './input/TouchControls';
 import {
   angularDistance,
@@ -88,7 +89,18 @@ import {
   type MedalSnapshot,
   type MedalTier
 } from './systems/MedalSystem';
-import { MissionDirector } from './systems/MissionDirector';
+import {
+  MissionDirector,
+  type MissionDifficulty,
+  type MissionObjectiveSnapshot
+} from './systems/MissionDirector';
+import {
+  MOBILE_LITE_MISSION_LABEL,
+  MOBILE_LITE_SCRAP_MULTIPLIER,
+  MobileLiteMode,
+  type GameExperienceMode,
+  type MobileLiteSnapshot
+} from './systems/MobileLiteMode';
 import {
   PowerupDirector,
   type PowerupDirectorDebugState
@@ -142,6 +154,7 @@ import {
 } from './ui/MainMenuOverlay';
 import { MissionCompleteOverlay } from './ui/MissionCompleteOverlay';
 import { MissionIntroOverlay } from './ui/MissionIntroOverlay';
+import { MobileLiteOverlay } from './ui/MobileLiteOverlay';
 import { PauseOverlay } from './ui/PauseOverlay';
 import { PowerupToast } from './ui/PowerupToast';
 import { RadioOverlay } from './ui/RadioOverlay';
@@ -163,6 +176,8 @@ const OBSTACLE_SPEEDS = [-0.72, 0.58, -0.88, 0.69];
 const OBSTACLE_SPAWN_MIN_SEPARATION = 1.0;
 const MISSION_INTRO_DURATION = 3.35;
 const MISSION_INTRO_REDUCED_MOTION_DURATION = 0.95;
+const MOBILE_LITE_INTRO_DURATION = 1.35;
+const MOBILE_LITE_REDUCED_MOTION_INTRO_DURATION = 0.45;
 const NEAR_MISS_DISTANCE_BONUS = 0.36;
 const NEAR_MISS_COOLDOWN = 0.72;
 const HAZARD_NEAR_MISS_ANGLE = 0.92;
@@ -183,6 +198,8 @@ interface OrbitJanitorDebugState {
   runMode: ChallengeRunMode;
   runLabel: string;
   runSeed: string;
+  experienceMode: GameExperienceMode;
+  mobileLite: MobileLiteSnapshot;
   dailyBestScore: number;
   sectorId: string;
   sectorName: string;
@@ -285,6 +302,7 @@ export class Game {
   private readonly medals = new MedalSystem();
   private readonly achievements = new AchievementSystem();
   private readonly deviceProfile = new DeviceProfile();
+  private readonly mobileLite = new MobileLiteMode();
   private readonly challengeMode = new ChallengeMode();
   private readonly missionDirector = new MissionDirector();
   private readonly sectorProgress = new SectorProgress();
@@ -328,10 +346,12 @@ export class Game {
   private galleryOverlay!: GalleryOverlay;
   private shipyardOverlay!: ShipyardOverlay;
   private touchControls!: TouchControls;
+  private mobileLiteTouchControls!: MobileLiteTouchControls;
   private impactFlash!: ImpactFlash;
   private floatingText!: FloatingText;
   private cinematicLetterbox!: CinematicLetterbox;
   private missionIntroOverlay!: MissionIntroOverlay;
+  private mobileLiteOverlay!: MobileLiteOverlay;
   private orbitLanes!: OrbitLanes;
   private worldCore!: WorldCore;
   private starfield!: Starfield;
@@ -339,6 +359,7 @@ export class Game {
   private junk!: Junk;
   private ghostMarker!: GhostMarker;
   private state: GameState = 'title';
+  private experienceMode: GameExperienceMode = 'full';
   private score = 0;
   private comboCount = 0;
   private comboMultiplier = 1;
@@ -441,10 +462,12 @@ export class Game {
     this.galleryOverlay = new GalleryOverlay(hudRoot);
     this.shipyardOverlay = new ShipyardOverlay(hudRoot);
     this.touchControls = new TouchControls(hudRoot);
+    this.mobileLiteTouchControls = new MobileLiteTouchControls(hudRoot);
     this.impactFlash = new ImpactFlash(hudRoot);
     this.floatingText = new FloatingText(hudRoot);
     this.cinematicLetterbox = new CinematicLetterbox(hudRoot);
     this.missionIntroOverlay = new MissionIntroOverlay(hudRoot);
+    this.mobileLiteOverlay = new MobileLiteOverlay(hudRoot);
     if (import.meta.env.DEV) {
       const [{ DebugPanel }, { DebugCommands }] = await Promise.all([
         import('./debug/DebugPanel'),
@@ -515,7 +538,8 @@ export class Game {
     const input = mergeInputStates(
       this.input.consumeFrame(),
       this.gamepadInput.consumeFrame(),
-      this.touchControls.consumeFrame()
+      this.touchControls.consumeFrame(),
+      this.mobileLiteTouchControls.consumeFrame()
     );
 
     if (import.meta.env.DEV) {
@@ -687,6 +711,7 @@ export class Game {
       consumedStartInput ||
       this.missionIntroActive;
     const inputPowerupEffects = this.powerupDirector.getEffects();
+    const playerInput = this.getPlayerInput(input, controlsLocked);
     const wasBoosting = this.isBoosting;
     const isBoosting = this.updateBoost(
       delta,
@@ -707,7 +732,7 @@ export class Game {
       this.audio.playBoostEnd();
     }
 
-    this.player.update(delta, input, controlsLocked, isBoosting);
+    this.player.update(delta, playerInput, controlsLocked, isBoosting);
 
     if (this.player.targetLaneIndex !== previousTargetLane) {
       this.audio.playLaneSwitch();
@@ -757,13 +782,11 @@ export class Game {
         eventEffects.satelliteNet
       );
       this.syncRunStats();
-      this.updateTutorial(delta, input, isBoosting);
+      this.updateTutorial(delta, playerInput, isBoosting);
       this.announceObjectiveHalfProgress();
 
       if (this.state === 'playing' && !this.tryCompleteMission()) {
-        const difficulty = this.missionDirector.getDifficulty(
-          this.runStats.getSnapshot()
-        );
+        const difficulty = this.getEffectiveDifficulty(this.runStats.getSnapshot());
         const wasHazardWarning = this.hazardWarning;
         const wasHazardActive = this.hazardActive;
         const hazardResult = this.hazardDirector.update(
@@ -816,7 +839,7 @@ export class Game {
           this.hazardNearMissArmed = false;
           this.runStats.recordHazardSurvived();
           this.syncRunStats();
-          this.updateTutorial(0, input, isBoosting);
+          this.updateTutorial(0, playerInput, isBoosting);
         }
 
         if (this.tryCompleteMission()) {
@@ -829,7 +852,7 @@ export class Game {
           this.checkHazardNearMiss(hazardResult);
           this.checkCollisions();
           this.syncRunStats();
-          this.updateTutorial(0, input, isBoosting);
+          this.updateTutorial(0, playerInput, isBoosting);
           this.tryCompleteMission();
         }
       }
@@ -881,6 +904,58 @@ export class Game {
       input.debugCommandPressed,
       this.createDebugCommandContext()
     );
+  }
+
+  private getPlayerInput(input: InputState, controlsLocked: boolean): InputState {
+    if (this.experienceMode !== 'mobileLite' || controlsLocked) {
+      return input;
+    }
+
+    return {
+      ...input,
+      left: false,
+      right: true,
+      leftPressed: false,
+      rightPressed: false
+    };
+  }
+
+  private getCurrentObjective(
+    stats = this.runStats.getSnapshot()
+  ): MissionObjectiveSnapshot {
+    return this.experienceMode === 'mobileLite'
+      ? this.mobileLite.getObjective(stats)
+      : this.missionDirector.getObjective(stats);
+  }
+
+  private getEffectiveDifficulty(stats?: RunStatsSnapshot): MissionDifficulty {
+    const difficulty = this.missionDirector.getDifficulty(stats);
+
+    if (this.experienceMode !== 'mobileLite') {
+      return difficulty;
+    }
+
+    const modifiers = this.mobileLite.getDifficultyModifiers();
+
+    return {
+      ...difficulty,
+      startingObstacleCount: Math.min(
+        difficulty.startingObstacleCount,
+        modifiers.obstacleCap
+      ),
+      maxObstacleCount: Math.min(difficulty.maxObstacleCount, modifiers.obstacleCap),
+      hazardTelegraphMultiplier:
+        difficulty.hazardTelegraphMultiplier * modifiers.hazardTelegraphMultiplier,
+      hazardActiveMultiplier:
+        difficulty.hazardActiveMultiplier * modifiers.hazardActiveMultiplier,
+      eventWaveTypes: modifiers.eventsEnabled ? difficulty.eventWaveTypes : []
+    };
+  }
+
+  private getMissionDisplayName(): string {
+    return this.experienceMode === 'mobileLite'
+      ? MOBILE_LITE_MISSION_LABEL
+      : this.missionDirector.getCurrentSector().name;
   }
 
   private updateDebugFps(delta: number): void {
@@ -979,6 +1054,7 @@ export class Game {
     const sector = this.missionDirector.getCurrentSector();
 
     if (
+      this.experienceMode !== 'mobileLite' &&
       !sector.isTutorial &&
       sector.eventWaveTypes.length > 0 &&
       this.eventWaveDirector.getDebugState().type === 'none'
@@ -992,7 +1068,7 @@ export class Game {
       }
     }
 
-    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+    const difficulty = this.getEffectiveDifficulty(this.runStats.getSnapshot());
     const hazardTypes =
       difficulty.allowedHazardTypes.length > 0
         ? [...difficulty.allowedHazardTypes]
@@ -1111,7 +1187,7 @@ export class Game {
 
     return {
       sector: this.missionDirector.getCurrentSector(),
-      objective: this.missionDirector.getObjective(stats),
+      objective: this.getCurrentObjective(stats),
       stats,
       playerAngle: this.player.angle,
       playerRadius: this.player.currentRadius,
@@ -1126,7 +1202,7 @@ export class Game {
       throw new Error('Debug hazard context is unavailable outside dev builds.');
     }
 
-    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+    const difficulty = this.getEffectiveDifficulty(this.runStats.getSnapshot());
     const eventEffects = this.eventWaveDirector.getEffects();
 
     return {
@@ -1303,7 +1379,8 @@ export class Game {
     }
 
     if (optionId === 'mobileLite') {
-      this.audio.playUiSelect();
+      this.closeDeviceGate(true);
+      this.startMobileLiteRun();
       return;
     }
 
@@ -1892,10 +1969,14 @@ export class Game {
   }
 
   private updateEventWave(delta: number): void {
+    if (this.experienceMode === 'mobileLite') {
+      return;
+    }
+
     const stats = this.runStats.getSnapshot();
     const result = this.eventWaveDirector.update(delta, {
       sector: this.missionDirector.getCurrentSector(),
-      objective: this.missionDirector.getObjective(stats),
+      objective: this.getCurrentObjective(stats),
       stats,
       playerAngle: this.player.angle,
       playerRadius: this.player.currentRadius,
@@ -1939,7 +2020,7 @@ export class Game {
   }
 
   private forceEventHazard(type: HazardPatternType): void {
-    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+    const difficulty = this.getEffectiveDifficulty(this.runStats.getSnapshot());
     const eventEffects = this.eventWaveDirector.getEffects();
 
     if (
@@ -1969,7 +2050,8 @@ export class Game {
 
   private updatePowerups(delta: number): void {
     const tutorial = this.tutorialDirector.getSnapshot();
-    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+    const difficulty = this.getEffectiveDifficulty(this.runStats.getSnapshot());
+    const mobileLiteModifiers = this.mobileLite.getDifficultyModifiers();
     const result = this.powerupDirector.update(delta, {
       playerAngle: this.player.angle,
       playerRadius: this.player.currentRadius,
@@ -1979,7 +2061,11 @@ export class Game {
       hazard: this.hazardDirector.getDebugState(),
       rng: this.runRng,
       canSpawn: !tutorial.isActive,
-      spawnIntervalMultiplier: difficulty.powerupSpawnIntervalMultiplier
+      spawnIntervalMultiplier: difficulty.powerupSpawnIntervalMultiplier,
+      allowedPowerupTypes:
+        this.experienceMode === 'mobileLite'
+          ? mobileLiteModifiers.allowedPowerupTypes
+          : undefined
     });
 
     if (result.collected) {
@@ -2306,16 +2392,26 @@ export class Game {
     this.hazardNearMissArmed = false;
     this.gameOverReason = reason;
     this.syncRunStats();
-    this.runStats.complete(reason);
+    this.runStats.complete(reason, this.experienceMode !== 'mobileLite');
     const finalStats = this.runStats.getSnapshot();
 
-    this.challengeMode.completeRun(finalStats.finalScore);
-    this.unlockEndlessCosmeticIfEligible(finalStats.finalScore);
-    this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
-    this.handleContractCompletions();
+    if (this.experienceMode === 'mobileLite') {
+      this.mobileLite.completeRun(finalStats.finalScore);
+      this.upgrades.awardRunScrap(
+        finalStats,
+        this.runBonusScrap,
+        MOBILE_LITE_SCRAP_MULTIPLIER
+      );
+    } else {
+      this.challengeMode.completeRun(finalStats.finalScore);
+      this.unlockEndlessCosmeticIfEligible(finalStats.finalScore);
+      this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
+      this.handleContractCompletions();
+      this.handleAchievementUnlocks();
+    }
+
     this.lastMissionMedalTier = 'none';
     this.lastMissionMedalImproved = false;
-    this.handleAchievementUnlocks();
     this.rewardToast.show({
       achievementNames: this.lastAchievementUnlockNames
     });
@@ -2336,10 +2432,14 @@ export class Game {
     this.cameraRig.punch(0.34);
     this.impactFlash.flash('hit');
     this.floatingText.show('CRITICAL HIT', 'warning');
-    this.playCinematic('gameOverImpact', {
-      gameOverReason: reason,
-      focus: this.getPlayerFocus()
-    });
+    if (this.experienceMode === 'mobileLite') {
+      this.cinematicDirector.skip();
+    } else {
+      this.playCinematic('gameOverImpact', {
+        gameOverReason: reason,
+        focus: this.getPlayerFocus()
+      });
+    }
     this.queuePendingShipUnlockCinematics();
   }
 
@@ -2363,33 +2463,48 @@ export class Game {
     this.hazardNearMissArmed = false;
     this.runStats.recordSectorCompleted();
     this.syncRunStats();
-    this.runStats.complete('Mission complete');
+    this.runStats.complete(
+      this.experienceMode === 'mobileLite'
+        ? 'Pocket Cleanup complete'
+        : 'Mission complete',
+      this.experienceMode !== 'mobileLite'
+    );
     const finalStats = this.runStats.getSnapshot();
     const sector = this.missionDirector.getCurrentSector();
-    const objective = this.missionDirector.getObjective(finalStats);
+    const objective = this.getCurrentObjective(finalStats);
 
-    this.challengeMode.completeRun(finalStats.finalScore);
-    this.unlockDailyCosmeticIfEligible();
+    if (this.experienceMode === 'mobileLite') {
+      this.mobileLite.completeRun(finalStats.finalScore);
+      this.upgrades.awardRunScrap(
+        finalStats,
+        this.runBonusScrap,
+        MOBILE_LITE_SCRAP_MULTIPLIER
+      );
+    } else {
+      this.challengeMode.completeRun(finalStats.finalScore);
+      this.unlockDailyCosmeticIfEligible();
 
-    const unlockedSectorId = this.sectorProgress.completeSector(
-      this.missionDirector.getCurrentSector().id
-    );
-    this.announceCosmeticUnlocks(
-      this.cosmetics.completeSector(this.missionDirector.getCurrentSector().id)
-    );
-    this.announceShipUnlocks(
-      this.ships.completeSector(
-        this.missionDirector.getCurrentSector().id,
-        this.sectorProgress.getSnapshot().completedSectorIds
-      )
-    );
-    this.newlyUnlockedSectorName =
-      unlockedSectorId === null ? null : getSectorById(unlockedSectorId).name;
-    this.applyMissionMedal(sector, finalStats, objective);
+      const unlockedSectorId = this.sectorProgress.completeSector(
+        this.missionDirector.getCurrentSector().id
+      );
+      this.announceCosmeticUnlocks(
+        this.cosmetics.completeSector(this.missionDirector.getCurrentSector().id)
+      );
+      this.announceShipUnlocks(
+        this.ships.completeSector(
+          this.missionDirector.getCurrentSector().id,
+          this.sectorProgress.getSnapshot().completedSectorIds
+        )
+      );
+      this.newlyUnlockedSectorName =
+        unlockedSectorId === null ? null : getSectorById(unlockedSectorId).name;
+      this.applyMissionMedal(sector, finalStats, objective);
 
-    this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
-    this.handleContractCompletions();
-    this.handleAchievementUnlocks();
+      this.upgrades.awardRunScrap(finalStats, this.runBonusScrap);
+      this.handleContractCompletions();
+      this.handleAchievementUnlocks();
+    }
+
     this.rewardToast.show({
       medalTier: this.lastMissionMedalTier,
       medalImproved: this.lastMissionMedalImproved,
@@ -2397,7 +2512,9 @@ export class Game {
     });
     this.queueRadio(
       'DISPATCH',
-      this.missionDirector.getCurrentSector().radio.complete,
+      this.experienceMode === 'mobileLite'
+        ? 'Pocket Cleanup complete. Short route, real work.'
+        : this.missionDirector.getCurrentSector().radio.complete,
       `mission-complete-${this.radioRunId}`,
       4.4
     );
@@ -2419,7 +2536,16 @@ export class Game {
     this.screenShake.add(0.08);
     this.cameraRig.punch(0.22);
     this.impactFlash.flash('complete');
-    this.floatingText.show('MISSION COMPLETE', 'bonus');
+    this.floatingText.show(
+      this.experienceMode === 'mobileLite' ? 'POCKET CLEANUP' : 'MISSION COMPLETE',
+      'bonus'
+    );
+
+    if (this.experienceMode === 'mobileLite') {
+      this.cinematicDirector.skip();
+      return;
+    }
+
     this.playCinematic('missionCompleteFlyBy', {
       focus: this.getPlayerFocus()
     });
@@ -2447,6 +2573,8 @@ export class Game {
   }
 
   private prepareTitle(): void {
+    this.experienceMode = 'full';
+    this.mobileLite.stop();
     this.challengeMode.prepareTitle();
     this.missionDirector.setSector(this.sectorProgress.getDefaultSectorId());
     this.selectedSectorId = this.missionDirector.getCurrentSector().id;
@@ -2484,6 +2612,8 @@ export class Game {
       return;
     }
 
+    this.experienceMode = 'full';
+    this.mobileLite.stop();
     this.missionDirector.setSector(sectorId);
     this.selectedSectorId = sectorId;
     this.applyCurrentSectorTheme(true);
@@ -2518,7 +2648,56 @@ export class Game {
     this.syncDebugAttributes();
   }
 
+  private startMobileLiteRun(): void {
+    if (
+      this.state !== 'title' &&
+      this.state !== 'sectorSelect' &&
+      this.state !== 'missionComplete' &&
+      this.state !== 'gameover'
+    ) {
+      return;
+    }
+
+    this.experienceMode = 'mobileLite';
+    this.mobileLite.start();
+    this.missionDirector.setSector(DEFAULT_SECTOR_ID);
+    this.selectedSectorId = DEFAULT_SECTOR_ID;
+    this.applyCurrentSectorTheme(true);
+    const run = this.challengeMode.startNormalRun();
+
+    this.runRng = new SeededRandom(`mobile-lite-${run.seed}`);
+    this.resetRunState();
+    this.radioRunId += 1;
+    this.queueRadio(
+      'DISPATCH',
+      'Pocket Cleanup loaded. Auto-orbit is on; dodge with lanes and boost when the junk gets cheeky.',
+      `mobile-lite-intro-${this.radioRunId}`,
+      4.4
+    );
+    this.state = 'playing';
+    this.startMissionIntro();
+    this.cinematicDirector.skip();
+    this.upgradePanelOpen = false;
+    this.contractBoardOpen = false;
+    this.achievementsOpen = false;
+    this.galleryOpen = false;
+    this.shipyardOpen = false;
+    this.isPaused = false;
+    this.helpOpen = false;
+    this.settingsOpen = false;
+    this.deviceGateOpen = false;
+    this.audio.playUiStart();
+    this.music.startSectorMusic(DEFAULT_SECTOR_ID, 'calm');
+    this.updateHud(false);
+    this.syncDebugAttributes();
+  }
+
   private restart(): void {
+    if (this.experienceMode === 'mobileLite') {
+      this.startMobileLiteRun();
+      return;
+    }
+
     const sectorId = this.missionDirector.getCurrentSector().id;
     this.missionDirector.setSector(sectorId);
     this.selectedSectorId = sectorId;
@@ -2550,14 +2729,24 @@ export class Game {
   }
 
   private startMissionIntro(): void {
-    this.missionIntroTimer = this.reducedMotion
-      ? MISSION_INTRO_REDUCED_MOTION_DURATION
-      : MISSION_INTRO_DURATION;
+    if (this.experienceMode === 'mobileLite') {
+      this.missionIntroTimer = this.reducedMotion
+        ? MOBILE_LITE_REDUCED_MOTION_INTRO_DURATION
+        : MOBILE_LITE_INTRO_DURATION;
+    } else {
+      this.missionIntroTimer = this.reducedMotion
+        ? MISSION_INTRO_REDUCED_MOTION_DURATION
+        : MISSION_INTRO_DURATION;
+    }
     this.missionIntroActive = true;
     this.audio.playBoostLoopStop();
   }
 
   private playRunStartCinematic(mode: ChallengeRunMode, seed: string): void {
+    if (this.experienceMode === 'mobileLite') {
+      return;
+    }
+
     const sector = this.missionDirector.getCurrentSector();
 
     if (mode === 'daily') {
@@ -2592,7 +2781,7 @@ export class Game {
 
   private createCinematicContext(overrides: Partial<CinematicContext>): CinematicContext {
     const sector = this.missionDirector.getCurrentSector();
-    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const objective = this.getCurrentObjective(this.runStats.getSnapshot());
     const challenge = this.challengeMode.getSnapshot();
 
     return {
@@ -2873,7 +3062,7 @@ export class Game {
       return;
     }
 
-    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const objective = this.getCurrentObjective(this.runStats.getSnapshot());
 
     if (objective.isEndless || objective.progress < 0.5) {
       return;
@@ -2907,12 +3096,11 @@ export class Game {
       }
     }
 
-    const sector = this.missionDirector.getCurrentSector();
-    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const objective = this.getCurrentObjective(this.runStats.getSnapshot());
 
     this.missionIntroOverlay.update({
       isVisible: this.missionIntroActive && !cinematicActive,
-      sectorName: sector.name,
+      sectorName: this.getMissionDisplayName(),
       objectiveText: objective.text,
       countdownLabel: this.getMissionIntroCountdownLabel()
     });
@@ -2923,9 +3111,14 @@ export class Game {
       return '';
     }
 
-    const duration = this.reducedMotion
-      ? MISSION_INTRO_REDUCED_MOTION_DURATION
-      : MISSION_INTRO_DURATION;
+    const duration =
+      this.experienceMode === 'mobileLite'
+        ? this.reducedMotion
+          ? MOBILE_LITE_REDUCED_MOTION_INTRO_DURATION
+          : MOBILE_LITE_INTRO_DURATION
+        : this.reducedMotion
+          ? MISSION_INTRO_REDUCED_MOTION_DURATION
+          : MISSION_INTRO_DURATION;
     const progress = 1 - this.missionIntroTimer / duration;
 
     if (progress < 0.28) {
@@ -3014,8 +3207,7 @@ export class Game {
 
   private resetObstacles(): void {
     this.clearObstacles();
-    const startingObstacleCount =
-      this.missionDirector.getDifficulty().startingObstacleCount;
+    const startingObstacleCount = this.getEffectiveDifficulty().startingObstacleCount;
 
     for (let index = 0; index < startingObstacleCount; index += 1) {
       this.createObstacle(
@@ -3042,7 +3234,7 @@ export class Game {
 
   private getDesiredObstacleCount(): number {
     const sector = this.missionDirector.getCurrentSector();
-    const difficulty = this.missionDirector.getDifficulty();
+    const difficulty = this.getEffectiveDifficulty();
     let desiredCount = difficulty.startingObstacleCount;
 
     if (this.score >= 10) {
@@ -3128,7 +3320,7 @@ export class Game {
   }
 
   private respawnJunk(): void {
-    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+    const difficulty = this.getEffectiveDifficulty(this.runStats.getSnapshot());
 
     if (this.eventWaveDirector.getEffects().cleanupFrenzy) {
       this.respawnCleanupFrenzyJunk();
@@ -3270,7 +3462,7 @@ export class Game {
   }
 
   private spawnTutorialHazard(): void {
-    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+    const difficulty = this.getEffectiveDifficulty(this.runStats.getSnapshot());
 
     this.ghostMarker.clear();
     this.hazardDirector.reset();
@@ -3314,6 +3506,11 @@ export class Game {
 
     if (input.tutorialStartPressed) {
       this.startRun('normal', TRAINING_SECTOR_ID);
+      return true;
+    }
+
+    if (input.mobileLiteStartPressed) {
+      this.startMobileLiteRun();
       return true;
     }
 
@@ -3368,12 +3565,21 @@ export class Game {
     }
 
     if (option.id === 'startMission') {
-      this.startRun('normal', this.sectorProgress.getDefaultSectorId());
+      if (this.settings.getSnapshot().deviceExperienceMode === 'mobileLite') {
+        this.startMobileLiteRun();
+      } else {
+        this.startRun('normal', this.sectorProgress.getDefaultSectorId());
+      }
       return;
     }
 
     if (option.id === 'trainingOrbit') {
       this.startRun('normal', TRAINING_SECTOR_ID);
+      return;
+    }
+
+    if (option.id === 'mobileLite') {
+      this.startMobileLiteRun();
       return;
     }
 
@@ -3484,6 +3690,11 @@ export class Game {
     }
 
     if (input.startPressed) {
+      if (this.experienceMode === 'mobileLite') {
+        this.startMobileLiteRun();
+        return true;
+      }
+
       const nextSectorId = this.sectorProgress.getNextPlayableSectorId(
         this.missionDirector.getCurrentSector().id
       );
@@ -3525,7 +3736,7 @@ export class Game {
   }
 
   private tryCompleteMission(): boolean {
-    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const objective = this.getCurrentObjective(this.runStats.getSnapshot());
     const tutorial = this.tutorialDirector.getSnapshot();
 
     if (this.missionDirector.getCurrentSector().isTutorial && !tutorial.isFinished) {
@@ -3557,6 +3768,7 @@ export class Game {
       input.laneDownPressed ||
       input.startPressed ||
       input.tutorialStartPressed ||
+      input.mobileLiteStartPressed ||
       input.sectorSelectPressed ||
       input.dailyStartPressed ||
       input.seededStartPressed ||
@@ -3587,7 +3799,7 @@ export class Game {
       this.runTime,
       this.comboCount,
       this.comboMultiplier,
-      this.missionDirector.getObjective(this.runStats.getSnapshot()).isComplete
+      this.getCurrentObjective(this.runStats.getSnapshot()).isComplete
     );
     this.runStats.setUpgradePurchasedThisSession(this.upgradePurchasedThisSession);
   }
@@ -3599,7 +3811,7 @@ export class Game {
       return;
     }
 
-    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const objective = this.getCurrentObjective(this.runStats.getSnapshot());
     const objectivePressure = objective.isEndless
       ? Math.min(0.35, this.runTime / 240)
       : Math.max(0, objective.progress - 0.65) * 0.9;
@@ -3621,8 +3833,8 @@ export class Game {
     const stats = this.runStats.getSnapshot();
     const challenge = this.challengeMode.getSnapshot();
     const sector = this.missionDirector.getCurrentSector();
-    const difficulty = this.missionDirector.getDifficulty(stats);
-    const objective = this.missionDirector.getObjective(stats);
+    const difficulty = this.getEffectiveDifficulty(stats);
+    const objective = this.getCurrentObjective(stats);
     const sectorProgress = this.sectorProgress.getSnapshot();
     const tutorial = this.tutorialDirector.getSnapshot();
     const eventWave = this.eventWaveDirector.getSnapshot();
@@ -3630,6 +3842,7 @@ export class Game {
     const settings = this.settings.getSnapshot();
     const deviceProfile = this.deviceProfile.getSnapshot(settings.deviceExperienceMode);
     const cinematic = this.cinematicDirector.getSnapshot();
+    const mobileLite = this.mobileLite.getSnapshot(stats);
     const defaultSector = getSectorById(this.sectorProgress.getDefaultSectorId());
     const cosmeticSnapshot = this.cosmetics.getSnapshot();
     const shipSnapshot = this.ships.getSnapshot();
@@ -3657,12 +3870,20 @@ export class Game {
     this.hud.update({
       score: this.score,
       state: this.state,
-      runLabel: challenge.label,
+      experienceMode: this.experienceMode,
+      runLabel: this.experienceMode === 'mobileLite' ? 'Mobile Lite' : challenge.label,
       runSeed: challenge.seed,
       dailyBestScore: challenge.dailyBestScore,
-      sectorName: sector.name,
-      sectorSubtitle: sector.subtitle,
-      sectorModifierHint: difficulty.modifierHint,
+      mobileLiteBestScore: mobileLite.bestScore,
+      sectorName: this.getMissionDisplayName(),
+      sectorSubtitle:
+        this.experienceMode === 'mobileLite'
+          ? 'Phone-friendly pocket route'
+          : sector.subtitle,
+      sectorModifierHint:
+        this.experienceMode === 'mobileLite'
+          ? 'Auto-orbit, larger warnings, two satellites max'
+          : difficulty.modifierHint,
       showSectorHint: this.state === 'playing' && this.sectorHintTimer > 0,
       objectiveText: objective.text,
       objectiveProgressText: objective.progressText,
@@ -3709,6 +3930,7 @@ export class Game {
     this.missionCompleteOverlay.update({
       state: this.state,
       sector,
+      missionName: this.getMissionDisplayName(),
       objective,
       stats,
       upgrades: this.upgrades.getSnapshot(),
@@ -3758,6 +3980,9 @@ export class Game {
       state: this.state,
       stats,
       challenge,
+      runLabel: this.experienceMode === 'mobileLite' ? 'Mobile Lite' : challenge.label,
+      bestScore:
+        this.experienceMode === 'mobileLite' ? mobileLite.bestScore : stats.bestScore,
       upgrades: upgradeSnapshot,
       upgradePanelOpen: this.upgradePanelOpen,
       cinematicActive: cinematic.isActive
@@ -3817,7 +4042,7 @@ export class Game {
     this.helpOverlay.update({
       state: this.state,
       isOpen: this.helpOpen,
-      sectorName: sector.name,
+      sectorName: this.getMissionDisplayName(),
       objectiveText: objective.text,
       objectiveProgressText: objective.progressText
     });
@@ -3845,6 +4070,7 @@ export class Game {
     this.touchControls.update({
       state: this.state,
       overlaysOpen:
+        this.experienceMode === 'mobileLite' ||
         this.helpOpen ||
         this.deviceGateOpen ||
         this.settingsOpen ||
@@ -3856,6 +4082,36 @@ export class Game {
         (this.isPaused && this.state === 'playing') ||
         cinematic.isActive ||
         this.missionIntroActive
+    });
+    this.mobileLiteTouchControls.update({
+      experienceMode: this.experienceMode,
+      state: this.state,
+      overlaysOpen:
+        this.helpOpen ||
+        this.deviceGateOpen ||
+        this.settingsOpen ||
+        this.upgradePanelOpen ||
+        this.galleryOpen ||
+        this.shipyardOpen ||
+        this.contractBoardOpen ||
+        this.achievementsOpen ||
+        (this.isPaused && this.state === 'playing') ||
+        cinematic.isActive
+    });
+    this.mobileLiteOverlay.update({
+      state: this.state,
+      mobileLite,
+      isPaused: this.isPaused,
+      overlaysOpen:
+        this.helpOpen ||
+        this.deviceGateOpen ||
+        this.settingsOpen ||
+        this.upgradePanelOpen ||
+        this.galleryOpen ||
+        this.shipyardOpen ||
+        this.contractBoardOpen ||
+        this.achievementsOpen ||
+        cinematic.isActive
     });
   }
 
@@ -3926,7 +4182,7 @@ export class Game {
   private applyCurrentSectorTheme(showHint: boolean): void {
     this.ensureWorldCoreForCurrentSector();
     const theme = this.getEffectiveSectorTheme(this.missionDirector.getCurrentTheme());
-    const difficulty = this.missionDirector.getDifficulty(this.runStats.getSnapshot());
+    const difficulty = this.getEffectiveDifficulty(this.runStats.getSnapshot());
 
     if (this.scene.background instanceof THREE.Color) {
       this.scene.background.setHex(theme.backgroundColor);
@@ -3989,11 +4245,12 @@ export class Game {
   private getDebugState(): OrbitJanitorDebugState {
     const challenge = this.challengeMode.getSnapshot();
     const sector = this.missionDirector.getCurrentSector();
-    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const objective = this.getCurrentObjective(this.runStats.getSnapshot());
     const tutorial = this.tutorialDirector.getSnapshot();
     const settings = this.settings.getSnapshot();
     const deviceProfile = this.deviceProfile.getSnapshot(settings.deviceExperienceMode);
     const cinematic = this.cinematicDirector.getSnapshot();
+    const mobileLite = this.mobileLite.getSnapshot(this.runStats.getSnapshot());
     const cosmetics = this.cosmetics.getSnapshot();
     const ships = this.ships.getSnapshot();
     const contracts = this.contracts.getSnapshot(this.createContractContext());
@@ -4015,6 +4272,8 @@ export class Game {
       runMode: challenge.mode,
       runLabel: challenge.label,
       runSeed: challenge.seed,
+      experienceMode: this.experienceMode,
+      mobileLite,
       dailyBestScore: challenge.dailyBestScore,
       sectorId: sector.id,
       sectorName: sector.name,
@@ -4083,11 +4342,12 @@ export class Game {
   private syncDebugAttributes(): void {
     const challenge = this.challengeMode.getSnapshot();
     const sector = this.missionDirector.getCurrentSector();
-    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+    const objective = this.getCurrentObjective(this.runStats.getSnapshot());
     const tutorial = this.tutorialDirector.getSnapshot();
     const settings = this.settings.getSnapshot();
     const deviceProfile = this.deviceProfile.getSnapshot(settings.deviceExperienceMode);
     const cinematic = this.cinematicDirector.getSnapshot();
+    const mobileLite = this.mobileLite.getSnapshot(this.runStats.getSnapshot());
     const cosmetics = this.cosmetics.getSnapshot();
     const ships = this.ships.getSnapshot();
     const contracts = this.contracts.getSnapshot(this.createContractContext());
@@ -4107,6 +4367,10 @@ export class Game {
     this.canvas.dataset.runMode = challenge.mode;
     this.canvas.dataset.runLabel = challenge.label;
     this.canvas.dataset.runSeed = challenge.seed;
+    this.canvas.dataset.experienceMode = this.experienceMode;
+    this.canvas.dataset.mobileLiteBest = String(mobileLite.bestScore);
+    this.canvas.dataset.mobileLiteGuide = mobileLite.guideText;
+    this.canvas.dataset.mobileLiteGuideVisible = String(mobileLite.guideVisible);
     this.canvas.dataset.dailyBestScore = String(challenge.dailyBestScore);
     this.canvas.dataset.sectorId = sector.id;
     this.canvas.dataset.sectorName = sector.name;

@@ -120,11 +120,11 @@ export class RunStats {
     this.upgradePurchasedThisSession = upgradePurchasedThisSession;
   }
 
-  complete(gameOverReason: string): void {
+  complete(gameOverReason: string, persistBestScore = true): void {
     this.finalScore = this.score;
     this.gameOverReason = gameOverReason;
 
-    if (this.finalScore > this.bestScore) {
+    if (persistBestScore && this.finalScore > this.bestScore) {
       this.bestScore = this.finalScore;
       writeStoredNumber(BEST_SCORE_STORAGE_KEY, this.bestScore);
     }

@@ -1,6 +1,7 @@
 import type { ActivePowerupSnapshot } from '../systems/PowerupDirector';
 import type { EventWavePhase } from '../systems/EventWaveTypes';
 import type { CinematicPresetKey } from '../cinematics/CinematicShot';
+import type { GameExperienceMode } from '../systems/MobileLiteMode';
 
 export type GameState =
   | 'title'
@@ -12,9 +13,11 @@ export type GameState =
 export interface HudSnapshot {
   score: number;
   state: GameState;
+  experienceMode: GameExperienceMode;
   runLabel: string;
   runSeed: string;
   dailyBestScore: number;
+  mobileLiteBestScore: number;
   sectorName: string;
   sectorSubtitle: string;
   sectorModifierHint: string;
@@ -58,6 +61,7 @@ export interface HudSnapshot {
 export class Hud {
   private readonly mainPanel: HTMLElement;
   private readonly controlsPanel: HTMLElement;
+  private readonly mobileLiteBadge: HTMLElement;
   private readonly scoreValue: HTMLElement;
   private readonly statusValue: HTMLElement;
   private readonly runValue: HTMLElement;
@@ -81,6 +85,7 @@ export class Hud {
     root.innerHTML = `
       <section class="hud-panel hud-main" aria-live="polite">
         <h1 class="hud-title">Orbit Janitor</h1>
+        <div class="hud-lite-badge is-hidden" data-hud-lite-badge>Mobile Lite</div>
         <div class="hud-row">
           <span class="hud-label">Score</span>
           <span class="hud-value" data-hud-score>0</span>
@@ -161,6 +166,7 @@ export class Hud {
 
     this.mainPanel = getElement(root, '.hud-main');
     this.controlsPanel = getElement(root, '.hud-controls');
+    this.mobileLiteBadge = getElement(root, '[data-hud-lite-badge]');
     this.scoreValue = getElement(root, '[data-hud-score]');
     this.statusValue = getElement(root, '[data-hud-status]');
     this.runValue = getElement(root, '[data-hud-run]');
@@ -188,9 +194,15 @@ export class Hud {
         : 0;
     const boostPercent = Math.max(0, Math.min(1, snapshot.boostFuel));
     const hideGameplayHud = snapshot.state !== 'playing' || snapshot.cinematicActive;
+    const isMobileLite = snapshot.experienceMode === 'mobileLite';
 
     this.mainPanel.classList.toggle('is-cinematic-hidden', hideGameplayHud);
-    this.controlsPanel.classList.toggle('is-cinematic-hidden', hideGameplayHud);
+    this.mainPanel.classList.toggle('is-mobile-lite', isMobileLite);
+    this.controlsPanel.classList.toggle(
+      'is-cinematic-hidden',
+      hideGameplayHud || isMobileLite
+    );
+    this.mobileLiteBadge.classList.toggle('is-hidden', !isMobileLite);
     this.scoreValue.textContent = String(snapshot.score);
     this.runValue.textContent =
       snapshot.state === 'title' ? 'Choose Run' : snapshot.runLabel;
@@ -199,12 +211,14 @@ export class Hud {
     this.sectorValue.title = snapshot.sectorName;
     this.sectorHintValue.textContent = `${snapshot.sectorSubtitle}: ${snapshot.sectorModifierHint}`;
     this.sectorHintValue.classList.toggle('is-hidden', !snapshot.showSectorHint);
-    this.seedValue.textContent =
-      snapshot.state === 'title'
+    this.seedValue.textContent = isMobileLite
+      ? `Lite best ${snapshot.mobileLiteBestScore}`
+      : snapshot.state === 'title'
         ? `Daily best ${snapshot.dailyBestScore}`
         : snapshot.runSeed;
-    this.seedValue.title =
-      snapshot.state === 'title'
+    this.seedValue.title = isMobileLite
+      ? `Mobile Lite best score: ${snapshot.mobileLiteBestScore}`
+      : snapshot.state === 'title'
         ? `Daily best score: ${snapshot.dailyBestScore}`
         : `Seed: ${snapshot.runSeed}`;
     this.laneValue.textContent = snapshot.laneName;
@@ -264,6 +278,8 @@ export class Hud {
       this.statusValue.textContent = 'BOOST EMPTY';
     } else if (snapshot.objectiveComplete) {
       this.statusValue.textContent = 'Objective Complete';
+    } else if (isMobileLite) {
+      this.statusValue.textContent = 'Auto-orbit cleanup';
     } else if (snapshot.comboMultiplier > 1) {
       this.statusValue.textContent = 'Combo active';
     } else {

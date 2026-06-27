@@ -45,6 +45,13 @@ export function getMenuPreviewContent(snapshot: MenuPreviewSnapshot): MenuPrevie
         body: 'Guided flight check for lanes, boost, pickups, satellites, and warnings.',
         meta: 'Forgiving hazards'
       };
+    case 'mobileLite':
+      return {
+        eyebrow: 'Phone route',
+        title: 'Pocket Cleanup',
+        body: 'Auto-orbit, big touch controls, reduced hazards, and a short objective.',
+        meta: 'Mobile Lite'
+      };
     case 'sectorSelect':
       return {
         eyebrow: 'Missions',

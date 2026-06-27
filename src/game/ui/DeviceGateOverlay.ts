@@ -28,8 +28,7 @@ const OPTIONS: readonly {
   {
     id: 'mobileLite',
     label: 'Try Mobile Lite',
-    note: 'Mobile Lite coming soon',
-    disabled: true
+    note: 'Short Pocket Cleanup with big touch controls.'
   },
   {
     id: 'remindLater',
@@ -64,7 +63,7 @@ export class DeviceGateOverlay {
             </button>
             <div class="device-gate-footer">
               <span data-device-gate-profile>Phone profile</span>
-              <strong>Up/Down choose | Enter select | D toggle</strong>
+          <strong>Up/Down choose | Enter select | D toggle</strong>
             </div>
           </div>
         </section>

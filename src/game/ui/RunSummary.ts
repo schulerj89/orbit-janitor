@@ -7,6 +7,8 @@ export interface RunSummarySnapshot {
   state: GameState;
   stats: RunStatsSnapshot;
   challenge: ChallengeModeSnapshot;
+  runLabel: string;
+  bestScore: number;
   upgrades: UpgradeSnapshot;
   upgradePanelOpen: boolean;
   cinematicActive: boolean;
@@ -86,7 +88,7 @@ export class RunSummary {
     const { stats } = snapshot;
 
     this.reasonValue.textContent = stats.gameOverReason;
-    this.runModeValue.textContent = snapshot.challenge.label;
+    this.runModeValue.textContent = snapshot.runLabel;
     this.seedValue.textContent = snapshot.challenge.seed;
     this.seedValue.title = `Seed: ${snapshot.challenge.seed}`;
     this.dailyBestValue.textContent =
@@ -94,7 +96,7 @@ export class RunSummary {
         ? String(snapshot.challenge.dailyBestScore)
         : `${snapshot.challenge.dailySeed}: ${snapshot.challenge.dailyBestScore}`;
     this.finalScoreValue.textContent = String(stats.finalScore);
-    this.bestScoreValue.textContent = String(stats.bestScore);
+    this.bestScoreValue.textContent = String(snapshot.bestScore);
     this.timeValue.textContent = formatRunTime(stats.runTime);
     this.junkValue.textContent = String(stats.junkCollected);
     this.comboValue.textContent = String(stats.longestCombo);

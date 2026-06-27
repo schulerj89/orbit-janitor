@@ -34,8 +34,17 @@ const SETTING_ROWS = [
   },
   {
     label: 'Device experience',
-    getValue: (settings: SettingsSnapshot) =>
-      settings.deviceExperienceMode === 'full' ? 'Full Game' : 'Auto'
+    getValue: (settings: SettingsSnapshot) => {
+      if (settings.deviceExperienceMode === 'full') {
+        return 'Full Game';
+      }
+
+      if (settings.deviceExperienceMode === 'mobileLite') {
+        return 'Mobile Lite';
+      }
+
+      return 'Auto';
+    }
   }
 ] as const;
 

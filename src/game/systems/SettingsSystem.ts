@@ -1,6 +1,6 @@
 export type ScreenShakeIntensity = 'off' | 'low' | 'normal';
 export type TouchControlsMode = 'auto' | 'on' | 'off';
-export type DeviceExperienceMode = 'auto' | 'full';
+export type DeviceExperienceMode = 'auto' | 'full' | 'mobileLite';
 
 export interface SettingsSnapshot {
   reducedMotion: boolean;
@@ -66,7 +66,7 @@ export class SettingsSystem {
   }
 
   cycleDeviceExperienceMode(direction = 1): SettingsSnapshot {
-    const values: DeviceExperienceMode[] = ['auto', 'full'];
+    const values: DeviceExperienceMode[] = ['auto', 'full', 'mobileLite'];
     const currentIndex = values.indexOf(this.snapshot.deviceExperienceMode);
     const nextIndex = (currentIndex + direction + values.length) % values.length;
 
@@ -172,5 +172,5 @@ function isTouchControlsMode(value: unknown): value is TouchControlsMode {
 }
 
 function isDeviceExperienceMode(value: unknown): value is DeviceExperienceMode {
-  return value === 'auto' || value === 'full';
+  return value === 'auto' || value === 'full' || value === 'mobileLite';
 }

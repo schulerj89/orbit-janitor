@@ -8,6 +8,13 @@ type DebugState = {
   boostFuel: number;
   isBoosting: boolean;
   runTime: number;
+  experienceMode: 'full' | 'mobileLite';
+  mobileLite: {
+    isActive: boolean;
+    bestScore: number;
+    guideVisible: boolean;
+    guideText: string;
+  };
   isPaused: boolean;
   helpOpen: boolean;
   settingsOpen: boolean;
@@ -176,6 +183,45 @@ test('shows device gate on phone-like viewport and allows continuing', async ({
     .poll(() => getDebugState(page).then((state) => state.deviceGateOpen))
     .toBe(false);
   expect((await getDebugState(page)).phase).toBe('title');
+});
+
+test('starts Mobile Lite from the phone device gate', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.goto('/');
+  await waitForGameReady(page);
+
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.deviceGateOpen))
+    .toBe(true);
+
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+
+  await expectPhase(page, 'playing');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.experienceMode))
+    .toBe('mobileLite');
+  await expect(page.locator('.mobile-lite-touch-controls')).toBeVisible();
+
+  await waitForMissionIntro(page);
+  const angleBefore = (await getDebugState(page)).playerAngle;
+  await page.waitForTimeout(350);
+  const angleAfter = (await getDebugState(page)).playerAngle;
+
+  expect(angularDistance(angleBefore, angleAfter)).toBeGreaterThan(0.02);
+});
+
+test('starts Mobile Lite from the desktop title hotkey', async ({ page }) => {
+  await page.goto('/');
+  await waitForGameReady(page);
+  await skipCinematic(page);
+
+  await page.keyboard.press('L');
+  await expectPhase(page, 'playing');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.experienceMode))
+    .toBe('mobileLite');
+  expect((await getDebugState(page)).mobileLite.isActive).toBe(true);
 });
 
 test('toggles music and sfx preferences from keyboard input', async ({ page }) => {

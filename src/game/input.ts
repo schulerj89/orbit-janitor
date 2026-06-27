@@ -13,6 +13,7 @@ export interface InputState {
   menuSelectPressed: boolean;
   startPressed: boolean;
   tutorialStartPressed: boolean;
+  mobileLiteStartPressed: boolean;
   sectorSelectPressed: boolean;
   dailyStartPressed: boolean;
   seededStartPressed: boolean;
@@ -59,6 +60,7 @@ export class InputController {
     this.state.menuSelectPressed = false;
     this.state.startPressed = false;
     this.state.tutorialStartPressed = false;
+    this.state.mobileLiteStartPressed = false;
     this.state.sectorSelectPressed = false;
     this.state.dailyStartPressed = false;
     this.state.seededStartPressed = false;
@@ -155,6 +157,11 @@ export class InputController {
 
     if (event.code === 'KeyT' && !event.repeat) {
       this.state.tutorialStartPressed = true;
+      event.preventDefault();
+    }
+
+    if (event.code === 'KeyL' && !event.repeat) {
+      this.state.mobileLiteStartPressed = true;
       event.preventDefault();
     }
 
@@ -303,6 +310,7 @@ export function createNeutralInputState(): InputState {
     menuSelectPressed: false,
     startPressed: false,
     tutorialStartPressed: false,
+    mobileLiteStartPressed: false,
     sectorSelectPressed: false,
     dailyStartPressed: false,
     seededStartPressed: false,
@@ -349,6 +357,7 @@ export function mergeInputStates(...states: InputState[]): InputState {
     merged.menuSelectPressed ||= state.menuSelectPressed;
     merged.startPressed ||= state.startPressed;
     merged.tutorialStartPressed ||= state.tutorialStartPressed;
+    merged.mobileLiteStartPressed ||= state.mobileLiteStartPressed;
     merged.sectorSelectPressed ||= state.sectorSelectPressed;
     merged.dailyStartPressed ||= state.dailyStartPressed;
     merged.seededStartPressed ||= state.seededStartPressed;
