@@ -48,14 +48,14 @@ npm run preview
 
 Keyboard:
 
-- Enter or Space: start the default sector from the title screen.
+- ArrowUp/W and ArrowDown/S: move selection on the title main menu and sector select.
+- Enter or Space: activate the selected title menu option, or start the default sector when Start Mission is selected.
 - T: start Training Orbit from the title screen.
 - C: open sector select from the title screen or mission complete screen.
 - D: start the daily challenge from the title screen.
-- S: start the visible seeded run from the title screen. Add `?seed=YOUR-SEED` to the URL to choose that seed.
-- ArrowUp or W / ArrowDown or S: move selection in sector select.
+- S: start the visible seeded run before menu navigation, or move down after the title menu is active. Add `?seed=YOUR-SEED` to the URL to choose that seed.
 - Escape: return to title from sector select or mission complete, or close help, pause, and settings overlays.
-- Space / Enter / Escape: skip active cinematic sequences. On first load, this reveals the title menu before starting a run.
+- Space / Enter / Escape: skip active cinematic sequences. On first load, the title screen remains visible while the scene moves behind it.
 - ArrowLeft or A / ArrowRight or D: rotate around the sector core.
 - ArrowUp or W / ArrowDown or S: switch orbit lanes while playing.
 - Space: boost while held, limited by fuel.
@@ -88,7 +88,7 @@ Touch:
 
 ## Feature List
 
-- Title, sector select, mission complete, pause, help, settings, upgrade, game over, and run summary overlays.
+- Official title screen with keyboard/gamepad main menu, sector select, mission complete, pause, help, settings, upgrade, game over, and run summary overlays.
 - Skippable real-time micro-cinematics for title fly-in, sector intro, event warnings, mission complete, game over, and sector unlock reveals.
 - Structured sectors with score, junk collection, survival timer, hazard survival, tutorial, daily challenge, seeded run, and endless objectives.
 - Persistent sector unlocks, best score, daily best, scrap total, upgrades, audio preferences, and accessibility settings.

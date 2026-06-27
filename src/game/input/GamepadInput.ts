@@ -62,7 +62,10 @@ export class GamepadInput {
     state.laneDownPressed =
       this.wasPressed(gamepad, GAMEPAD_BUTTONS.dpadDown) ||
       this.wasPressed(gamepad, GAMEPAD_BUTTONS.leftShoulder);
+    state.menuUpPressed = state.laneUpPressed;
+    state.menuDownPressed = state.laneDownPressed;
     state.startPressed = this.wasPressed(gamepad, GAMEPAD_BUTTONS.cross);
+    state.menuSelectPressed = state.startPressed;
     state.escapePressed = this.wasPressed(gamepad, GAMEPAD_BUTTONS.circle);
     state.cinematicSkipPressed = state.startPressed || state.escapePressed;
     state.pausePressed = this.wasPressed(gamepad, GAMEPAD_BUTTONS.start);

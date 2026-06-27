@@ -1,93 +1,143 @@
-import type { GameState } from './Hud';
 import type { CinematicPresetKey } from '../cinematics/CinematicShot';
+import { renderLogoTreatment } from './LogoTreatment';
+import {
+  MAIN_MENU_OPTIONS,
+  getMainMenuOption,
+  normalizeMainMenuIndex,
+  renderMainMenuOverlay
+} from './MainMenuOverlay';
+import {
+  getMenuPreviewContent,
+  renderMenuPreviewPanel,
+  type MenuPreviewSnapshot
+} from './MenuPreviewPanel';
+import type { GameState } from './Hud';
 
-export interface TitleOverlaySnapshot {
+export interface TitleOverlaySnapshot extends Omit<
+  MenuPreviewSnapshot,
+  'selectedOptionId'
+> {
   state: GameState;
+  selectedMenuIndex: number;
+  menuInteracted: boolean;
   upgradePanelOpen: boolean;
-  titleSeed: string;
-  dailySeed: string;
-  dailyBestScore: number;
-  musicEnabled: boolean;
-  musicVolume: number;
-  sfxEnabled: boolean;
+  settingsOpen: boolean;
+  helpOpen: boolean;
+  bestScore: number;
+  lastUnlockedSectorName: string;
   cinematicPresetKey: CinematicPresetKey | null;
 }
 
 export class TitleOverlay {
   private readonly overlay: HTMLElement;
-  private readonly titleSeedValue: HTMLElement;
-  private readonly dailySeedValue: HTMLElement;
-  private readonly dailyBestValue: HTMLElement;
-  private readonly musicValue: HTMLElement;
-  private readonly musicVolumeValue: HTMLElement;
-  private readonly sfxValue: HTMLElement;
+  private readonly menuRows: HTMLElement[];
+  private readonly promptValue: HTMLElement;
+  private readonly previewEyebrowValue: HTMLElement;
+  private readonly previewTitleValue: HTMLElement;
+  private readonly previewBodyValue: HTMLElement;
+  private readonly previewMetaValue: HTMLElement;
+  private readonly bestScoreValue: HTMLElement;
+  private readonly dailyValue: HTMLElement;
+  private readonly audioValue: HTMLElement;
+  private readonly unlockedValue: HTMLElement;
 
   constructor(root: HTMLElement) {
     root.insertAdjacentHTML(
       'beforeend',
       `
         <section class="title-overlay" data-title-overlay aria-hidden="false">
-          <h2 class="title-overlay-title">Orbit Janitor</h2>
-          <p class="title-overlay-subtitle">Clean the lanes. Dodge the warnings. Keep the combo alive.</p>
-          <div class="title-run-options" aria-label="Run modes">
-            <span>Enter / Space</span>
-            <strong>Default Sector</strong>
-            <small>Fresh sector run</small>
-            <span>T</span>
-            <strong>Training Orbit</strong>
-            <small>Tutorial-friendly cleanup</small>
-            <span>C</span>
-            <strong>Sector Select</strong>
-            <small>Choose unlocked missions</small>
-            <span>D</span>
-            <strong>Daily Challenge</strong>
-            <small><span data-title-daily-seed>0000-00-00</span> best <span data-title-daily-best>0</span></small>
-            <span>S</span>
-            <strong>Seeded Run</strong>
-            <small data-title-seed>OJ-0000000</small>
+          <div class="title-background-lines" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
-          <div class="title-controls" aria-label="Controls">
-            <span>Rotate</span>
-            <strong>Left/A and Right/D</strong>
-            <span>Lanes</span>
-            <strong>Up/W and Down/S</strong>
-            <span>Boost</span>
-            <strong>Space</strong>
-            <span>Restart</span>
-            <strong>R after crash</strong>
-            <span>Upgrades</span>
-            <strong>U, then 1-6 to buy</strong>
-            <span>Settings</span>
-            <strong>O for accessibility and touch</strong>
+          <div class="title-hero-panel">
+            ${renderLogoTreatment()}
+            <p class="title-overlay-subtitle">Clean the lanes. Dodge the warnings. Keep the combo alive.</p>
+            <p class="title-press-start" data-title-press-start>Press Enter / Space</p>
           </div>
-          <p class="title-overlay-start">Enter sector | T training | C sector select | D daily</p>
+          <div class="title-command-panel">
+            <div class="title-menu-column">
+              <span class="title-panel-label">Main Menu</span>
+              ${renderMainMenuOverlay()}
+            </div>
+            <div class="title-info-column">
+              ${renderMenuPreviewPanel()}
+              <aside class="title-status-panel" aria-label="Pilot status">
+                <div>
+                  <span>Best</span>
+                  <strong data-title-best-score>0</strong>
+                </div>
+                <div>
+                  <span>Daily</span>
+                  <strong data-title-daily>0000-00-00 / 0</strong>
+                </div>
+                <div>
+                  <span>Audio</span>
+                  <strong data-title-audio>Music On / SFX On</strong>
+                </div>
+                <div>
+                  <span>Unlocked</span>
+                  <strong data-title-unlocked>Low Orbit Cleanup</strong>
+                </div>
+              </aside>
+            </div>
+          </div>
           <p class="title-overlay-footer">
-            Audio starts after first input | M music (<span data-title-music>On</span> <span data-title-music-volume>100%</span>) | N SFX (<span data-title-sfx>On</span>) | Gamepad supported
+            Arrows/W/S select | Enter/Space activate | H help | M/N audio | T/C/D/S/U/O shortcuts
           </p>
         </section>
       `
     );
 
     this.overlay = getElement(root, '[data-title-overlay]');
-    this.titleSeedValue = getElement(root, '[data-title-seed]');
-    this.dailySeedValue = getElement(root, '[data-title-daily-seed]');
-    this.dailyBestValue = getElement(root, '[data-title-daily-best]');
-    this.musicValue = getElement(root, '[data-title-music]');
-    this.musicVolumeValue = getElement(root, '[data-title-music-volume]');
-    this.sfxValue = getElement(root, '[data-title-sfx]');
+    this.menuRows = MAIN_MENU_OPTIONS.map((_, index) =>
+      getElement(root, `[data-main-menu-option="${index}"]`)
+    );
+    this.promptValue = getElement(root, '[data-title-press-start]');
+    this.previewEyebrowValue = getElement(root, '[data-menu-preview-eyebrow]');
+    this.previewTitleValue = getElement(root, '[data-menu-preview-title]');
+    this.previewBodyValue = getElement(root, '[data-menu-preview-body]');
+    this.previewMetaValue = getElement(root, '[data-menu-preview-meta]');
+    this.bestScoreValue = getElement(root, '[data-title-best-score]');
+    this.dailyValue = getElement(root, '[data-title-daily]');
+    this.audioValue = getElement(root, '[data-title-audio]');
+    this.unlockedValue = getElement(root, '[data-title-unlocked]');
   }
 
   update(snapshot: TitleOverlaySnapshot): void {
-    this.titleSeedValue.textContent = snapshot.titleSeed;
-    this.dailySeedValue.textContent = snapshot.dailySeed;
-    this.dailyBestValue.textContent = String(snapshot.dailyBestScore);
-    this.musicValue.textContent = snapshot.musicEnabled ? 'On' : 'Off';
-    this.musicVolumeValue.textContent = `${Math.round(snapshot.musicVolume * 100)}%`;
-    this.sfxValue.textContent = snapshot.sfxEnabled ? 'On' : 'Off';
+    const selectedIndex = normalizeMainMenuIndex(snapshot.selectedMenuIndex);
+    const selectedOption = getMainMenuOption(selectedIndex);
+    const preview = getMenuPreviewContent({
+      ...snapshot,
+      selectedOptionId: selectedOption.id
+    });
+
+    this.menuRows.forEach((row, index) => {
+      const option = getMainMenuOption(index);
+      const isSelected = index === selectedIndex;
+
+      row.classList.toggle('is-selected', isSelected);
+      row.classList.toggle('is-disabled', Boolean(option.disabled));
+      row.setAttribute('aria-selected', String(isSelected));
+      row.setAttribute('aria-disabled', String(Boolean(option.disabled)));
+    });
+
+    this.promptValue.classList.toggle('is-hidden', snapshot.menuInteracted);
+    this.previewEyebrowValue.textContent = preview.eyebrow;
+    this.previewTitleValue.textContent = preview.title;
+    this.previewBodyValue.textContent = preview.body;
+    this.previewMetaValue.textContent = preview.meta;
+    this.bestScoreValue.textContent = String(snapshot.bestScore);
+    this.dailyValue.textContent = `${snapshot.dailySeed} / ${snapshot.dailyBestScore}`;
+    this.audioValue.textContent = `Music ${snapshot.musicEnabled ? `${Math.round(snapshot.musicVolume * 100)}%` : 'Off'} / SFX ${snapshot.sfxEnabled ? 'On' : 'Off'}`;
+    this.unlockedValue.textContent = snapshot.lastUnlockedSectorName;
+
     this.setVisible(
       snapshot.state === 'title' &&
         !snapshot.upgradePanelOpen &&
-        snapshot.cinematicPresetKey !== 'titleFlyIn'
+        !snapshot.settingsOpen &&
+        !snapshot.helpOpen
     );
   }
 

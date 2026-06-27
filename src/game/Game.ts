@@ -100,6 +100,11 @@ import { FloatingText } from './ui/FloatingText';
 import { CinematicLetterbox } from './ui/CinematicLetterbox';
 import { HelpOverlay } from './ui/HelpOverlay';
 import { Hud, type GameState } from './ui/Hud';
+import {
+  getMainMenuOption,
+  normalizeMainMenuIndex,
+  type MainMenuOptionId
+} from './ui/MainMenuOverlay';
 import { MissionCompleteOverlay } from './ui/MissionCompleteOverlay';
 import { MissionIntroOverlay } from './ui/MissionIntroOverlay';
 import { PauseOverlay } from './ui/PauseOverlay';
@@ -152,6 +157,8 @@ interface OrbitJanitorDebugState {
   isPaused: boolean;
   helpOpen: boolean;
   settingsOpen: boolean;
+  titleMenuSelectedIndex: number;
+  titleMenuSelectedOption: MainMenuOptionId;
   missionIntroActive: boolean;
   cinematicActive: boolean;
   cinematicPresetKey: CinematicPresetKey | null;
@@ -287,6 +294,8 @@ export class Game {
   private gameOverReason = 'Impact detected';
   private runRng = new SeededRandom('title');
   private selectedSectorId = DEFAULT_SECTOR_ID;
+  private titleMenuSelectedIndex = 0;
+  private titleMenuInteracted = false;
   private currentWorldCoreType: WorldCoreType | null = null;
   private titleCinematicPlayed = false;
   private newlyUnlockedSectorName: string | null = null;
@@ -1424,6 +1433,8 @@ export class Game {
     this.isPaused = false;
     this.helpOpen = false;
     this.settingsOpen = false;
+    this.titleMenuSelectedIndex = 0;
+    this.titleMenuInteracted = false;
     this.music.startTitleMusic();
     if (!this.titleCinematicPlayed) {
       this.titleCinematicPlayed = true;
@@ -2039,22 +2050,95 @@ export class Game {
       return true;
     }
 
-    if (input.seededStartPressed) {
-      this.startRun('seeded', this.sectorProgress.getDefaultSectorId());
-      return true;
-    }
-
     if (input.dailyStartPressed) {
       this.startRun('daily', this.sectorProgress.getDefaultSectorId());
       return true;
     }
 
-    if (input.startPressed) {
-      this.startRun('normal', this.sectorProgress.getDefaultSectorId());
+    if (input.seededStartPressed && !this.titleMenuInteracted) {
+      this.startRun('seeded', this.sectorProgress.getDefaultSectorId());
+      return true;
+    }
+
+    if (input.menuUpPressed) {
+      this.moveTitleMenuSelection(-1);
+      return true;
+    }
+
+    if (input.menuDownPressed) {
+      this.moveTitleMenuSelection(1);
+      return true;
+    }
+
+    if (input.menuSelectPressed || input.startPressed) {
+      this.activateTitleMenuOption();
       return true;
     }
 
     return false;
+  }
+
+  private moveTitleMenuSelection(direction: number): void {
+    this.titleMenuSelectedIndex = normalizeMainMenuIndex(
+      this.titleMenuSelectedIndex + direction
+    );
+    this.titleMenuInteracted = true;
+    this.audio.playUiSelect();
+  }
+
+  private activateTitleMenuOption(): void {
+    this.titleMenuInteracted = true;
+    const option = getMainMenuOption(this.titleMenuSelectedIndex);
+
+    if (option.disabled) {
+      this.audio.playUiSelect();
+      this.queueRadio(
+        'DISPATCH',
+        'Shipyard gantry is still under seal. Cleanup routes are cleared for launch.',
+        'shipyard-disabled'
+      );
+      return;
+    }
+
+    if (option.id === 'startMission') {
+      this.startRun('normal', this.sectorProgress.getDefaultSectorId());
+      return;
+    }
+
+    if (option.id === 'trainingOrbit') {
+      this.startRun('normal', TRAINING_SECTOR_ID);
+      return;
+    }
+
+    if (option.id === 'sectorSelect') {
+      this.openSectorSelect();
+      return;
+    }
+
+    if (option.id === 'dailyChallenge') {
+      this.startRun('daily', this.sectorProgress.getDefaultSectorId());
+      return;
+    }
+
+    if (option.id === 'seededRun') {
+      this.startRun('seeded', this.sectorProgress.getDefaultSectorId());
+      return;
+    }
+
+    if (option.id === 'upgrades') {
+      this.upgradePanelOpen = true;
+      this.helpOpen = false;
+      this.settingsOpen = false;
+      this.audio.playUiSelect();
+      return;
+    }
+
+    if (option.id === 'settings') {
+      this.settingsOpen = true;
+      this.helpOpen = false;
+      this.upgradePanelOpen = false;
+      this.audio.playUiSelect();
+    }
   }
 
   private handleSectorSelectInput(input: InputState): boolean {
@@ -2245,6 +2329,20 @@ export class Game {
     const eventEffects = this.eventWaveDirector.getEffects();
     const settings = this.settings.getSnapshot();
     const cinematic = this.cinematicDirector.getSnapshot();
+    const defaultSector = getSectorById(this.sectorProgress.getDefaultSectorId());
+    const unlockedSectors = sectorProgress.sectors.filter(
+      (candidate) => candidate.isUnlocked
+    );
+    const lastUnlockedSector =
+      [...sectorProgress.sectors]
+        .reverse()
+        .find(
+          (candidate) =>
+            candidate.isUnlocked && !candidate.isTutorial && !candidate.isEndless
+        ) ??
+      unlockedSectors[unlockedSectors.length - 1] ??
+      defaultSector;
+    const upgradeSnapshot = this.upgrades.getSnapshot();
 
     this.hud.update({
       score: this.score,
@@ -2309,9 +2407,20 @@ export class Game {
     this.titleOverlay.update({
       state: this.state,
       upgradePanelOpen: this.upgradePanelOpen,
+      settingsOpen: this.settingsOpen,
+      helpOpen: this.helpOpen,
+      selectedMenuIndex: this.titleMenuSelectedIndex,
+      menuInteracted: this.titleMenuInteracted,
       titleSeed: challenge.titleSeed,
       dailySeed: challenge.dailySeed,
       dailyBestScore: challenge.dailyBestScore,
+      bestScore: stats.bestScore,
+      defaultSectorName: defaultSector.name,
+      defaultSectorSubtitle: defaultSector.subtitle,
+      unlockedSectorCount: unlockedSectors.length,
+      totalSectorCount: sectorProgress.sectors.length,
+      totalScrap: upgradeSnapshot.totalScrap,
+      lastUnlockedSectorName: lastUnlockedSector.name,
       musicEnabled: this.audio.isMusicEnabled(),
       musicVolume: this.music.getMusicVolume(),
       sfxEnabled: this.audio.isSfxEnabled(),
@@ -2321,7 +2430,7 @@ export class Game {
       state: this.state,
       stats,
       challenge,
-      upgrades: this.upgrades.getSnapshot(),
+      upgrades: upgradeSnapshot,
       upgradePanelOpen: this.upgradePanelOpen,
       cinematicActive: cinematic.isActive
     });
@@ -2331,7 +2440,7 @@ export class Game {
         this.state === 'title' ||
         this.state === 'gameover' ||
         this.state === 'missionComplete',
-      upgrades: this.upgrades.getSnapshot()
+      upgrades: upgradeSnapshot
     });
     this.tutorialOverlay.update({
       state: this.state,
@@ -2362,7 +2471,18 @@ export class Game {
       radio: this.radioComms.getSnapshot(),
       reducedMotion: this.reducedMotion
     });
-    this.cinematicLetterbox.update(cinematic);
+    this.cinematicLetterbox.update(
+      this.state === 'title' && cinematic.presetKey === 'titleFlyIn'
+        ? {
+            ...cinematic,
+            isActive: false,
+            title: '',
+            subtitle: '',
+            skipLabel: '',
+            progress: 0
+          }
+        : cinematic
+    );
     this.touchControls.update({
       state: this.state,
       overlaysOpen:
@@ -2526,6 +2646,8 @@ export class Game {
       isPaused: this.isPaused,
       helpOpen: this.helpOpen,
       settingsOpen: this.settingsOpen,
+      titleMenuSelectedIndex: this.titleMenuSelectedIndex,
+      titleMenuSelectedOption: getMainMenuOption(this.titleMenuSelectedIndex).id,
       missionIntroActive: this.missionIntroActive,
       cinematicActive: cinematic.isActive,
       cinematicPresetKey: cinematic.presetKey,
@@ -2601,6 +2723,10 @@ export class Game {
     this.canvas.dataset.paused = String(this.isPaused);
     this.canvas.dataset.helpOpen = String(this.helpOpen);
     this.canvas.dataset.settingsOpen = String(this.settingsOpen);
+    this.canvas.dataset.titleMenuSelectedIndex = String(this.titleMenuSelectedIndex);
+    this.canvas.dataset.titleMenuSelectedOption = getMainMenuOption(
+      this.titleMenuSelectedIndex
+    ).id;
     this.canvas.dataset.missionIntroActive = String(this.missionIntroActive);
     this.canvas.dataset.cinematicActive = String(cinematic.isActive);
     this.canvas.dataset.cinematicPreset = cinematic.presetKey ?? '';

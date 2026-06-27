@@ -86,6 +86,9 @@ export class TouchControls {
     this.state.rightPressed = false;
     this.state.laneUpPressed = false;
     this.state.laneDownPressed = false;
+    this.state.menuUpPressed = false;
+    this.state.menuDownPressed = false;
+    this.state.menuSelectPressed = false;
     this.state.startPressed = false;
     this.state.restartPressed = false;
     this.state.cinematicSkipPressed = false;
@@ -120,12 +123,14 @@ export class TouchControls {
     if (action === 'laneUp') {
       this.state.up = true;
       this.state.laneUpPressed = true;
+      this.state.menuUpPressed = true;
       return;
     }
 
     if (action === 'laneDown') {
       this.state.down = true;
       this.state.laneDownPressed = true;
+      this.state.menuDownPressed = true;
       return;
     }
 
@@ -133,6 +138,7 @@ export class TouchControls {
       this.state.restartPressed = true;
     } else {
       this.state.startPressed = true;
+      this.state.menuSelectPressed = true;
     }
 
     this.state.cinematicSkipPressed = true;

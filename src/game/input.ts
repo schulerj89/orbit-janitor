@@ -8,6 +8,9 @@ export interface InputState {
   rightPressed: boolean;
   laneUpPressed: boolean;
   laneDownPressed: boolean;
+  menuUpPressed: boolean;
+  menuDownPressed: boolean;
+  menuSelectPressed: boolean;
   startPressed: boolean;
   tutorialStartPressed: boolean;
   sectorSelectPressed: boolean;
@@ -44,6 +47,9 @@ export class InputController {
     this.state.rightPressed = false;
     this.state.laneUpPressed = false;
     this.state.laneDownPressed = false;
+    this.state.menuUpPressed = false;
+    this.state.menuDownPressed = false;
+    this.state.menuSelectPressed = false;
     this.state.startPressed = false;
     this.state.tutorialStartPressed = false;
     this.state.sectorSelectPressed = false;
@@ -91,6 +97,7 @@ export class InputController {
       this.state.up = true;
       if (!event.repeat) {
         this.state.laneUpPressed = true;
+        this.state.menuUpPressed = true;
       }
       event.preventDefault();
     }
@@ -99,6 +106,7 @@ export class InputController {
       this.state.down = true;
       if (!event.repeat) {
         this.state.laneDownPressed = true;
+        this.state.menuDownPressed = true;
         if (event.code === 'KeyS') {
           this.state.seededStartPressed = true;
         }
@@ -111,6 +119,7 @@ export class InputController {
       if (!event.repeat) {
         this.state.startPressed = true;
         this.state.cinematicSkipPressed = true;
+        this.state.menuSelectPressed = true;
       }
       event.preventDefault();
     }
@@ -118,6 +127,7 @@ export class InputController {
     if (event.code === 'Enter' && !event.repeat) {
       this.state.startPressed = true;
       this.state.cinematicSkipPressed = true;
+      this.state.menuSelectPressed = true;
       event.preventDefault();
     }
 
@@ -242,6 +252,9 @@ export function createNeutralInputState(): InputState {
     rightPressed: false,
     laneUpPressed: false,
     laneDownPressed: false,
+    menuUpPressed: false,
+    menuDownPressed: false,
+    menuSelectPressed: false,
     startPressed: false,
     tutorialStartPressed: false,
     sectorSelectPressed: false,
@@ -278,6 +291,9 @@ export function mergeInputStates(...states: InputState[]): InputState {
     merged.rightPressed ||= state.rightPressed;
     merged.laneUpPressed ||= state.laneUpPressed;
     merged.laneDownPressed ||= state.laneDownPressed;
+    merged.menuUpPressed ||= state.menuUpPressed;
+    merged.menuDownPressed ||= state.menuDownPressed;
+    merged.menuSelectPressed ||= state.menuSelectPressed;
     merged.startPressed ||= state.startPressed;
     merged.tutorialStartPressed ||= state.tutorialStartPressed;
     merged.sectorSelectPressed ||= state.sectorSelectPressed;
