@@ -251,17 +251,20 @@ test('mobile touch end-state controls can advance a completed sector', async ({
   await expectPhase(page, 'playing');
 });
 
-test('starts Mobile Lite from the desktop title hotkey', async ({ page }) => {
+test('desktop title hides Mobile Lite from the main menu', async ({ page }) => {
   await page.goto('/');
   await waitForGameReady(page);
   await skipCinematic(page);
 
+  await expect(
+    page.locator('.main-menu-option:visible', { hasText: 'Mobile Lite' })
+  ).toHaveCount(0);
+
   await page.keyboard.press('L');
-  await expectPhase(page, 'playing');
+  await expectPhase(page, 'title');
   await expect
     .poll(() => getDebugState(page).then((state) => state.experienceMode))
-    .toBe('mobileLite');
-  expect((await getDebugState(page)).mobileLite.isActive).toBe(true);
+    .toBe('full');
 });
 
 test('toggles music and sfx preferences from keyboard input', async ({ page }) => {

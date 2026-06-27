@@ -112,13 +112,6 @@ Generation tool: ElevenLabs Music API, music_v1
 Prompt: Instrumental only, 60-second seamless sci-fi arcade loop for Orbit Janitor, a space cleanup arcade game. Epic space opera energy with heroic orchestral-synth brass, soaring string-like pads, shimmering arpeggios, steady adventurous percussion, optimistic starfighter momentum. Original melody only, no copyrighted themes, no vocals.
 ```
 
-### `audio/music/title-ambient-loop.mp3`
-
-```text
-Generation tool: ElevenLabs Music API, music_v1
-Prompt: Instrumental only, 60-second seamless deep-space title ambient loop for Orbit Janitor. Warm analog pads, distant orbital shimmer, calm anticipation before launch, subtle cinematic space atmosphere, no percussion, no vocals, original melody only.
-```
-
 ### `audio/music/sector-drive-loop.mp3`
 
 ```text

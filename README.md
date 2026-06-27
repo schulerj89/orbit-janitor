@@ -51,7 +51,6 @@ Keyboard:
 - ArrowUp/W and ArrowDown/S: move selection on the title main menu and sector select.
 - Enter or Space: activate the selected title menu option, or start the default sector when Start Mission is selected.
 - T: start Training Orbit from the title screen.
-- L: start Mobile Lite / Pocket Cleanup from the title screen.
 - C: open sector select from the title screen or mission complete screen.
 - D: start the daily challenge from the title screen.
 - S: start the visible seeded run before menu navigation, or move down after the title menu is active. Add `?seed=YOUR-SEED` to the URL to choose that seed.
@@ -90,7 +89,7 @@ Touch and mobile:
 - Orbit Janitor is optimized for desktop keyboard/gamepad.
 - Touch controls exist, but full mobile play is experimental because the complete game includes sectors, upgrades, shipyard, challenge boards, powerups, event waves, audio, cinematics, and multiple overlays.
 - Phone-like viewports show a desktop-optimized notice before entering the full game.
-- Mobile Lite is available as a simplified Pocket Cleanup mode for phones.
+- Mobile Lite is available as a simplified Pocket Cleanup mode from the phone device gate or device experience setting.
 - Landscape is recommended on phones.
 - Mobile Lite auto-orbits clockwise. Use Lane In, Lane Out, and Boost to dodge, collect, and finish the short objective: collect 20 junk or survive 75 seconds.
 - Mobile Lite has larger hazard warning windows, a two-satellite cap, no event waves, and a limited powerup pool.

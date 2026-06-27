@@ -26,7 +26,6 @@ interface LoopHandle {
 
 const BASE_FADE_SECONDS = 0.9;
 const DANGER_FADE_SECONDS = 0.28;
-const TITLE_VOLUME = 0.55;
 const SECTOR_VOLUME = 0.72;
 const DANGER_VOLUME = 0.56;
 const STINGER_VOLUME = 0.78;
@@ -50,10 +49,10 @@ export class MusicDirector {
   }
 
   startTitleMusic(): void {
-    this.baseRequest = { type: 'title' };
+    this.baseRequest = null;
+    this.dangerIntensity = 0;
+    this.stopRuntimeLoops(false);
     this.stopStingers();
-    this.queueAssetRefresh();
-    this.ensureBaseLoop();
   }
 
   startSectorMusic(sectorId: string, intensityHint: MusicIntensityHint): void {
@@ -220,10 +219,10 @@ export class MusicDirector {
   } {
     if (request.type === 'title') {
       return {
-        assetId: this.pickLoadedAsset(['titleAmbient', 'musicMain']),
+        assetId: null,
         fallbackKind: 'title',
         requestKey: 'title',
-        volume: TITLE_VOLUME
+        volume: 0
       };
     }
 

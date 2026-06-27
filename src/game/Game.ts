@@ -148,6 +148,7 @@ import { GalleryOverlay } from './ui/GalleryOverlay';
 import { HelpOverlay } from './ui/HelpOverlay';
 import { Hud, type GameState } from './ui/Hud';
 import {
+  MAIN_MENU_OPTIONS,
   getMainMenuOption,
   normalizeMainMenuIndex,
   type MainMenuOptionId
@@ -3519,7 +3520,7 @@ export class Game {
       return true;
     }
 
-    if (input.mobileLiteStartPressed) {
+    if (input.mobileLiteStartPressed && this.shouldShowMobileLiteTitleOption()) {
       this.startMobileLiteRun();
       return true;
     }
@@ -3553,15 +3554,43 @@ export class Game {
   }
 
   private moveTitleMenuSelection(direction: number): void {
-    this.titleMenuSelectedIndex = normalizeMainMenuIndex(
-      this.titleMenuSelectedIndex + direction
-    );
+    let nextIndex = this.titleMenuSelectedIndex;
+
+    for (let attempt = 0; attempt < MAIN_MENU_OPTIONS.length; attempt += 1) {
+      nextIndex = normalizeMainMenuIndex(nextIndex + direction);
+
+      if (this.isTitleMenuOptionVisible(getMainMenuOption(nextIndex))) {
+        this.titleMenuSelectedIndex = nextIndex;
+        break;
+      }
+    }
+
     this.titleMenuInteracted = true;
     this.audio.playUiSelect();
   }
 
+  private ensureTitleMenuSelectionVisible(): void {
+    if (this.isTitleMenuOptionVisible(getMainMenuOption(this.titleMenuSelectedIndex))) {
+      return;
+    }
+
+    this.titleMenuSelectedIndex = 0;
+  }
+
+  private isTitleMenuOptionVisible(option: { id: MainMenuOptionId }): boolean {
+    return option.id !== 'mobileLite' || this.shouldShowMobileLiteTitleOption();
+  }
+
+  private shouldShowMobileLiteTitleOption(): boolean {
+    const settings = this.settings.getSnapshot();
+    const deviceProfile = this.deviceProfile.getSnapshot(settings.deviceExperienceMode);
+
+    return deviceProfile.recommendedExperience !== 'desktop';
+  }
+
   private activateTitleMenuOption(): void {
     this.titleMenuInteracted = true;
+    this.ensureTitleMenuSelectionVisible();
     const option = getMainMenuOption(this.titleMenuSelectedIndex);
 
     if (option.disabled) {
@@ -3589,6 +3618,11 @@ export class Game {
     }
 
     if (option.id === 'mobileLite') {
+      if (!this.shouldShowMobileLiteTitleOption()) {
+        this.audio.playUiSelect();
+        return;
+      }
+
       this.startMobileLiteRun();
       return;
     }
@@ -3879,6 +3913,11 @@ export class Game {
     const usesTouchEndActions =
       this.experienceMode === 'mobileLite' ||
       deviceProfile.recommendedExperience !== 'desktop';
+    const showMobileLiteTitleOption = this.shouldShowMobileLiteTitleOption();
+
+    if (this.state === 'title') {
+      this.ensureTitleMenuSelectionVisible();
+    }
 
     document.documentElement.dataset.experienceMode = this.experienceMode;
 
@@ -3990,7 +4029,8 @@ export class Game {
       musicEnabled: this.audio.isMusicEnabled(),
       musicVolume: this.music.getMusicVolume(),
       sfxEnabled: this.audio.isSfxEnabled(),
-      cinematicPresetKey: cinematic.presetKey
+      cinematicPresetKey: cinematic.presetKey,
+      showMobileLiteOption: showMobileLiteTitleOption
     });
     this.runSummary.update({
       state: this.state,

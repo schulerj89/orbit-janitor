@@ -15,7 +15,6 @@ export const AUDIO_MANIFEST = {
   uiStart: { src: audioPath('sfx/ui-start.mp3') },
   uiSelect: { src: audioPath('sfx/ui-select.mp3') },
   musicMain: { src: audioPath('music/orbit-janitor-main-loop.mp3'), loop: true },
-  titleAmbient: { src: audioPath('music/title-ambient-loop.mp3'), loop: true },
   sectorDrive: { src: audioPath('music/sector-drive-loop.mp3'), loop: true },
   dangerLayer: { src: audioPath('music/danger-layer-loop.mp3'), loop: true },
   missionComplete: { src: audioPath('music/mission-complete-stinger.mp3') },

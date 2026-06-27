@@ -32,6 +32,7 @@ export interface TitleOverlaySnapshot extends Omit<
   titleBadgeLabel: string;
   lastUnlockedSectorName: string;
   cinematicPresetKey: CinematicPresetKey | null;
+  showMobileLiteOption: boolean;
 }
 
 export class TitleOverlay {
@@ -47,6 +48,7 @@ export class TitleOverlay {
   private readonly audioValue: HTMLElement;
   private readonly unlockedValue: HTMLElement;
   private readonly badgeValue: HTMLElement;
+  private readonly footerValue: HTMLElement;
 
   constructor(root: HTMLElement) {
     root.insertAdjacentHTML(
@@ -94,8 +96,8 @@ export class TitleOverlay {
               </aside>
             </div>
           </div>
-          <p class="title-overlay-footer">
-            Arrows/W/S select | Enter/Space activate | L Mobile Lite | H help | A achievements | B contracts | Y shipyard | G gallery | M/N audio
+          <p class="title-overlay-footer" data-title-footer>
+            Arrows/W/S select | Enter/Space activate | H help | A achievements | B contracts | Y shipyard | G gallery | M/N audio
           </p>
         </section>
       `
@@ -115,6 +117,7 @@ export class TitleOverlay {
     this.audioValue = getElement(root, '[data-title-audio]');
     this.unlockedValue = getElement(root, '[data-title-unlocked]');
     this.badgeValue = getElement(root, '[data-title-badge]');
+    this.footerValue = getElement(root, '[data-title-footer]');
   }
 
   update(snapshot: TitleOverlaySnapshot): void {
@@ -128,11 +131,15 @@ export class TitleOverlay {
     this.menuRows.forEach((row, index) => {
       const option = getMainMenuOption(index);
       const isSelected = index === selectedIndex;
+      const isHiddenMobileLite =
+        option.id === 'mobileLite' && !snapshot.showMobileLiteOption;
 
       row.classList.toggle('is-selected', isSelected);
       row.classList.toggle('is-disabled', Boolean(option.disabled));
+      row.classList.toggle('is-hidden', isHiddenMobileLite);
       row.setAttribute('aria-selected', String(isSelected));
       row.setAttribute('aria-disabled', String(Boolean(option.disabled)));
+      row.setAttribute('aria-hidden', String(isHiddenMobileLite));
     });
 
     this.promptValue.classList.toggle('is-hidden', snapshot.menuInteracted);
@@ -145,6 +152,9 @@ export class TitleOverlay {
     this.audioValue.textContent = `Music ${snapshot.musicEnabled ? `${Math.round(snapshot.musicVolume * 100)}%` : 'Off'} / SFX ${snapshot.sfxEnabled ? 'On' : 'Off'}`;
     this.unlockedValue.textContent = snapshot.lastUnlockedSectorName;
     this.badgeValue.textContent = snapshot.titleBadgeLabel;
+    this.footerValue.textContent = snapshot.showMobileLiteOption
+      ? 'Arrows/W/S select | Enter/Space activate | L Mobile Lite | H help | A achievements | B contracts | Y shipyard | G gallery | M/N audio'
+      : 'Arrows/W/S select | Enter/Space activate | H help | A achievements | B contracts | Y shipyard | G gallery | M/N audio';
 
     this.setVisible(
       snapshot.state === 'title' &&
