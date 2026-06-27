@@ -9,6 +9,7 @@ export interface RunSummarySnapshot {
   challenge: ChallengeModeSnapshot;
   upgrades: UpgradeSnapshot;
   upgradePanelOpen: boolean;
+  cinematicActive: boolean;
 }
 
 export class RunSummary {
@@ -104,7 +105,11 @@ export class RunSummary {
     this.objectiveValue.classList.toggle('is-complete', stats.objectiveComplete);
     this.scrapEarnedValue.textContent = String(snapshot.upgrades.lastRunScrapEarned);
     this.totalScrapValue.textContent = String(snapshot.upgrades.totalScrap);
-    this.setVisible(snapshot.state === 'gameover' && !snapshot.upgradePanelOpen);
+    this.setVisible(
+      snapshot.state === 'gameover' &&
+        !snapshot.upgradePanelOpen &&
+        !snapshot.cinematicActive
+    );
   }
 
   private setVisible(isVisible: boolean): void {

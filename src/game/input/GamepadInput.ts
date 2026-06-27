@@ -64,6 +64,7 @@ export class GamepadInput {
       this.wasPressed(gamepad, GAMEPAD_BUTTONS.leftShoulder);
     state.startPressed = this.wasPressed(gamepad, GAMEPAD_BUTTONS.cross);
     state.escapePressed = this.wasPressed(gamepad, GAMEPAD_BUTTONS.circle);
+    state.cinematicSkipPressed = state.startPressed || state.escapePressed;
     state.pausePressed = this.wasPressed(gamepad, GAMEPAD_BUTTONS.start);
     state.boost =
       this.isButtonDown(gamepad, GAMEPAD_BUTTONS.rightTrigger, TRIGGER_DEADZONE) ||

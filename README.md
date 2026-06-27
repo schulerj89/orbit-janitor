@@ -55,6 +55,7 @@ Keyboard:
 - S: start the visible seeded run from the title screen. Add `?seed=YOUR-SEED` to the URL to choose that seed.
 - ArrowUp or W / ArrowDown or S: move selection in sector select.
 - Escape: return to title from sector select or mission complete, or close help, pause, and settings overlays.
+- Space / Enter / Escape: skip active cinematic sequences.
 - ArrowLeft or A / ArrowRight or D: rotate around the sector core.
 - ArrowUp or W / ArrowDown or S: switch orbit lanes while playing.
 - Space: boost while held, limited by fuel.
@@ -88,6 +89,7 @@ Touch:
 ## Feature List
 
 - Title, sector select, mission complete, pause, help, settings, upgrade, game over, and run summary overlays.
+- Skippable real-time micro-cinematics for title fly-in, sector intro, event warnings, mission complete, game over, and sector unlock reveals.
 - Structured sectors with score, junk collection, survival timer, hazard survival, tutorial, daily challenge, seeded run, and endless objectives.
 - Persistent sector unlocks, best score, daily best, scrap total, upgrades, audio preferences, and accessibility settings.
 - Training Orbit tutorial with guided rotate, pickup, lane switch, boost, obstacle, and hazard-reading steps.

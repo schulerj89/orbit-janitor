@@ -12,6 +12,7 @@ type DebugState = {
   helpOpen: boolean;
   settingsOpen: boolean;
   missionIntroActive: boolean;
+  cinematicActive: boolean;
   sectorId: string;
   tutorialActive: boolean;
   musicEnabled: boolean;
@@ -26,6 +27,7 @@ type DebugApi = {
   getState: () => DebugState;
   restart?: () => void;
   forceGameOver?: (reason?: string) => void;
+  skipCinematic?: () => void;
 };
 
 type WindowWithDebug = Window & {
@@ -98,6 +100,7 @@ test('toggles music and sfx preferences from keyboard input', async ({ page }) =
 test('opens settings and exposes persisted accessibility controls', async ({ page }) => {
   await page.goto('/');
   await waitForGameReady(page);
+  await skipCinematic(page);
 
   await page.keyboard.press('O');
   await expect
@@ -129,6 +132,7 @@ test('shows touch controls on narrow screens', async ({ page }) => {
 test('starts gameplay and responds to core controls', async ({ page }) => {
   await page.goto('/');
   await waitForGameReady(page);
+  await skipCinematic(page);
 
   await page.keyboard.press('Enter');
   await expectPhase(page, 'playing');
@@ -202,6 +206,7 @@ test('restarts from game over with R when debug game-over hook is available', as
     )
   );
   await expectPhase(page, 'gameover');
+  await skipCinematic(page);
 
   await page.keyboard.press('R');
   await expectPhase(page, 'playing');
@@ -213,6 +218,7 @@ test('supports optional title tutorial, help, pause, and sector select flows', a
 }) => {
   await page.goto('/');
   await waitForGameReady(page);
+  await skipCinematic(page);
 
   await page.keyboard.press('H');
   await expect.poll(() => getDebugState(page).then((state) => state.helpOpen)).toBe(true);
@@ -232,6 +238,7 @@ test('supports optional title tutorial, help, pause, and sector select flows', a
 
   await page.keyboard.press('T');
   await expectPhase(page, 'playing');
+  await skipCinematic(page);
   const tutorialState = await getDebugState(page);
   expect(tutorialState.sectorId).toBe('training-orbit');
   expect(tutorialState.tutorialActive).toBe(true);
@@ -271,10 +278,20 @@ async function expectPhase(page: Page, phase: string): Promise<void> {
 }
 
 async function waitForMissionIntro(page: Page): Promise<void> {
+  await skipCinematic(page);
   await expect
     .poll(() => getDebugState(page).then((state) => state.missionIntroActive), {
       timeout: 6000
     })
+    .toBe(false);
+}
+
+async function skipCinematic(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    (window as WindowWithDebug).orbitJanitorDebug?.skipCinematic?.()
+  );
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.cinematicActive))
     .toBe(false);
 }
 

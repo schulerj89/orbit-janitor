@@ -12,6 +12,7 @@ export interface MissionCompleteOverlaySnapshot {
   upgrades: UpgradeSnapshot;
   newlyUnlockedSectorName: string | null;
   upgradePanelOpen: boolean;
+  cinematicActive: boolean;
 }
 
 export class MissionCompleteOverlay {
@@ -77,7 +78,11 @@ export class MissionCompleteOverlay {
       'is-complete',
       snapshot.newlyUnlockedSectorName !== null
     );
-    this.setVisible(snapshot.state === 'missionComplete' && !snapshot.upgradePanelOpen);
+    this.setVisible(
+      snapshot.state === 'missionComplete' &&
+        !snapshot.upgradePanelOpen &&
+        !snapshot.cinematicActive
+    );
   }
 
   private setVisible(isVisible: boolean): void {

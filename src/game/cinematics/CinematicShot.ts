@@ -1,0 +1,59 @@
+import type * as THREE from 'three/webgpu';
+
+export type CinematicPresetKey =
+  | 'titleFlyIn'
+  | 'sectorIntro'
+  | 'missionCompleteFlyBy'
+  | 'gameOverImpact'
+  | 'sectorUnlockReveal'
+  | 'eventWarningShot';
+
+export type CinematicEasing = 'smooth' | 'easeOut' | 'easeInOut';
+
+export type VectorTuple = readonly [number, number, number];
+
+export interface CinematicCameraPose {
+  position: VectorTuple;
+  lookAt: VectorTuple;
+  fov: number;
+}
+
+export interface CinematicShot {
+  id: string;
+  presetKey: CinematicPresetKey;
+  title: string;
+  subtitle: string;
+  duration: number;
+  from: CinematicCameraPose;
+  to: CinematicCameraPose;
+  easing: CinematicEasing;
+  reducedMotionDuration: number;
+  reducedMotionPose?: CinematicCameraPose;
+}
+
+export interface CinematicContext {
+  reducedMotion: boolean;
+  sectorName?: string;
+  sectorSubtitle?: string;
+  objectiveText?: string;
+  unlockedSectorName?: string;
+  gameOverReason?: string;
+  eventCallout?: string;
+  focus?: VectorTuple;
+}
+
+export interface CinematicCameraOverride {
+  position: THREE.Vector3;
+  lookAt: THREE.Vector3;
+  fov: number;
+}
+
+export interface CinematicSnapshot {
+  isActive: boolean;
+  presetKey: CinematicPresetKey | null;
+  title: string;
+  subtitle: string;
+  progress: number;
+  skipLabel: string;
+  reducedMotion: boolean;
+}

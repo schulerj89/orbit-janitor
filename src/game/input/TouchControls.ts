@@ -88,6 +88,7 @@ export class TouchControls {
     this.state.laneDownPressed = false;
     this.state.startPressed = false;
     this.state.restartPressed = false;
+    this.state.cinematicSkipPressed = false;
     return frameState;
   }
 
@@ -133,6 +134,8 @@ export class TouchControls {
     } else {
       this.state.startPressed = true;
     }
+
+    this.state.cinematicSkipPressed = true;
   }
 
   private handlePointerUp(event: PointerEvent, action: TouchAction): void {

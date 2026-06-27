@@ -39,6 +39,7 @@ export interface HudSnapshot {
   tutorialActive: boolean;
   tutorialStepLabel: string | null;
   isPaused: boolean;
+  cinematicActive: boolean;
   shieldCharges: number;
   shieldBroken: boolean;
   gameOverReason: string;
@@ -216,6 +217,8 @@ export class Hud {
       this.statusValue.textContent = 'Awaiting launch';
     } else if (snapshot.state === 'sectorSelect') {
       this.statusValue.textContent = 'Choose sector';
+    } else if (snapshot.cinematicActive) {
+      this.statusValue.textContent = 'Cinematic sequence';
     } else if (snapshot.settingsOpen) {
       this.statusValue.textContent = 'Settings open';
     } else if (snapshot.isPaused) {

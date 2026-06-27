@@ -38,6 +38,8 @@ import {
 import { createRenderer } from './renderer';
 import { AudioManager } from './audio/AudioManager';
 import { MusicDirector } from './audio/MusicDirector';
+import { CinematicDirector } from './cinematics/CinematicDirector';
+import type { CinematicContext, CinematicPresetKey } from './cinematics/CinematicShot';
 import { CameraRig } from './effects/CameraRig';
 import { ImpactFlash } from './effects/ImpactFlash';
 import { ParticleBurst } from './effects/ParticleBurst';
@@ -89,6 +91,7 @@ import {
 } from './systems/TutorialDirector';
 import { UpgradeSystem, type UpgradeSnapshot } from './systems/UpgradeSystem';
 import { FloatingText } from './ui/FloatingText';
+import { CinematicLetterbox } from './ui/CinematicLetterbox';
 import { HelpOverlay } from './ui/HelpOverlay';
 import { Hud, type GameState } from './ui/Hud';
 import { MissionCompleteOverlay } from './ui/MissionCompleteOverlay';
@@ -143,6 +146,9 @@ interface OrbitJanitorDebugState {
   helpOpen: boolean;
   settingsOpen: boolean;
   missionIntroActive: boolean;
+  cinematicActive: boolean;
+  cinematicPresetKey: CinematicPresetKey | null;
+  cinematicTitle: string;
   reducedMotion: boolean;
   settings: SettingsSnapshot;
   scrap: number;
@@ -180,6 +186,7 @@ declare global {
       getState: () => OrbitJanitorDebugState;
       restart: () => void;
       forceGameOver: (reason?: string) => void;
+      skipCinematic: () => void;
     };
   }
 }
@@ -198,6 +205,7 @@ export class Game {
   private readonly particles = new ParticleBurst();
   private readonly screenShake = new ScreenShake();
   private readonly cameraRig = new CameraRig();
+  private readonly cinematicDirector = new CinematicDirector();
   private readonly hazardDirector = new HazardDirector();
   private readonly eventWaveDirector = new EventWaveDirector();
   private readonly powerupDirector = new PowerupDirector();
@@ -232,6 +240,7 @@ export class Game {
   private touchControls!: TouchControls;
   private impactFlash!: ImpactFlash;
   private floatingText!: FloatingText;
+  private cinematicLetterbox!: CinematicLetterbox;
   private missionIntroOverlay!: MissionIntroOverlay;
   private orbitLanes!: OrbitLanes;
   private worldCore!: WorldCore;
@@ -269,6 +278,7 @@ export class Game {
   private runRng = new SeededRandom('title');
   private selectedSectorId = DEFAULT_SECTOR_ID;
   private currentWorldCoreType: WorldCoreType | null = null;
+  private titleCinematicPlayed = false;
   private newlyUnlockedSectorName: string | null = null;
   private sectorHintTimer = 0;
   private runBonusScrap = 0;
@@ -305,6 +315,7 @@ export class Game {
     this.touchControls = new TouchControls(hudRoot);
     this.impactFlash = new ImpactFlash(hudRoot);
     this.floatingText = new FloatingText(hudRoot);
+    this.cinematicLetterbox = new CinematicLetterbox(hudRoot);
     this.missionIntroOverlay = new MissionIntroOverlay(hudRoot);
     this.applySettings();
 
@@ -316,7 +327,8 @@ export class Game {
     window.orbitJanitorDebug = {
       getState: () => this.getDebugState(),
       restart: () => this.restart(),
-      forceGameOver: (reason = 'Debug game over') => this.triggerGameOver(reason)
+      forceGameOver: (reason = 'Debug game over') => this.triggerGameOver(reason),
+      skipCinematic: () => this.cinematicDirector.skip()
     };
   }
 
@@ -369,6 +381,18 @@ export class Game {
       this.music.unlock();
     }
 
+    const cinematicWasActive = this.cinematicDirector.isActive();
+    const titleCinematicYield =
+      cinematicWasActive && this.state === 'title' && this.hasPlayerInput(input);
+    const cinematicInputConsumed =
+      cinematicWasActive && input.cinematicSkipPressed && !titleCinematicYield;
+
+    if (cinematicWasActive && (input.cinematicSkipPressed || titleCinematicYield)) {
+      this.cinematicDirector.skip();
+      this.audio.playUiSelect();
+      this.audio.playBoostLoopStop();
+    }
+
     if (input.musicTogglePressed) {
       const musicEnabled = !this.music.isMusicEnabled();
       this.music.setMusicEnabled(musicEnabled);
@@ -404,8 +428,16 @@ export class Game {
       this.audio.playUiSelect();
     }
 
-    const consumedOverlayInput = this.handleOverlayInput(input);
+    const allowTitleInputAfterCinematicSkip = titleCinematicYield;
+    const inputBlockedByCinematic =
+      this.cinematicDirector.isActive() ||
+      (cinematicInputConsumed && !allowTitleInputAfterCinematicSkip);
+    const consumedOverlayInput = inputBlockedByCinematic
+      ? false
+      : this.handleOverlayInput(input);
     const canUseUpgradePanel =
+      !inputBlockedByCinematic &&
+      !allowTitleInputAfterCinematicSkip &&
       !this.helpOpen &&
       !this.isPaused &&
       !this.settingsOpen &&
@@ -426,18 +458,26 @@ export class Game {
       this.audio.playUiSelect();
     }
 
-    let consumedStartInput = false;
-    if (consumedOverlayInput || this.helpOpen || this.isPaused || this.settingsOpen) {
+    let consumedStartInput = cinematicInputConsumed && !allowTitleInputAfterCinematicSkip;
+    if (
+      !inputBlockedByCinematic &&
+      (consumedOverlayInput || this.helpOpen || this.isPaused || this.settingsOpen)
+    ) {
       consumedStartInput = consumedOverlayInput;
-    } else if (this.state === 'title') {
+    } else if (!inputBlockedByCinematic && this.state === 'title') {
       consumedStartInput = this.handleTitleInput(input);
-    } else if (this.state === 'sectorSelect') {
+    } else if (!inputBlockedByCinematic && this.state === 'sectorSelect') {
       consumedStartInput = this.handleSectorSelectInput(input);
-    } else if (this.state === 'missionComplete') {
+    } else if (!inputBlockedByCinematic && this.state === 'missionComplete') {
       consumedStartInput = this.handleMissionCompleteInput(input);
     }
 
-    if (input.restartPressed && this.state === 'gameover' && !this.helpOpen) {
+    if (
+      input.restartPressed &&
+      this.state === 'gameover' &&
+      !this.helpOpen &&
+      !inputBlockedByCinematic
+    ) {
       this.restart();
     }
 
@@ -445,6 +485,7 @@ export class Game {
       input.tutorialSkipPressed &&
       this.state === 'playing' &&
       !this.isGameplayPaused() &&
+      !inputBlockedByCinematic &&
       this.tutorialDirector.getSnapshot().isActive
     ) {
       this.tutorialDirector.skip();
@@ -587,7 +628,7 @@ export class Game {
           this.tryCompleteMission();
         }
       }
-    } else if (isGameOver) {
+    } else if (isGameOver && !this.cinematicDirector.isActive()) {
       this.hazardDirector.update(delta, {
         score: this.score,
         runTime: this.runTime,
@@ -604,9 +645,11 @@ export class Game {
       this.hazardNearMissArmed = false;
     }
 
+    this.cinematicDirector.update(delta);
     this.updateMusicIntensity();
     this.syncRunStats();
     this.applyCameraShake();
+    this.applyCinematicCameraOverride();
     this.updateHud(this.shouldShowBoostEmpty(input));
     this.renderer.render(this.scene, this.camera);
     this.syncDebugAttributes();
@@ -816,6 +859,7 @@ export class Game {
     return (
       this.isPaused ||
       this.settingsOpen ||
+      this.cinematicDirector.isActive() ||
       this.missionIntroActive ||
       (this.helpOpen && this.state === 'playing')
     );
@@ -837,6 +881,9 @@ export class Game {
     if (result.started) {
       this.hazardDirector.delayNextSpawn(2.25);
       this.audio.playHazardWarning();
+      this.playCinematic('eventWarningShot', {
+        eventCallout: this.eventWaveDirector.getSnapshot().callout || 'Event Incoming'
+      });
     }
 
     if (result.activated) {
@@ -1211,6 +1258,10 @@ export class Game {
     this.cameraRig.punch(0.34);
     this.impactFlash.flash('hit');
     this.floatingText.show('CRITICAL HIT', 'warning');
+    this.playCinematic('gameOverImpact', {
+      gameOverReason: reason,
+      focus: this.getPlayerFocus()
+    });
   }
 
   private triggerMissionComplete(): void {
@@ -1252,6 +1303,15 @@ export class Game {
     this.cameraRig.punch(0.22);
     this.impactFlash.flash('complete');
     this.floatingText.show('MISSION COMPLETE', 'bonus');
+    this.playCinematic('missionCompleteFlyBy', {
+      focus: this.getPlayerFocus()
+    });
+
+    if (this.newlyUnlockedSectorName) {
+      this.queueCinematic('sectorUnlockReveal', {
+        unlockedSectorName: this.newlyUnlockedSectorName
+      });
+    }
   }
 
   private prepareTitle(): void {
@@ -1267,6 +1327,10 @@ export class Game {
     this.helpOpen = false;
     this.settingsOpen = false;
     this.music.startTitleMusic();
+    if (!this.titleCinematicPlayed) {
+      this.titleCinematicPlayed = true;
+      this.playCinematic('titleFlyIn');
+    }
     this.updateHud(false);
     this.syncDebugAttributes();
   }
@@ -1294,6 +1358,7 @@ export class Game {
     this.startTutorialIfNeeded();
     this.state = 'playing';
     this.startMissionIntro();
+    this.playCinematic('sectorIntro');
     this.upgradePanelOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
@@ -1318,6 +1383,7 @@ export class Game {
     this.startTutorialIfNeeded();
     this.state = 'playing';
     this.startMissionIntro();
+    this.playCinematic('sectorIntro');
     this.upgradePanelOpen = false;
     this.isPaused = false;
     this.helpOpen = false;
@@ -1339,11 +1405,52 @@ export class Game {
     this.audio.playBoostLoopStop();
   }
 
+  private playCinematic(
+    presetKey: CinematicPresetKey,
+    overrides: Partial<CinematicContext> = {}
+  ): void {
+    this.cinematicDirector.play(presetKey, this.createCinematicContext(overrides));
+    this.audio.playBoostLoopStop();
+  }
+
+  private queueCinematic(
+    presetKey: CinematicPresetKey,
+    overrides: Partial<CinematicContext> = {}
+  ): void {
+    this.cinematicDirector.queuePreset(presetKey, this.createCinematicContext(overrides));
+  }
+
+  private createCinematicContext(overrides: Partial<CinematicContext>): CinematicContext {
+    const sector = this.missionDirector.getCurrentSector();
+    const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
+
+    return {
+      reducedMotion: this.reducedMotion,
+      sectorName: sector.name,
+      sectorSubtitle: sector.subtitle,
+      objectiveText: objective.text,
+      ...overrides
+    };
+  }
+
+  private getPlayerFocus(): [number, number, number] {
+    const position = this.player.getPosition(this.playerPosition);
+
+    return [position.x, position.y, position.z];
+  }
+
   private updateMissionIntro(delta: number): void {
+    const cinematicActive = this.cinematicDirector.isActive();
+
     if (this.state !== 'playing') {
       this.missionIntroActive = false;
       this.missionIntroTimer = 0;
-    } else if (this.missionIntroActive && !this.helpOpen && !this.isPaused) {
+    } else if (
+      this.missionIntroActive &&
+      !this.helpOpen &&
+      !this.isPaused &&
+      !cinematicActive
+    ) {
       this.missionIntroTimer = Math.max(0, this.missionIntroTimer - delta);
 
       if (this.missionIntroTimer <= 0) {
@@ -1356,7 +1463,7 @@ export class Game {
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
 
     this.missionIntroOverlay.update({
-      isVisible: this.missionIntroActive,
+      isVisible: this.missionIntroActive && !cinematicActive,
       sectorName: sector.name,
       objectiveText: objective.text,
       countdownLabel: this.getMissionIntroCountdownLabel()
@@ -1953,6 +2060,7 @@ export class Game {
     const eventWave = this.eventWaveDirector.getSnapshot();
     const eventEffects = this.eventWaveDirector.getEffects();
     const settings = this.settings.getSnapshot();
+    const cinematic = this.cinematicDirector.getSnapshot();
 
     this.hud.update({
       score: this.score,
@@ -1985,6 +2093,7 @@ export class Game {
       tutorialActive: tutorial.isActive,
       tutorialStepLabel: tutorial.currentStep?.id ?? null,
       isPaused: this.isPaused,
+      cinematicActive: cinematic.isActive,
       shieldCharges: this.shieldCharges,
       shieldBroken: this.shieldBrokenTimer > 0,
       gameOverReason: this.gameOverReason,
@@ -2008,7 +2117,8 @@ export class Game {
       stats,
       upgrades: this.upgrades.getSnapshot(),
       newlyUnlockedSectorName: this.newlyUnlockedSectorName,
-      upgradePanelOpen: this.upgradePanelOpen
+      upgradePanelOpen: this.upgradePanelOpen,
+      cinematicActive: cinematic.isActive
     });
     this.titleOverlay.update({
       state: this.state,
@@ -2025,7 +2135,8 @@ export class Game {
       stats,
       challenge,
       upgrades: this.upgrades.getSnapshot(),
-      upgradePanelOpen: this.upgradePanelOpen
+      upgradePanelOpen: this.upgradePanelOpen,
+      cinematicActive: cinematic.isActive
     });
     this.upgradePanel.update({
       isOpen: this.upgradePanelOpen,
@@ -2060,6 +2171,7 @@ export class Game {
       settings,
       selectedIndex: this.settingsSelectionIndex
     });
+    this.cinematicLetterbox.update(cinematic);
     this.touchControls.update({
       state: this.state,
       overlaysOpen:
@@ -2096,6 +2208,19 @@ export class Game {
     this.shakenCameraPosition.add(this.screenShake.getOffset());
     this.camera.position.copy(this.shakenCameraPosition);
     this.camera.lookAt(0, 0, 0);
+  }
+
+  private applyCinematicCameraOverride(): void {
+    const override = this.cinematicDirector.getCameraOverride();
+
+    if (!override) {
+      return;
+    }
+
+    this.camera.position.copy(override.position);
+    this.camera.lookAt(override.lookAt);
+    this.camera.fov = override.fov;
+    this.camera.updateProjectionMatrix();
   }
 
   private applySettings(): void {
@@ -2180,6 +2305,7 @@ export class Game {
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
     const tutorial = this.tutorialDirector.getSnapshot();
     const settings = this.settings.getSnapshot();
+    const cinematic = this.cinematicDirector.getSnapshot();
 
     return {
       sceneId: 'orbit-janitor',
@@ -2209,6 +2335,9 @@ export class Game {
       helpOpen: this.helpOpen,
       settingsOpen: this.settingsOpen,
       missionIntroActive: this.missionIntroActive,
+      cinematicActive: cinematic.isActive,
+      cinematicPresetKey: cinematic.presetKey,
+      cinematicTitle: cinematic.title,
       reducedMotion: this.reducedMotion,
       settings,
       scrap: this.upgrades.getSnapshot().totalScrap,
@@ -2247,6 +2376,7 @@ export class Game {
     const objective = this.missionDirector.getObjective(this.runStats.getSnapshot());
     const tutorial = this.tutorialDirector.getSnapshot();
     const settings = this.settings.getSnapshot();
+    const cinematic = this.cinematicDirector.getSnapshot();
 
     this.canvas.dataset.sceneId = 'orbit-janitor';
     this.canvas.dataset.phase = this.state;
@@ -2279,6 +2409,9 @@ export class Game {
     this.canvas.dataset.helpOpen = String(this.helpOpen);
     this.canvas.dataset.settingsOpen = String(this.settingsOpen);
     this.canvas.dataset.missionIntroActive = String(this.missionIntroActive);
+    this.canvas.dataset.cinematicActive = String(cinematic.isActive);
+    this.canvas.dataset.cinematicPreset = cinematic.presetKey ?? '';
+    this.canvas.dataset.cinematicTitle = cinematic.title;
     this.canvas.dataset.reducedMotion = String(this.reducedMotion);
     this.canvas.dataset.screenShakeIntensity = settings.screenShakeIntensity;
     this.canvas.dataset.highContrastHazards = String(settings.highContrastHazards);

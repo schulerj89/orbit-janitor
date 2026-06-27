@@ -15,6 +15,7 @@ export interface InputState {
   seededStartPressed: boolean;
   restartPressed: boolean;
   escapePressed: boolean;
+  cinematicSkipPressed: boolean;
   pausePressed: boolean;
   helpTogglePressed: boolean;
   tutorialSkipPressed: boolean;
@@ -50,6 +51,7 @@ export class InputController {
     this.state.seededStartPressed = false;
     this.state.restartPressed = false;
     this.state.escapePressed = false;
+    this.state.cinematicSkipPressed = false;
     this.state.pausePressed = false;
     this.state.helpTogglePressed = false;
     this.state.tutorialSkipPressed = false;
@@ -108,12 +110,14 @@ export class InputController {
       this.state.boost = true;
       if (!event.repeat) {
         this.state.startPressed = true;
+        this.state.cinematicSkipPressed = true;
       }
       event.preventDefault();
     }
 
     if (event.code === 'Enter' && !event.repeat) {
       this.state.startPressed = true;
+      this.state.cinematicSkipPressed = true;
       event.preventDefault();
     }
 
@@ -133,6 +137,7 @@ export class InputController {
 
     if (event.code === 'Escape' && !event.repeat) {
       this.state.escapePressed = true;
+      this.state.cinematicSkipPressed = true;
       event.preventDefault();
     }
 
@@ -244,6 +249,7 @@ export function createNeutralInputState(): InputState {
     seededStartPressed: false,
     restartPressed: false,
     escapePressed: false,
+    cinematicSkipPressed: false,
     pausePressed: false,
     helpTogglePressed: false,
     tutorialSkipPressed: false,
@@ -279,6 +285,7 @@ export function mergeInputStates(...states: InputState[]): InputState {
     merged.seededStartPressed ||= state.seededStartPressed;
     merged.restartPressed ||= state.restartPressed;
     merged.escapePressed ||= state.escapePressed;
+    merged.cinematicSkipPressed ||= state.cinematicSkipPressed;
     merged.pausePressed ||= state.pausePressed;
     merged.helpTogglePressed ||= state.helpTogglePressed;
     merged.tutorialSkipPressed ||= state.tutorialSkipPressed;
