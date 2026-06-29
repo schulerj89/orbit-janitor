@@ -2772,7 +2772,20 @@ body {
     grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: 10px;
-    padding: 16px 12px;
+    padding: 16px 12px 112px;
+    background:
+      linear-gradient(
+        180deg,
+        rgb(5 15 26 / 64%),
+        rgb(5 15 26 / 34%) 42%,
+        rgb(5 15 26 / 70%)
+      ),
+      repeating-linear-gradient(
+        0deg,
+        rgb(143 232 255 / 0%),
+        rgb(143 232 255 / 0%) 11px,
+        rgb(143 232 255 / 6%) 12px
+      );
     overflow: hidden auto;
   }
 
@@ -2786,7 +2799,9 @@ body {
 
   .title-overlay-subtitle {
     max-width: 100%;
+    color: #f2fbff;
     font-size: 0.98rem;
+    text-shadow: 0 2px 14px rgb(0 0 0 / 78%);
   }
 
   .title-command-panel {
@@ -2794,14 +2809,57 @@ body {
     gap: 8px;
   }
 
+  .title-info-column {
+    display: none;
+  }
+
   .title-menu-column {
     gap: 6px;
     padding: 10px;
+    border-color: rgb(159 255 238 / 38%);
+    background: rgb(8 22 34 / 82%);
+    box-shadow:
+      0 18px 46px rgb(0 0 0 / 28%),
+      inset 0 1px 0 rgb(255 255 255 / 8%);
+  }
+
+  .title-panel-label {
+    color: #b8d5e8;
   }
 
   .main-menu-option {
     min-height: 34px;
     padding: 5px 8px;
+    color: #f3fbff;
+    background: rgb(15 32 47 / 74%);
+  }
+
+  .main-menu-option.is-selected {
+    border-color: rgb(255 224 107 / 82%);
+    background: linear-gradient(90deg, rgb(255 224 107 / 30%), rgb(20 38 48 / 84%));
+    box-shadow:
+      inset 4px 0 0 #ffe06b,
+      0 0 20px rgb(255 224 107 / 10%);
+  }
+
+  .main-menu-option-index,
+  .main-menu-option small {
+    color: #9fffee;
+  }
+
+  .main-menu-option strong {
+    color: #f8fcff;
+    text-shadow: 0 2px 10px rgb(0 0 0 / 50%);
+  }
+
+  .touch-control-start {
+    bottom: max(18px, env(safe-area-inset-bottom));
+    border-color: rgb(159 255 238 / 58%);
+    background: rgb(10 27 40 / 90%);
+    box-shadow:
+      0 14px 34px rgb(0 0 0 / 34%),
+      inset 0 1px 0 rgb(255 255 255 / 10%);
+    color: #ffffff;
   }
 
   .menu-preview-panel {
