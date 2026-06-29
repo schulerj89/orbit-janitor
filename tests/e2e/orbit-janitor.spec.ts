@@ -9,6 +9,7 @@ type DebugState = {
   isBoosting: boolean;
   runTime: number;
   experienceMode: 'full' | 'mobileLite';
+  mobileLiteOrbitDirection: -1 | 1;
   mobileLite: {
     isActive: boolean;
     bestScore: number;
@@ -212,6 +213,13 @@ test('starts Mobile Lite from the phone device gate', async ({ page }) => {
   await expect(page.locator('.mobile-lite-touch-controls')).toBeVisible();
 
   await waitForMissionIntro(page);
+  await expect(page.locator('[data-mobile-lite-action="reverse"]')).toBeVisible();
+  const directionBeforeReverse = (await getDebugState(page)).mobileLiteOrbitDirection;
+  await page.locator('[data-mobile-lite-action="reverse"]').click();
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.mobileLiteOrbitDirection))
+    .toBe(directionBeforeReverse > 0 ? -1 : 1);
+
   const angleBefore = (await getDebugState(page)).playerAngle;
   await page.waitForTimeout(350);
   const angleAfter = (await getDebugState(page)).playerAngle;

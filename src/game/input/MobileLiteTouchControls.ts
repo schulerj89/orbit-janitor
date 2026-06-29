@@ -13,6 +13,7 @@ type MobileLiteTouchAction =
   | 'laneOut'
   | 'boost'
   | 'start'
+  | 'reverse'
   | 'previous'
   | 'next'
   | 'restart'
@@ -29,11 +30,14 @@ export class MobileLiteTouchControls {
     this.element.className = 'mobile-lite-touch-controls is-hidden';
     this.element.setAttribute('aria-label', 'Mobile Lite controls');
     this.element.innerHTML = `
-      <div class="mobile-lite-touch-lanes">
-        <button type="button" data-mobile-lite-action="laneIn" aria-label="Lane in">Lane In</button>
-        <button type="button" data-mobile-lite-action="laneOut" aria-label="Lane out">Lane Out</button>
+      <div class="mobile-lite-touch-gameplay-actions">
+        <div class="mobile-lite-touch-lanes">
+          <button type="button" data-mobile-lite-action="laneIn" aria-label="Lane in">Lane In</button>
+          <button type="button" data-mobile-lite-action="laneOut" aria-label="Lane out">Lane Out</button>
+        </div>
+        <button class="mobile-lite-touch-reverse" type="button" data-mobile-lite-action="reverse" aria-label="Reverse orbit direction">Reverse</button>
+        <button class="mobile-lite-touch-boost" type="button" data-mobile-lite-action="boost" aria-label="Boost">Boost</button>
       </div>
-      <button class="mobile-lite-touch-boost" type="button" data-mobile-lite-action="boost" aria-label="Boost">Boost</button>
       <button class="mobile-lite-touch-start" type="button" data-mobile-lite-action="start" aria-label="Start or restart">Start</button>
       <div class="mobile-lite-touch-end-actions">
         <button type="button" data-mobile-lite-action="previous" aria-label="Previous Mobile Lite sector">Back</button>
@@ -102,6 +106,7 @@ export class MobileLiteTouchControls {
     this.state.startPressed = false;
     this.state.restartPressed = false;
     this.state.sectorSelectPressed = false;
+    this.state.mobileLiteReversePressed = false;
     this.state.escapePressed = false;
     this.state.cinematicSkipPressed = false;
     this.state.menuSelectPressed = false;
@@ -132,6 +137,12 @@ export class MobileLiteTouchControls {
 
     if (action === 'boost') {
       this.state.boost = true;
+      return;
+    }
+
+    if (action === 'reverse') {
+      this.state.mobileLiteReversePressed = true;
+      this.state.cinematicSkipPressed = true;
       return;
     }
 

@@ -91,7 +91,7 @@ Touch and mobile:
 - Phone-like viewports show a Mobile Lite entry screen instead of the full desktop menu.
 - Mobile Lite is a simplified sector route from the phone device gate or device experience setting.
 - Landscape is recommended on phones.
-- Mobile Lite auto-orbits clockwise. Use Lane In, Lane Out, and Boost to dodge, collect, and finish the short objective: collect 20 junk or survive 75 seconds.
+- Mobile Lite auto-orbits clockwise. Use Lane In, Lane Out, Reverse, and Boost to dodge, collect, and finish the short objective: collect 20 junk or survive 75 seconds.
 - After a Mobile Lite mission, Back and Next move through Lite versions of the sector list; Replay retries the current Lite sector and Title returns to the phone-focused title screen.
 - Mobile Lite has larger hazard warning windows, a two-satellite cap, no event waves, and a limited powerup pool.
 - On narrow or coarse-pointer screens, full-game touch controls appear automatically after entering the full game.

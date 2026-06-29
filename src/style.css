@@ -2480,14 +2480,14 @@ body {
 
 .mobile-lite-touch-controls button {
   pointer-events: auto;
-  min-width: 92px;
-  min-height: 64px;
+  min-width: 72px;
+  min-height: 60px;
   border: 1px solid rgb(159 255 238 / 44%);
   border-radius: 10px;
   background: rgb(5 14 24 / 84%);
   color: #ffffff;
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
-  font-size: 0.88rem;
+  font-size: 0.78rem;
   font-weight: 900;
   text-shadow: 0 2px 12px rgb(0 0 0 / 85%);
   touch-action: none;
@@ -2504,19 +2504,31 @@ body {
   color: #ffe06b;
 }
 
-.mobile-lite-touch-lanes {
+.mobile-lite-touch-gameplay-actions {
   position: absolute;
   bottom: max(16px, env(safe-area-inset-bottom));
   left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
 }
 
+.mobile-lite-touch-lanes {
+  display: flex;
+  flex: 0 1 auto;
+  gap: 8px;
+}
+
+.mobile-lite-touch-lanes button {
+  min-width: 72px;
+}
+
+.mobile-lite-touch-reverse,
 .mobile-lite-touch-boost {
-  position: absolute;
-  right: max(12px, env(safe-area-inset-right));
-  bottom: max(16px, env(safe-area-inset-bottom));
-  min-width: 116px;
+  flex: 0 0 auto;
+  min-width: 84px;
 }
 
 .mobile-lite-touch-start {
@@ -2548,8 +2560,7 @@ body {
   font-size: 0.78rem;
 }
 
-.mobile-lite-touch-controls:not(.is-gameplay) .mobile-lite-touch-lanes,
-.mobile-lite-touch-controls:not(.is-gameplay) .mobile-lite-touch-boost,
+.mobile-lite-touch-controls:not(.is-gameplay) .mobile-lite-touch-gameplay-actions,
 .mobile-lite-touch-controls:not(.is-startable) .mobile-lite-touch-start,
 .mobile-lite-touch-controls:not(.is-endstate) .mobile-lite-touch-end-actions,
 .mobile-lite-touch-controls:not(.is-mission-complete)

@@ -28,7 +28,7 @@ export const MOBILE_LITE_SCRAP_MULTIPLIER = 0.5;
 export const MOBILE_LITE_MISSION_LABEL = 'Pocket Cleanup';
 
 const GUIDE_STEPS = [
-  'Tap Lane In/Out to dodge.',
+  'Tap Lane In/Out or Reverse to dodge.',
   'Hold Boost to catch junk.',
   'Orange warns. Red hurts.'
 ] as const;

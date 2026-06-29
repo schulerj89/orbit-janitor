@@ -200,6 +200,7 @@ interface OrbitJanitorDebugState {
   runLabel: string;
   runSeed: string;
   experienceMode: GameExperienceMode;
+  mobileLiteOrbitDirection: -1 | 1;
   mobileLite: MobileLiteSnapshot;
   dailyBestScore: number;
   sectorId: string;
@@ -362,6 +363,7 @@ export class Game {
   private ghostMarker!: GhostMarker;
   private state: GameState = 'title';
   private experienceMode: GameExperienceMode = 'full';
+  private mobileLiteOrbitDirection: -1 | 1 = 1;
   private score = 0;
   private comboCount = 0;
   private comboMultiplier = 1;
@@ -727,6 +729,7 @@ export class Game {
       consumedStartInput ||
       this.missionIntroActive;
     const inputPowerupEffects = this.powerupDirector.getEffects();
+    this.handleMobileLiteReverseInput(input, controlsLocked);
     const playerInput = this.getPlayerInput(input, controlsLocked);
     const wasBoosting = this.isBoosting;
     const isBoosting = this.updateBoost(
@@ -929,8 +932,8 @@ export class Game {
 
     return {
       ...input,
-      left: false,
-      right: true,
+      left: this.mobileLiteOrbitDirection < 0,
+      right: this.mobileLiteOrbitDirection > 0,
       leftPressed: false,
       rightPressed: false
     };
@@ -2667,6 +2670,7 @@ export class Game {
     }
 
     this.experienceMode = 'mobileLite';
+    this.mobileLiteOrbitDirection = 1;
     this.mobileLite.start();
     this.missionDirector.setSector(sectorId);
     this.selectedSectorId = sectorId;
@@ -2735,6 +2739,24 @@ export class Game {
     );
     this.updateHud(false);
     this.syncDebugAttributes();
+  }
+
+  private handleMobileLiteReverseInput(input: InputState, controlsLocked: boolean): void {
+    if (
+      !input.mobileLiteReversePressed ||
+      this.experienceMode !== 'mobileLite' ||
+      this.state !== 'playing' ||
+      controlsLocked
+    ) {
+      return;
+    }
+
+    this.mobileLiteOrbitDirection = this.mobileLiteOrbitDirection > 0 ? -1 : 1;
+    this.audio.playLaneSwitch();
+    this.floatingText.show(
+      this.mobileLiteOrbitDirection > 0 ? 'CLOCKWISE' : 'REVERSE',
+      'bonus'
+    );
   }
 
   private startMissionIntro(): void {
@@ -3867,6 +3889,7 @@ export class Game {
       input.startPressed ||
       input.tutorialStartPressed ||
       input.mobileLiteStartPressed ||
+      input.mobileLiteReversePressed ||
       input.sectorSelectPressed ||
       input.dailyStartPressed ||
       input.seededStartPressed ||
@@ -4397,6 +4420,7 @@ export class Game {
       runLabel: challenge.label,
       runSeed: challenge.seed,
       experienceMode: this.experienceMode,
+      mobileLiteOrbitDirection: this.mobileLiteOrbitDirection,
       mobileLite,
       dailyBestScore: challenge.dailyBestScore,
       sectorId: sector.id,
@@ -4493,6 +4517,7 @@ export class Game {
     this.canvas.dataset.runLabel = challenge.label;
     this.canvas.dataset.runSeed = challenge.seed;
     this.canvas.dataset.experienceMode = this.experienceMode;
+    this.canvas.dataset.mobileLiteOrbitDirection = String(this.mobileLiteOrbitDirection);
     this.canvas.dataset.mobileLiteBest = String(mobileLite.bestScore);
     this.canvas.dataset.mobileLiteGuide = mobileLite.guideText;
     this.canvas.dataset.mobileLiteGuideVisible = String(mobileLite.guideVisible);
