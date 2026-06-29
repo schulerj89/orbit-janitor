@@ -33,6 +33,7 @@ export interface TitleOverlaySnapshot extends Omit<
   lastUnlockedSectorName: string;
   cinematicPresetKey: CinematicPresetKey | null;
   showMobileLiteOption: boolean;
+  mobileLiteTitleOnly: boolean;
 }
 
 export class TitleOverlay {
@@ -133,16 +134,26 @@ export class TitleOverlay {
       const isSelected = index === selectedIndex;
       const isHiddenMobileLite =
         option.id === 'mobileLite' && !snapshot.showMobileLiteOption;
+      const isHiddenForPhoneLite =
+        snapshot.mobileLiteTitleOnly && option.id !== 'mobileLite';
+      const isHidden = isHiddenMobileLite || isHiddenForPhoneLite;
 
       row.classList.toggle('is-selected', isSelected);
       row.classList.toggle('is-disabled', Boolean(option.disabled));
-      row.classList.toggle('is-hidden', isHiddenMobileLite);
+      row.classList.toggle('is-hidden', isHidden);
       row.setAttribute('aria-selected', String(isSelected));
       row.setAttribute('aria-disabled', String(Boolean(option.disabled)));
-      row.setAttribute('aria-hidden', String(isHiddenMobileLite));
+      row.setAttribute('aria-hidden', String(isHidden));
     });
 
-    this.promptValue.classList.toggle('is-hidden', snapshot.menuInteracted);
+    this.overlay.classList.toggle('is-mobile-lite-title', snapshot.mobileLiteTitleOnly);
+    this.promptValue.textContent = snapshot.mobileLiteTitleOnly
+      ? 'Tap Start Mobile Lite'
+      : 'Press Enter / Space';
+    this.promptValue.classList.toggle(
+      'is-hidden',
+      snapshot.menuInteracted && !snapshot.mobileLiteTitleOnly
+    );
     this.previewEyebrowValue.textContent = preview.eyebrow;
     this.previewTitleValue.textContent = preview.title;
     this.previewBodyValue.textContent = preview.body;
@@ -152,9 +163,11 @@ export class TitleOverlay {
     this.audioValue.textContent = `Music ${snapshot.musicEnabled ? `${Math.round(snapshot.musicVolume * 100)}%` : 'Off'} / SFX ${snapshot.sfxEnabled ? 'On' : 'Off'}`;
     this.unlockedValue.textContent = snapshot.lastUnlockedSectorName;
     this.badgeValue.textContent = snapshot.titleBadgeLabel;
-    this.footerValue.textContent = snapshot.showMobileLiteOption
-      ? 'Arrows/W/S select | Enter/Space activate | L Mobile Lite | H help | A achievements | B contracts | Y shipyard | G gallery | M/N audio'
-      : 'Arrows/W/S select | Enter/Space activate | H help | A achievements | B contracts | Y shipyard | G gallery | M/N audio';
+    this.footerValue.textContent = snapshot.mobileLiteTitleOnly
+      ? 'Desktop is recommended for the full game. Landscape is best on phones.'
+      : snapshot.showMobileLiteOption
+        ? 'Arrows/W/S select | Enter/Space activate | L Mobile Lite | H help | A achievements | B contracts | Y shipyard | G gallery | M/N audio'
+        : 'Arrows/W/S select | Enter/Space activate | H help | A achievements | B contracts | Y shipyard | G gallery | M/N audio';
 
     this.setVisible(
       snapshot.state === 'title' &&

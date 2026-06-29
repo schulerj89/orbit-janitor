@@ -91,7 +91,9 @@ export class TouchControls {
       context.experienceMode !== 'mobileLite' &&
       (this.mode === 'on' || (this.mode === 'auto' && canAutoShow));
     const canShowGameplay = context.state === 'playing' && !context.overlaysOpen;
-    const canShowStart = context.state === 'title' || context.state === 'sectorSelect';
+    const canShowStart =
+      (context.state === 'title' || context.state === 'sectorSelect') &&
+      !context.overlaysOpen;
     const canShowEnd =
       context.state === 'missionComplete' || context.state === 'gameover';
 

@@ -88,10 +88,11 @@ Touch and mobile:
 
 - Orbit Janitor is optimized for desktop keyboard/gamepad.
 - Touch controls exist, but full mobile play is experimental because the complete game includes sectors, upgrades, shipyard, challenge boards, powerups, event waves, audio, cinematics, and multiple overlays.
-- Phone-like viewports show a desktop-optimized notice before entering the full game.
-- Mobile Lite is available as a simplified Pocket Cleanup mode from the phone device gate or device experience setting.
+- Phone-like viewports show a Mobile Lite entry screen instead of the full desktop menu.
+- Mobile Lite is a simplified sector route from the phone device gate or device experience setting.
 - Landscape is recommended on phones.
 - Mobile Lite auto-orbits clockwise. Use Lane In, Lane Out, and Boost to dodge, collect, and finish the short objective: collect 20 junk or survive 75 seconds.
+- After a Mobile Lite mission, Back and Next move through Lite versions of the sector list; Replay retries the current Lite sector and Title returns to the phone-focused title screen.
 - Mobile Lite has larger hazard warning windows, a two-satellite cap, no event waves, and a limited powerup pool.
 - On narrow or coarse-pointer screens, full-game touch controls appear automatically after entering the full game.
 - Touch controls can be forced on or off from Settings.
@@ -100,7 +101,7 @@ Touch and mobile:
 ## Feature List
 
 - Official title screen with keyboard/gamepad main menu, sector select, mission complete, pause, help, settings, upgrade, cosmetic gallery, game over, and run summary overlays.
-- Mobile Lite Pocket Cleanup mode for phone-like devices, with auto-orbit, large touch controls, reduced hazards, shorter missions, reduced scrap rewards, and a separate best score.
+- Mobile Lite sector route for phone-like devices, with auto-orbit, large touch controls, reduced hazards, shorter missions, reduced scrap rewards, Back/Next Lite sector navigation, and a separate best score.
 - Skippable real-time micro-cinematics for the official title reveal, sector world reveals, daily challenge launches, endless warnings, event warnings, mission complete fly-bys, medal ceremonies, ship unlocks, game over beats, and sector unlock reveals.
 - Structured sectors with score, junk collection, survival timer, hazard survival, tutorial, daily challenge, seeded run, and endless objectives.
 - Second sector pack with Graveyard Ring, Neon Belt, Frozen Relay, Reactor Grave, Junk Moon, and Long Orbit.

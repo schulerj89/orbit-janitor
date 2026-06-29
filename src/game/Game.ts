@@ -96,7 +96,6 @@ import {
   type MissionObjectiveSnapshot
 } from './systems/MissionDirector';
 import {
-  MOBILE_LITE_MISSION_LABEL,
   MOBILE_LITE_SCRAP_MULTIPLIER,
   MobileLiteMode,
   type GameExperienceMode,
@@ -449,8 +448,7 @@ export class Game {
     this.missionCompleteOverlay = new MissionCompleteOverlay(hudRoot);
     this.runSummary = new RunSummary(hudRoot);
     this.deviceGateOverlay = new DeviceGateOverlay(hudRoot, {
-      onSelect: (optionId) => this.activateDeviceGateOption(optionId),
-      onToggleDontShowAgain: () => this.toggleDeviceGateDontShowAgain()
+      onSelect: (optionId) => this.activateDeviceGateOption(optionId)
     });
     this.upgradePanel = new UpgradePanel(hudRoot);
     this.contractBoardOverlay = new ContractBoardOverlay(hudRoot);
@@ -971,9 +969,9 @@ export class Game {
   }
 
   private getMissionDisplayName(): string {
-    return this.experienceMode === 'mobileLite'
-      ? MOBILE_LITE_MISSION_LABEL
-      : this.missionDirector.getCurrentSector().name;
+    const sectorName = this.missionDirector.getCurrentSector().name;
+
+    return this.experienceMode === 'mobileLite' ? `${sectorName} Lite` : sectorName;
   }
 
   private updateDebugFps(delta: number): void {
@@ -1361,11 +1359,6 @@ export class Game {
       return true;
     }
 
-    if (input.deviceGateDontShowTogglePressed) {
-      this.toggleDeviceGateDontShowAgain();
-      return true;
-    }
-
     if (input.escapePressed) {
       this.closeDeviceGate(false);
       return true;
@@ -1386,11 +1379,6 @@ export class Game {
     this.audio.playUiSelect();
   }
 
-  private toggleDeviceGateDontShowAgain(): void {
-    this.deviceGateDontShowAgain = !this.deviceGateDontShowAgain;
-    this.audio.playUiSelect();
-  }
-
   private activateDeviceGateOption(optionId: DeviceGateOptionId): void {
     if (!this.deviceGateOpen) {
       return;
@@ -1399,10 +1387,7 @@ export class Game {
     if (optionId === 'mobileLite') {
       this.closeDeviceGate(true);
       this.startMobileLiteRun();
-      return;
     }
-
-    this.closeDeviceGate(optionId === 'continueFullGame');
   }
 
   private closeDeviceGate(allowPermanentDismissal: boolean): void {
@@ -2481,14 +2466,15 @@ export class Game {
     this.hazardNearMissArmed = false;
     this.runStats.recordSectorCompleted();
     this.syncRunStats();
+    const sector = this.missionDirector.getCurrentSector();
+
     this.runStats.complete(
       this.experienceMode === 'mobileLite'
-        ? 'Pocket Cleanup complete'
+        ? `${sector.name} Lite complete`
         : 'Mission complete',
       this.experienceMode !== 'mobileLite'
     );
     const finalStats = this.runStats.getSnapshot();
-    const sector = this.missionDirector.getCurrentSector();
     const objective = this.getCurrentObjective(finalStats);
 
     if (this.experienceMode === 'mobileLite') {
@@ -2531,7 +2517,7 @@ export class Game {
     this.queueRadio(
       'DISPATCH',
       this.experienceMode === 'mobileLite'
-        ? 'Pocket Cleanup complete. Short route, real work.'
+        ? `${sector.name} Lite complete. Short route, real work.`
         : this.missionDirector.getCurrentSector().radio.complete,
       `mission-complete-${this.radioRunId}`,
       4.4
@@ -2667,6 +2653,10 @@ export class Game {
   }
 
   private startMobileLiteRun(): void {
+    this.startMobileLiteSectorRun(this.getDefaultMobileLiteSectorId());
+  }
+
+  private startMobileLiteSectorRun(sectorId: string): void {
     if (
       this.state !== 'title' &&
       this.state !== 'sectorSelect' &&
@@ -2678,17 +2668,18 @@ export class Game {
 
     this.experienceMode = 'mobileLite';
     this.mobileLite.start();
-    this.missionDirector.setSector(DEFAULT_SECTOR_ID);
-    this.selectedSectorId = DEFAULT_SECTOR_ID;
+    this.missionDirector.setSector(sectorId);
+    this.selectedSectorId = sectorId;
     this.applyCurrentSectorTheme(true);
     const run = this.challengeMode.startNormalRun();
 
-    this.runRng = new SeededRandom(`mobile-lite-${run.seed}`);
+    this.runRng = new SeededRandom(`mobile-lite-${sectorId}-${run.seed}`);
     this.resetRunState();
     this.radioRunId += 1;
+    const sector = this.missionDirector.getCurrentSector();
     this.queueRadio(
       'DISPATCH',
-      'Pocket Cleanup loaded. Auto-orbit is on; dodge with lanes and boost when the junk gets cheeky.',
+      `${sector.name} Lite loaded. Auto-orbit is on; dodge with lanes and boost when the junk gets cheeky.`,
       `mobile-lite-intro-${this.radioRunId}`,
       4.4
     );
@@ -2705,14 +2696,14 @@ export class Game {
     this.settingsOpen = false;
     this.deviceGateOpen = false;
     this.audio.playUiStart();
-    this.music.startSectorMusic(DEFAULT_SECTOR_ID, 'calm');
+    this.music.startSectorMusic(sector.id, 'calm');
     this.updateHud(false);
     this.syncDebugAttributes();
   }
 
   private restart(): void {
     if (this.experienceMode === 'mobileLite') {
-      this.startMobileLiteRun();
+      this.startMobileLiteSectorRun(this.missionDirector.getCurrentSector().id);
       return;
     }
 
@@ -3517,6 +3508,22 @@ export class Game {
   }
 
   private handleTitleInput(input: InputState): boolean {
+    if (this.isMobileLiteTitleOnly()) {
+      if (input.menuUpPressed || input.menuDownPressed) {
+        this.ensureTitleMenuSelectionVisible();
+        this.titleMenuInteracted = true;
+        this.audio.playUiSelect();
+        return true;
+      }
+
+      if (input.startPressed || input.menuSelectPressed || input.mobileLiteStartPressed) {
+        this.startMobileLiteRun();
+        return true;
+      }
+
+      return false;
+    }
+
     if (input.sectorSelectPressed) {
       this.openSectorSelect();
       return true;
@@ -3581,11 +3588,26 @@ export class Game {
       return;
     }
 
-    this.titleMenuSelectedIndex = 0;
+    const firstVisibleIndex = MAIN_MENU_OPTIONS.findIndex((option) =>
+      this.isTitleMenuOptionVisible(option)
+    );
+
+    this.titleMenuSelectedIndex = Math.max(0, firstVisibleIndex);
   }
 
   private isTitleMenuOptionVisible(option: { id: MainMenuOptionId }): boolean {
+    if (this.isMobileLiteTitleOnly()) {
+      return option.id === 'mobileLite';
+    }
+
     return option.id !== 'mobileLite' || this.shouldShowMobileLiteTitleOption();
+  }
+
+  private isMobileLiteTitleOnly(): boolean {
+    const settings = this.settings.getSnapshot();
+    const profile = this.deviceProfile.getSnapshot(settings.deviceExperienceMode);
+
+    return profile.recommendedExperience === 'phone';
   }
 
   private shouldShowMobileLiteTitleOption(): boolean {
@@ -3731,6 +3753,11 @@ export class Game {
     }
 
     if (input.sectorSelectPressed) {
+      if (this.experienceMode === 'mobileLite') {
+        this.startMobileLiteSectorRun(this.getAdjacentMobileLiteSectorId(-1));
+        return true;
+      }
+
       this.openSectorSelect();
       return true;
     }
@@ -3742,7 +3769,7 @@ export class Game {
 
     if (input.startPressed) {
       if (this.experienceMode === 'mobileLite') {
-        this.startMobileLiteRun();
+        this.startMobileLiteSectorRun(this.getAdjacentMobileLiteSectorId(1));
         return true;
       }
 
@@ -3754,6 +3781,26 @@ export class Game {
     }
 
     return false;
+  }
+
+  private getDefaultMobileLiteSectorId(): string {
+    return DEFAULT_SECTOR_ID;
+  }
+
+  private getAdjacentMobileLiteSectorId(direction: number): string {
+    const sectorIds = this.getMobileLiteSectorIds();
+    const currentSectorId = this.missionDirector.getCurrentSector().id;
+    const currentIndex = Math.max(0, sectorIds.indexOf(currentSectorId));
+    const nextIndex =
+      (currentIndex + direction + sectorIds.length) % Math.max(1, sectorIds.length);
+
+    return sectorIds[nextIndex] ?? DEFAULT_SECTOR_ID;
+  }
+
+  private getMobileLiteSectorIds(): readonly string[] {
+    return SECTOR_CONFIGS.filter((sector) => !sector.isTutorial && !sector.isEndless).map(
+      (sector) => sector.id
+    );
   }
 
   private openSectorSelect(): void {
@@ -3919,8 +3966,10 @@ export class Game {
     const upgradeSnapshot = this.upgrades.getSnapshot();
     const usesTouchEndActions =
       this.experienceMode === 'mobileLite' ||
-      deviceProfile.recommendedExperience !== 'desktop';
+      deviceProfile.recommendedExperience !== 'desktop' ||
+      settings.touchControlsMode === 'on';
     const showMobileLiteTitleOption = this.shouldShowMobileLiteTitleOption();
+    const mobileLiteTitleOnly = this.isMobileLiteTitleOnly();
 
     if (this.state === 'title') {
       this.ensureTitleMenuSelectionVisible();
@@ -4001,7 +4050,8 @@ export class Game {
       achievementNames: this.lastAchievementUnlockNames,
       upgradePanelOpen: this.upgradePanelOpen,
       cinematicActive: cinematic.isActive,
-      usesTouchEndActions
+      usesTouchEndActions,
+      isMobileLite: this.experienceMode === 'mobileLite'
     });
     this.titleOverlay.update({
       state: this.state,
@@ -4037,7 +4087,8 @@ export class Game {
       musicVolume: this.music.getMusicVolume(),
       sfxEnabled: this.audio.isSfxEnabled(),
       cinematicPresetKey: cinematic.presetKey,
-      showMobileLiteOption: showMobileLiteTitleOption
+      showMobileLiteOption: showMobileLiteTitleOption,
+      mobileLiteTitleOnly
     });
     this.runSummary.update({
       state: this.state,
@@ -4054,8 +4105,7 @@ export class Game {
     this.deviceGateOverlay.update({
       isOpen: this.deviceGateOpen,
       profile: deviceProfile,
-      selectedOptionIndex: this.deviceGateSelectedIndex,
-      dontShowAgain: this.deviceGateDontShowAgain
+      selectedOptionIndex: this.deviceGateSelectedIndex
     });
     this.upgradePanel.update({
       isOpen: this.upgradePanelOpen,
@@ -4120,7 +4170,8 @@ export class Game {
       reducedMotion: this.reducedMotion
     });
     this.cinematicLetterbox.update(
-      this.state === 'title' && cinematic.presetKey === 'titleFlyIn'
+      this.deviceGateOpen ||
+        (this.state === 'title' && cinematic.presetKey === 'titleFlyIn')
         ? {
             ...cinematic,
             isActive: false,

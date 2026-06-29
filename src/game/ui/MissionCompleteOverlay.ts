@@ -19,6 +19,7 @@ export interface MissionCompleteOverlaySnapshot {
   upgradePanelOpen: boolean;
   cinematicActive: boolean;
   usesTouchEndActions: boolean;
+  isMobileLite: boolean;
 }
 
 export class MissionCompleteOverlay {
@@ -109,9 +110,11 @@ export class MissionCompleteOverlay {
       'is-complete',
       snapshot.newlyUnlockedSectorName !== null
     );
-    this.helpValue.textContent = snapshot.usesTouchEndActions
-      ? 'Tap Next for next sector | Replay retry | Title menu'
-      : 'Enter next sector | R replay | Escape title';
+    this.helpValue.textContent = snapshot.isMobileLite
+      ? 'Tap Back/Next for Lite sectors | Replay retry | Title menu'
+      : snapshot.usesTouchEndActions
+        ? 'Tap Next for next sector | Replay retry | Title menu'
+        : 'Enter next sector | R replay | Escape title';
     this.setVisible(
       snapshot.state === 'missionComplete' &&
         !snapshot.upgradePanelOpen &&

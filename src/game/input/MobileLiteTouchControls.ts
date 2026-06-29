@@ -13,6 +13,7 @@ type MobileLiteTouchAction =
   | 'laneOut'
   | 'boost'
   | 'start'
+  | 'previous'
   | 'next'
   | 'restart'
   | 'title';
@@ -35,7 +36,8 @@ export class MobileLiteTouchControls {
       <button class="mobile-lite-touch-boost" type="button" data-mobile-lite-action="boost" aria-label="Boost">Boost</button>
       <button class="mobile-lite-touch-start" type="button" data-mobile-lite-action="start" aria-label="Start or restart">Start</button>
       <div class="mobile-lite-touch-end-actions">
-        <button type="button" data-mobile-lite-action="next" aria-label="Next Mobile Lite run">Next</button>
+        <button type="button" data-mobile-lite-action="previous" aria-label="Previous Mobile Lite sector">Back</button>
+        <button type="button" data-mobile-lite-action="next" aria-label="Next Mobile Lite sector">Next</button>
         <button type="button" data-mobile-lite-action="restart" aria-label="Replay Mobile Lite">Replay</button>
         <button type="button" data-mobile-lite-action="title" aria-label="Return to title">Title</button>
       </div>
@@ -73,7 +75,7 @@ export class MobileLiteTouchControls {
     this.currentGameState = context.state;
     const isMobileLite = context.experienceMode === 'mobileLite';
     const canShowGameplay = context.state === 'playing' && !context.overlaysOpen;
-    const canShowStart = context.state === 'title';
+    const canShowStart = context.state === 'title' && !context.overlaysOpen;
     const canShowEnd =
       context.state === 'missionComplete' || context.state === 'gameover';
 
@@ -99,6 +101,7 @@ export class MobileLiteTouchControls {
     this.state.menuDownPressed = false;
     this.state.startPressed = false;
     this.state.restartPressed = false;
+    this.state.sectorSelectPressed = false;
     this.state.escapePressed = false;
     this.state.cinematicSkipPressed = false;
     this.state.menuSelectPressed = false;
@@ -135,6 +138,12 @@ export class MobileLiteTouchControls {
     if (action === 'next') {
       this.state.startPressed = true;
       this.state.menuSelectPressed = true;
+      this.state.cinematicSkipPressed = true;
+      return;
+    }
+
+    if (action === 'previous') {
+      this.state.sectorSelectPressed = true;
       this.state.cinematicSkipPressed = true;
       return;
     }

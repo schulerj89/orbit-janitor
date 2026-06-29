@@ -159,7 +159,7 @@ test('loads the title scene and exposes debug state', async ({ page }) => {
   expect(state.achievements.totalCount).toBeGreaterThanOrEqual(10);
 });
 
-test('shows device gate on phone-like viewport and allows continuing', async ({
+test('shows device gate on phone-like viewport and starts Mobile Lite', async ({
   page
 }) => {
   await page.setViewportSize({ width: 390, height: 760 });
@@ -173,16 +173,25 @@ test('shows device gate on phone-like viewport and allows continuing', async ({
   await expect(page.locator('[data-device-gate-overlay]')).toContainText(
     'optimized for desktop keyboard or gamepad'
   );
+  await expect(page.locator('[data-device-gate-overlay]')).toContainText(
+    'Start Mobile Lite'
+  );
+  await expect(page.locator('[data-device-gate-overlay]')).not.toContainText(
+    'Continue Full Game'
+  );
+  await expect(page.locator('[data-device-gate-overlay]')).not.toContainText(
+    'Up/Down choose'
+  );
 
   const gateState = await getDebugState(page);
   expect(gateState.deviceProfile.recommendedExperience).toBe('phone');
   expect(gateState.deviceProfile.shouldShowDeviceGate).toBe(true);
 
-  await page.keyboard.press('Enter');
+  await page.locator('[data-device-gate-option="mobileLite"]').click();
+  await expectPhase(page, 'playing');
   await expect
-    .poll(() => getDebugState(page).then((state) => state.deviceGateOpen))
-    .toBe(false);
-  expect((await getDebugState(page)).phase).toBe('title');
+    .poll(() => getDebugState(page).then((state) => state.experienceMode))
+    .toBe('mobileLite');
 });
 
 test('starts Mobile Lite from the phone device gate', async ({ page }) => {
@@ -194,8 +203,7 @@ test('starts Mobile Lite from the phone device gate', async ({ page }) => {
     .poll(() => getDebugState(page).then((state) => state.deviceGateOpen))
     .toBe(true);
 
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
+  await page.locator('[data-device-gate-option="mobileLite"]').click();
 
   await expectPhase(page, 'playing');
   await expect
@@ -222,8 +230,13 @@ test('starts Mobile Lite from the phone device gate', async ({ page }) => {
     'Press R to restart'
   );
   await expect(page.locator('[data-mobile-lite-action="next"]:visible')).toHaveCount(0);
+  await expect(page.locator('[data-mobile-lite-action="previous"]:visible')).toHaveCount(
+    0
+  );
   await page.locator('[data-mobile-lite-action="title"]').click();
   await expectPhase(page, 'title');
+  await expect(page.locator('.main-menu-option:visible')).toHaveCount(1);
+  await expect(page.locator('.main-menu-option:visible')).toContainText('Mobile Lite');
 });
 
 test('Mobile Lite mission complete exposes a touch Next button', async ({ page }) => {
@@ -253,21 +266,45 @@ test('Mobile Lite mission complete exposes a touch Next button', async ({ page }
   await expectPhase(page, 'missionComplete');
   await skipCinematic(page);
   await expect(page.locator('[data-mission-complete-overlay]')).toContainText(
-    'Tap Next for next sector'
+    'Tap Back/Next for Lite sectors'
   );
+  const firstLiteSectorId = (await getDebugState(page)).sectorId;
+  await expect(page.locator('[data-mobile-lite-action="previous"]')).toBeVisible();
   await expect(page.locator('[data-mobile-lite-action="next"]')).toBeVisible();
   await page.locator('[data-mobile-lite-action="next"]').click();
   await expectPhase(page, 'playing');
   await expect
     .poll(() => getDebugState(page).then((state) => state.experienceMode))
     .toBe('mobileLite');
+  const nextLiteSectorId = (await getDebugState(page)).sectorId;
+
+  expect(nextLiteSectorId).not.toBe(firstLiteSectorId);
+
+  await waitForMissionIntro(page);
+  await page.keyboard.press('F2');
+  await expectPhase(page, 'missionComplete');
+  await skipCinematic(page);
+  await page.locator('[data-mobile-lite-action="previous"]').click();
+  await expectPhase(page, 'playing');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.sectorId))
+    .toBe(firstLiteSectorId);
 });
 
-test('mobile touch end-state controls can advance a completed sector', async ({
+test('forced touch end-state controls can advance a completed sector', async ({
   page
 }) => {
-  await page.setViewportSize({ width: 430, height: 932 });
+  await page.setViewportSize({ width: 900, height: 700 });
   await page.goto('/?skipDeviceGate=1');
+  await waitForGameReady(page);
+  await skipCinematic(page);
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      'orbit-janitor.settings',
+      JSON.stringify({ deviceExperienceMode: 'full', touchControlsMode: 'on' })
+    );
+  });
+  await page.reload();
   await waitForGameReady(page);
   await skipCinematic(page);
 
