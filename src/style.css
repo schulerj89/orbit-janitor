@@ -2547,7 +2547,7 @@ body {
   position: absolute;
   bottom: max(16px, env(safe-area-inset-bottom));
   left: 50%;
-  width: min(300px, calc(100vw - 24px));
+  width: min(360px, calc(100vw - 24px));
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -2556,15 +2556,16 @@ body {
 }
 
 .mobile-lite-touch-end-actions button {
-  flex: 1 1 118px;
-  min-width: 112px;
-  max-width: 144px;
+  flex: 1 1 96px;
+  min-width: 92px;
+  max-width: 124px;
 }
 
 .mobile-lite-touch-controls:not(.is-gameplay) .mobile-lite-touch-lanes,
 .mobile-lite-touch-controls:not(.is-gameplay) .mobile-lite-touch-boost,
 .mobile-lite-touch-controls:not(.is-startable) .mobile-lite-touch-start,
-.mobile-lite-touch-controls:not(.is-endstate) .mobile-lite-touch-end-actions {
+.mobile-lite-touch-controls:not(.is-endstate) .mobile-lite-touch-end-actions,
+.mobile-lite-touch-controls:not(.is-mission-complete) [data-mobile-lite-action='next'] {
   display: none;
 }
 

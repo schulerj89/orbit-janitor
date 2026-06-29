@@ -13,6 +13,7 @@ type MobileLiteTouchAction =
   | 'laneOut'
   | 'boost'
   | 'start'
+  | 'next'
   | 'restart'
   | 'title';
 const BLOCKED_GESTURE_EVENTS = ['contextmenu', 'selectstart', 'dragstart'] as const;
@@ -34,6 +35,7 @@ export class MobileLiteTouchControls {
       <button class="mobile-lite-touch-boost" type="button" data-mobile-lite-action="boost" aria-label="Boost">Boost</button>
       <button class="mobile-lite-touch-start" type="button" data-mobile-lite-action="start" aria-label="Start or restart">Start</button>
       <div class="mobile-lite-touch-end-actions">
+        <button type="button" data-mobile-lite-action="next" aria-label="Next Mobile Lite run">Next</button>
         <button type="button" data-mobile-lite-action="restart" aria-label="Replay Mobile Lite">Replay</button>
         <button type="button" data-mobile-lite-action="title" aria-label="Return to title">Title</button>
       </div>
@@ -82,6 +84,10 @@ export class MobileLiteTouchControls {
     this.element.classList.toggle('is-gameplay', canShowGameplay);
     this.element.classList.toggle('is-startable', canShowStart);
     this.element.classList.toggle('is-endstate', canShowEnd);
+    this.element.classList.toggle(
+      'is-mission-complete',
+      context.state === 'missionComplete'
+    );
   }
 
   consumeFrame(): InputState {
@@ -123,6 +129,13 @@ export class MobileLiteTouchControls {
 
     if (action === 'boost') {
       this.state.boost = true;
+      return;
+    }
+
+    if (action === 'next') {
+      this.state.startPressed = true;
+      this.state.menuSelectPressed = true;
+      this.state.cinematicSkipPressed = true;
       return;
     }
 

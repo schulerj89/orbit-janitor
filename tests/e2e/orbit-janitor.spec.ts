@@ -221,8 +221,46 @@ test('starts Mobile Lite from the phone device gate', async ({ page }) => {
   await expect(page.locator('[data-run-summary]')).not.toContainText(
     'Press R to restart'
   );
+  await expect(page.locator('[data-mobile-lite-action="next"]:visible')).toHaveCount(0);
   await page.locator('[data-mobile-lite-action="title"]').click();
   await expectPhase(page, 'title');
+});
+
+test('Mobile Lite mission complete exposes a touch Next button', async ({ page }) => {
+  await page.setViewportSize({ width: 430, height: 932 });
+  await page.goto('/?skipDeviceGate=1');
+  await waitForGameReady(page);
+  await skipCinematic(page);
+
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      'orbit-janitor.settings',
+      JSON.stringify({ deviceExperienceMode: 'mobileLite' })
+    );
+  });
+  await page.reload();
+  await waitForGameReady(page);
+  await skipCinematic(page);
+
+  await page.keyboard.press('Enter');
+  await expectPhase(page, 'playing');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.experienceMode))
+    .toBe('mobileLite');
+  await waitForMissionIntro(page);
+
+  await page.keyboard.press('F2');
+  await expectPhase(page, 'missionComplete');
+  await skipCinematic(page);
+  await expect(page.locator('[data-mission-complete-overlay]')).toContainText(
+    'Tap Next for next sector'
+  );
+  await expect(page.locator('[data-mobile-lite-action="next"]')).toBeVisible();
+  await page.locator('[data-mobile-lite-action="next"]').click();
+  await expectPhase(page, 'playing');
+  await expect
+    .poll(() => getDebugState(page).then((state) => state.experienceMode))
+    .toBe('mobileLite');
 });
 
 test('mobile touch end-state controls can advance a completed sector', async ({
