@@ -1,6 +1,7 @@
 import type { EventWaveType } from './EventWaveTypes';
 import type { HazardPatternType } from './HazardTypes';
 import type { SectorThemeId } from './SectorTheme';
+import type { PlanetAssetId } from '../entities/world-cores/PlanetAssetCatalog';
 import type { WorldCoreType } from '../entities/world-cores/WorldCore';
 
 export type SectorObjective =
@@ -71,6 +72,7 @@ export interface SectorConfig {
   id: string;
   themeId: SectorThemeId;
   worldCoreType: WorldCoreType;
+  planetAssetId?: PlanetAssetId;
   name: string;
   subtitle: string;
   description: string;
@@ -102,6 +104,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: TRAINING_SECTOR_ID,
     themeId: 'training-orbit',
     worldCoreType: 'planet',
+    planetAssetId: 'quaternius-planet-01',
     name: 'Training Orbit',
     subtitle: 'Flight check',
     description: 'A quiet orbit for practicing lane switches, pickups, and boost timing.',
@@ -145,6 +148,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: DEFAULT_SECTOR_ID,
     themeId: 'low-orbit-cleanup',
     worldCoreType: 'planet',
+    planetAssetId: 'quaternius-planet-02',
     name: 'Low Orbit Cleanup',
     subtitle: 'Standard route',
     description: 'Clean the core lanes while basic warning arcs test your timing.',
@@ -188,6 +192,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: 'debris-belt',
     themeId: 'debris-belt',
     worldCoreType: 'crackedPlanetoid',
+    planetAssetId: 'quaternius-planet-03',
     name: 'Debris Belt',
     subtitle: 'Dense salvage band',
     description: 'A busier orbit with heavier lane variation and more satellite traffic.',
@@ -231,6 +236,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: 'solar-storm',
     themeId: 'solar-storm',
     worldCoreType: 'solarReactor',
+    planetAssetId: 'quaternius-planet-04',
     name: 'Solar Storm',
     subtitle: 'Charged warning lanes',
     description: 'Survive a long storm cycle as lane hazards arrive more often.',
@@ -274,6 +280,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: 'night-side',
     themeId: 'night-side',
     worldCoreType: 'nightPlanet',
+    planetAssetId: 'quaternius-planet-05',
     name: 'Night Side',
     subtitle: 'Low light cleanup',
     description: 'Darker orbital work with clear telegraphs and faster hazard cadence.',
@@ -318,6 +325,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: 'comet-wake',
     themeId: 'comet-wake',
     worldCoreType: 'comet',
+    planetAssetId: 'quaternius-planet-06',
     name: 'Comet Wake',
     subtitle: 'Volatile trail',
     description: 'Survive late-pattern telegraphs in a fast-moving comet debris wake.',
@@ -361,6 +369,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: 'graveyard-ring',
     themeId: 'graveyard-ring',
     worldCoreType: 'crackedPlanetoid',
+    planetAssetId: 'quaternius-planet-07',
     name: 'Graveyard Ring',
     subtitle: 'Dead satellite halo',
     description:
@@ -409,6 +418,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: 'neon-belt',
     themeId: 'neon-belt',
     worldCoreType: 'orbitalGate',
+    planetAssetId: 'quaternius-planet-08',
     name: 'Neon Belt',
     subtitle: 'Arcade signal lane',
     description:
@@ -454,6 +464,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: 'frozen-relay',
     themeId: 'frozen-relay',
     worldCoreType: 'comet',
+    planetAssetId: 'quaternius-planet-09',
     name: 'Frozen Relay',
     subtitle: 'Icy powerup route',
     description:
@@ -499,6 +510,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: 'reactor-grave',
     themeId: 'reactor-grave',
     worldCoreType: 'solarReactor',
+    planetAssetId: 'quaternius-planet-10',
     name: 'Reactor Grave',
     subtitle: 'Burned-out flare core',
     description:
@@ -546,6 +558,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: 'junk-moon',
     themeId: 'junk-moon',
     worldCoreType: 'crackedPlanetoid',
+    planetAssetId: 'quaternius-planet-11',
     name: 'Junk Moon',
     subtitle: 'Scrap-rich orbit',
     description:
@@ -590,6 +603,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: 'long-orbit',
     themeId: 'long-orbit',
     worldCoreType: 'orbitalGate',
+    planetAssetId: 'quaternius-planet-01-long-orbit',
     name: 'Long Orbit',
     subtitle: 'Endurance sweep',
     description:
@@ -642,6 +656,7 @@ export const SECTOR_CONFIGS: readonly SectorConfig[] = [
     id: ENDLESS_SECTOR_ID,
     themeId: 'endless-cleanup',
     worldCoreType: 'orbitalGate',
+    planetAssetId: 'quaternius-planet-02-endless',
     name: 'Endless Cleanup',
     subtitle: 'Open route',
     description: 'A high-score route that keeps escalating as long as the ship survives.',

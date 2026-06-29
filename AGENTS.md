@@ -7,12 +7,12 @@ This repo is a small, highly iterable Vite + TypeScript + Three.js arcade game. 
 - Use TypeScript.
 - Do not change gameplay behavior unless the user explicitly asks for gameplay changes.
 - Do not add dependencies without explicit approval.
-- Do not introduce React, R3F, Drei, Phaser, Babylon, Cannon, Rapier, Ammo, GLTF, image textures, external asset CDNs, postprocessing, custom GLSL, or a physics engine.
-- Keep art and effects procedural. Audio must work through procedural fallbacks.
+- Do not introduce React, R3F, Drei, Phaser, Babylon, Cannon, Rapier, Ammo, external asset CDNs, postprocessing, custom GLSL, or a physics engine.
+- Keep art and effects procedural unless the user explicitly requests local assets. Current local model exception: CC0 planet GLBs under `public/models/planets/quaternius`, loaded through the local static-mesh GLB reader.
 - Audio files are allowed only when explicitly requested, must live under `public/audio`, must have provenance/credits, and must not require runtime API keys.
 - Keep using `WebGPURenderer` from `three/webgpu`.
 - Do not mix imports from `three` and `three/webgpu`; use `three/webgpu` consistently for Three.js imports.
-- Keep assets procedural unless explicitly asked.
+- Keep new assets procedural unless explicitly asked. Document license/provenance for every committed non-audio asset.
 - Use the Web Audio API directly for sound. Optional static audio files belong under `public/audio`.
 - Do not call ElevenLabs or other external audio services from browser code.
 - Do not commit or reference API keys in client code, docs, or manifests.
@@ -55,6 +55,7 @@ npm run build
 - `src/game/audio/AudioManager.ts` owns procedural Web Audio.
 - `src/game/audio/audioManifest.ts` maps optional static audio paths.
 - `public/audio/` is reserved for optional static audio files and credits.
+- `public/models/` contains explicitly requested local model assets and credits.
 - `src/game/ui/Hud.ts` owns HUD markup and state display.
 - `src/style.css` owns page, HUD, and overlay styling.
 

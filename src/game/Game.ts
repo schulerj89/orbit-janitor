@@ -55,6 +55,7 @@ import { PlayerShip } from './entities/PlayerShip';
 import { getPowerupColor, getPowerupTypes, type PowerupType } from './entities/Powerup';
 import { Starfield } from './entities/Starfield';
 import { createWorldCore } from './entities/world-cores/createWorldCore';
+import type { PlanetAssetId } from './entities/world-cores/PlanetAssetCatalog';
 import type { WorldCore, WorldCoreType } from './entities/world-cores/WorldCore';
 import {
   AchievementSystem,
@@ -205,6 +206,7 @@ interface OrbitJanitorDebugState {
   sectorId: string;
   sectorName: string;
   worldCoreType: WorldCoreType;
+  planetAssetId: PlanetAssetId | null;
   missionProgress: string;
   sectorProgress: SectorProgressSnapshot;
   tutorialActive: boolean;
@@ -405,6 +407,7 @@ export class Game {
   private titleMenuSelectedIndex = 0;
   private titleMenuInteracted = false;
   private currentWorldCoreType: WorldCoreType | null = null;
+  private currentWorldCoreAssetId: PlanetAssetId | null = null;
   private titleCinematicPlayed = false;
   private newlyUnlockedSectorName: string | null = null;
   private lastMissionMedalTier: MedalTier = 'none';
@@ -507,10 +510,14 @@ export class Game {
     this.directionalLight = new THREE.DirectionalLight(0xffffff, 2.6);
     this.directionalLight.position.set(4, 7, 5);
 
+    const initialSector = this.missionDirector.getCurrentSector();
+
     this.worldCore = createWorldCore(
-      this.missionDirector.getCurrentSector().worldCoreType
+      initialSector.worldCoreType,
+      initialSector.planetAssetId
     );
-    this.currentWorldCoreType = this.missionDirector.getCurrentSector().worldCoreType;
+    this.currentWorldCoreType = initialSector.worldCoreType;
+    this.currentWorldCoreAssetId = initialSector.planetAssetId ?? null;
     this.orbitLanes = new OrbitLanes();
     this.starfield = new Starfield();
     this.player = new PlayerShip(this.ships.getEquippedShipId());
@@ -4273,9 +4280,15 @@ export class Game {
   }
 
   private ensureWorldCoreForCurrentSector(): void {
-    const nextCoreType = this.missionDirector.getCurrentSector().worldCoreType;
+    const sector = this.missionDirector.getCurrentSector();
+    const nextCoreType = sector.worldCoreType;
+    const nextAssetId = sector.planetAssetId ?? null;
 
-    if (this.worldCore && this.currentWorldCoreType === nextCoreType) {
+    if (
+      this.worldCore &&
+      this.currentWorldCoreType === nextCoreType &&
+      this.currentWorldCoreAssetId === nextAssetId
+    ) {
       return;
     }
 
@@ -4284,8 +4297,9 @@ export class Game {
       this.worldCore.dispose?.();
     }
 
-    this.worldCore = createWorldCore(nextCoreType);
+    this.worldCore = createWorldCore(nextCoreType, sector.planetAssetId);
     this.currentWorldCoreType = nextCoreType;
+    this.currentWorldCoreAssetId = nextAssetId;
     this.scene.add(this.worldCore.group);
   }
 
@@ -4337,6 +4351,7 @@ export class Game {
       sectorId: sector.id,
       sectorName: sector.name,
       worldCoreType: sector.worldCoreType,
+      planetAssetId: sector.planetAssetId ?? null,
       missionProgress: objective.progressText,
       sectorProgress: this.sectorProgress.getSnapshot(),
       tutorialActive: tutorial.isActive,
@@ -4434,6 +4449,7 @@ export class Game {
     this.canvas.dataset.sectorId = sector.id;
     this.canvas.dataset.sectorName = sector.name;
     this.canvas.dataset.worldCoreType = sector.worldCoreType;
+    this.canvas.dataset.planetAsset = sector.planetAssetId ?? '';
     this.canvas.dataset.missionObjective = objective.text;
     this.canvas.dataset.missionProgress = objective.progressText;
     this.canvas.dataset.missionComplete = String(

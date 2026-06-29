@@ -38,6 +38,7 @@ export const WORLD_CORE_LABELS: Record<WorldCoreType, string> = {
 export function disposeWorldCoreGroup(group: THREE.Group): void {
   const geometries = new Set<THREE.BufferGeometry>();
   const materials = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>();
 
   group.traverse((object) => {
     const renderable = object as {
@@ -57,7 +58,35 @@ export function disposeWorldCoreGroup(group: THREE.Group): void {
   });
 
   geometries.forEach((geometry) => geometry.dispose());
-  materials.forEach((material) => material.dispose());
+  materials.forEach((material) => {
+    collectMaterialTextures(material).forEach((texture) => textures.add(texture));
+    material.dispose();
+  });
+  textures.forEach((texture) => texture.dispose());
+}
+
+function collectMaterialTextures(material: THREE.Material): THREE.Texture[] {
+  const textureKeys = [
+    'map',
+    'alphaMap',
+    'aoMap',
+    'bumpMap',
+    'displacementMap',
+    'emissiveMap',
+    'envMap',
+    'lightMap',
+    'metalnessMap',
+    'normalMap',
+    'roughnessMap'
+  ] as const;
+  const materialWithTextures = material as THREE.Material & {
+    [key: string]: THREE.Texture | null | undefined;
+  };
+
+  return textureKeys.flatMap((key) => {
+    const texture = materialWithTextures[key];
+    return texture ? [texture] : [];
+  });
 }
 
 export function lighten(color: number, amount: number): number {

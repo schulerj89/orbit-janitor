@@ -106,8 +106,8 @@ Touch and mobile:
 - Second sector pack with Graveyard Ring, Neon Belt, Frozen Relay, Reactor Grave, Junk Moon, and Long Orbit.
 - Persistent sector unlocks, sector medals, achievements, best score, daily best, scrap total, upgrades, cosmetic unlocks/equips, audio preferences, and accessibility settings.
 - Training Orbit tutorial with guided rotate, pickup, lane switch, boost, obstacle, and hazard-reading steps.
-- Three orbit lanes with smooth lane switching, readable ship direction, procedural world cores/lanes/stars/junk/satellites/hazards, and sector-specific visual themes.
-- Sector-specific centerpieces with procedural identity: habitat/cloud planet, cracked rubble planetoid, venting solar reactor, night world with city lights and auroras, icy comet plume, and a non-planet orbital gate.
+- Three orbit lanes with smooth lane switching, readable ship direction, sector-specific planet assets, procedural lanes/stars/junk/satellites/hazards, and sector-specific visual themes.
+- Sector-specific centerpieces use local CC0 planet GLBs from Quaternius when available, with procedural world cores as fallbacks while assets load or if files are missing.
 - Text-only radio comms for title onboarding, sector intros, tutorial steps, hazards, powerups, objective progress, event waves, mission completion, crashes, and sector unlocks.
 - Combo scoring, boost fuel, temporary powerups, upgrade effects, one-run shield support, near-miss feedback, mission intro countdown, and screen/camera feedback.
 - Contract Board with optional replay challenges, persistent completions, scrap rewards, and cosmetic or ship unlock rewards.
@@ -150,6 +150,12 @@ Committed static audio assets currently live under `public/audio/sfx` and `publi
 
 Audio files are allowed only when explicitly requested, must live under `public/audio`, must have provenance/credits, and must not require runtime API keys. Do not call ElevenLabs or any generation service from browser runtime, and never commit API keys or secret values.
 
+## 3D Model Asset Policy
+
+Committed planet GLB assets live under `public/models/planets/quaternius`. They are local CC0 copies from Quaternius' Ultimate Space Kit on Poly Pizza, with provenance documented in `public/models/PLANET_MODEL_CREDITS.md`.
+
+The game uses a small local static-mesh GLB reader instead of Three's `GLTFLoader`, so runtime Three.js imports remain from `three/webgpu`. Do not add more model assets unless explicitly requested, and document license/provenance for every committed model.
+
 ## GitHub Pages Deployment
 
 Production builds use the `/orbit-janitor/` Vite base path for GitHub Pages. Local development still runs from `/` with `npm run dev`.
@@ -169,8 +175,8 @@ Before a public release, confirm the deployed URL loads the canvas, starts from 
 - Vite, vanilla TypeScript, and Three.js.
 - `WebGPURenderer` from `three/webgpu`.
 - Do not mix imports from `three` and `three/webgpu`.
-- No React, R3F, Drei, Phaser, Babylon, physics engines, GLTF models, image textures, postprocessing, custom GLSL, or external asset CDNs.
-- Visual assets stay procedural unless explicitly requested.
+- No React, R3F, Drei, Phaser, Babylon, physics engines, postprocessing, custom GLSL, or external asset CDNs.
+- Visual assets stay procedural unless explicitly requested. The current exception is the committed local CC0 planet GLB set under `public/models`.
 - Static audio is allowed only under `public/audio` with documented provenance.
 - UI is plain HTML/CSS/TypeScript.
 - Runtime debug state is exposed on `window.orbitJanitorDebug` for smoke tests.
