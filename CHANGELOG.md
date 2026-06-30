@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 - 2026-06-29
+
+- Improved mission-complete next-sector routing so campaign flow continues to the next unlocked incomplete level before falling back to the default route.
+
 ## 0.1.1 - 2026-06-29
 
 - Fixed sector music intensity selection so the runtime uses `SectorConfig.musicIntensityHint` instead of theme defaults.

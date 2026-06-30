@@ -28,6 +28,9 @@ const STARTING_UNLOCKED_SECTORS = [
   DEFAULT_SECTOR_ID,
   ENDLESS_SECTOR_ID
 ] as const;
+const CAMPAIGN_SECTORS = SECTOR_CONFIGS.filter(
+  (sector) => !sector.isTutorial && !sector.isEndless
+);
 
 export class SectorProgress {
   private unlockedSectorIds = readStoredIds(
@@ -84,12 +87,8 @@ export class SectorProgress {
   }
 
   getDefaultSectorId(): string {
-    const nextIncompleteSector = SECTOR_CONFIGS.find(
-      (sector) =>
-        !sector.isTutorial &&
-        !sector.isEndless &&
-        this.isUnlocked(sector.id) &&
-        !this.isCompleted(sector.id)
+    const nextIncompleteSector = CAMPAIGN_SECTORS.find(
+      (sector) => this.isUnlocked(sector.id) && !this.isCompleted(sector.id)
     );
 
     if (nextIncompleteSector) {
@@ -100,6 +99,13 @@ export class SectorProgress {
   }
 
   getNextPlayableSectorId(currentSectorId: string): string {
+    const nextCampaignSector =
+      this.getNextUnlockedIncompleteCampaignSector(currentSectorId);
+
+    if (nextCampaignSector) {
+      return nextCampaignSector.id;
+    }
+
     const nextSectorId = getNextSectorId(currentSectorId);
 
     if (nextSectorId && this.isUnlocked(nextSectorId)) {
@@ -170,6 +176,29 @@ export class SectorProgress {
   private persist(): void {
     writeStoredIds(UNLOCKED_STORAGE_KEY, this.unlockedSectorIds);
     writeStoredIds(COMPLETED_STORAGE_KEY, this.completedSectorIds);
+  }
+
+  private getNextUnlockedIncompleteCampaignSector(
+    currentSectorId: string
+  ): SectorConfig | null {
+    const currentSectorIndex = CAMPAIGN_SECTORS.findIndex(
+      (sector) => sector.id === currentSectorId
+    );
+
+    if (currentSectorIndex < 0) {
+      return null;
+    }
+
+    for (let offset = 1; offset <= CAMPAIGN_SECTORS.length; offset += 1) {
+      const candidate =
+        CAMPAIGN_SECTORS[(currentSectorIndex + offset) % CAMPAIGN_SECTORS.length];
+
+      if (this.isUnlocked(candidate.id) && !this.isCompleted(candidate.id)) {
+        return candidate;
+      }
+    }
+
+    return null;
   }
 }
 
