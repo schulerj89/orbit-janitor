@@ -87,7 +87,7 @@ export class MissionDirector {
   }
 
   getMusicIntensityHint(): SectorMusicIntensityHint {
-    return this.getCurrentTheme().musicIntensityHint;
+    return this.currentSector.musicIntensityHint;
   }
 
   getObjective(stats: RunStatsSnapshot): MissionObjectiveSnapshot {

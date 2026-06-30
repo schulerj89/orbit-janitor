@@ -92,7 +92,11 @@ export class SectorProgress {
         !this.isCompleted(sector.id)
     );
 
-    return nextIncompleteSector?.id ?? DEFAULT_SECTOR_ID;
+    if (nextIncompleteSector) {
+      return nextIncompleteSector.id;
+    }
+
+    return this.isUnlocked(ENDLESS_SECTOR_ID) ? ENDLESS_SECTOR_ID : DEFAULT_SECTOR_ID;
   }
 
   getNextPlayableSectorId(currentSectorId: string): string {

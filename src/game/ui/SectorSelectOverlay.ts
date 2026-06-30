@@ -68,11 +68,11 @@ export class SectorSelectOverlay {
     row.classList.toggle('is-selected', sector.id === selectedSectorId);
     row.classList.toggle('is-locked', !sector.isUnlocked);
     row.classList.toggle('is-complete', sector.isCompleted);
-    row.innerHTML = `
-      <span>${sector.name}</span>
-      <strong>${sector.subtitle}</strong>
-      <small>${status}</small>
-    `;
+    row.append(
+      createTextElement('span', sector.name),
+      createTextElement('strong', sector.subtitle),
+      createTextElement('small', status)
+    );
 
     return row;
   }
@@ -100,6 +100,16 @@ function getDescription(sector: SectorProgressItem): string {
   }
 
   return `Locked until ${sector.unlocksAfterName ?? 'another sector'} is complete.`;
+}
+
+function createTextElement(
+  tagName: 'span' | 'strong' | 'small',
+  text: string
+): HTMLElement {
+  const element = document.createElement(tagName);
+  element.textContent = text;
+
+  return element;
 }
 
 function getElement(root: HTMLElement, selector: string): HTMLElement {
