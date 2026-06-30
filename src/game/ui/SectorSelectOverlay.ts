@@ -14,6 +14,8 @@ export class SectorSelectOverlay {
   private readonly overlay: HTMLElement;
   private readonly list: HTMLElement;
   private readonly description: HTMLElement;
+  private lastSelectedSectorId: string | null = null;
+  private wasVisible = false;
 
   constructor(root: HTMLElement) {
     root.insertAdjacentHTML(
@@ -21,7 +23,7 @@ export class SectorSelectOverlay {
       `
         <section class="sector-select-overlay is-hidden" data-sector-select-overlay aria-hidden="true">
           <h2 class="sector-select-title">Sector Select</h2>
-          <div class="sector-select-list" data-sector-select-list aria-label="Sectors"></div>
+          <div class="sector-select-list" data-sector-select-list aria-label="Sectors" role="listbox"></div>
           <p class="sector-select-description" data-sector-select-description></p>
           <p class="sector-select-help">Up/Down select | Enter start | Escape title</p>
         </section>
@@ -37,25 +39,37 @@ export class SectorSelectOverlay {
     const selectedSector =
       snapshot.sectors.find((sector) => sector.id === snapshot.selectedSectorId) ??
       snapshot.sectors[0];
+    const isVisible = snapshot.state === 'sectorSelect' && !snapshot.upgradePanelOpen;
+    const selectedSectorId = selectedSector?.id ?? null;
+    const shouldScrollSelected =
+      isVisible && (!this.wasVisible || selectedSectorId !== this.lastSelectedSectorId);
 
     this.list.replaceChildren(
       ...snapshot.sectors.map((sector) =>
-        this.createSectorRow(sector, selectedSector.id, snapshot.medals)
+        this.createSectorRow(sector, selectedSectorId, snapshot.medals)
       )
     );
     this.description.textContent = selectedSector
       ? getDescription(selectedSector)
       : 'No sectors available.';
-    this.setVisible(snapshot.state === 'sectorSelect' && !snapshot.upgradePanelOpen);
+    this.setVisible(isVisible);
+
+    if (shouldScrollSelected) {
+      this.scrollSelectedRowIntoView();
+    }
+
+    this.lastSelectedSectorId = selectedSectorId;
+    this.wasVisible = isVisible;
   }
 
   private createSectorRow(
     sector: SectorProgressItem,
-    selectedSectorId: string,
+    selectedSectorId: string | null,
     medals: MedalSnapshot
   ): HTMLElement {
     const row = document.createElement('div');
     const medal = getMedalLabel(getSectorMedal(sector, medals));
+    const isSelected = sector.id === selectedSectorId;
     const status = sector.isCompleted
       ? medal === 'None'
         ? 'Complete'
@@ -65,7 +79,12 @@ export class SectorSelectOverlay {
         : `Locked: clear ${sector.unlocksAfterName}`;
 
     row.className = 'sector-select-row';
-    row.classList.toggle('is-selected', sector.id === selectedSectorId);
+    row.dataset.sectorId = sector.id;
+    row.dataset.sectorSelected = String(isSelected);
+    row.setAttribute('role', 'option');
+    row.setAttribute('aria-selected', String(isSelected));
+    row.setAttribute('aria-disabled', String(!sector.isUnlocked));
+    row.classList.toggle('is-selected', isSelected);
     row.classList.toggle('is-locked', !sector.isUnlocked);
     row.classList.toggle('is-complete', sector.isCompleted);
     row.append(
@@ -80,6 +99,12 @@ export class SectorSelectOverlay {
   private setVisible(isVisible: boolean): void {
     this.overlay.classList.toggle('is-hidden', !isVisible);
     this.overlay.setAttribute('aria-hidden', String(!isVisible));
+  }
+
+  private scrollSelectedRowIntoView(): void {
+    this.list
+      .querySelector<HTMLElement>('[data-sector-selected="true"]')
+      ?.scrollIntoView({ block: 'nearest' });
   }
 }
 
